@@ -41,3 +41,14 @@ example
 # generated native folders
 /ios
 /android
+
+# local secrets and emulator logs
+.env
+*-debug.log
+
+# test artifacts
+e2e/screens/
+*.log
+firebase/tests/node_modules/
+functions/node_modules/
+functions/lib/

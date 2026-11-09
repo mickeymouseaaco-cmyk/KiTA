@@ -1,0 +1,14 @@
+{
+  "name": "together-rules-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "firebase emulators:exec --config ../../firebase.json --only firestore,storage --project demo-together \"node --import tsx --test rules.test.ts\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "firebase": "^12.0.0",
+    "firebase-tools": "15.35.0",
+    "tsx": "^4.20.0"
+  }
+}

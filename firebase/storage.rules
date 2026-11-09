@@ -1,0 +1,69 @@
+rules_version = '2';
+
+// Together: Cloud Storage rules.
+// Media lives at couples/{cid}/media/{ownerUid}/{mediaId}.{ext}
+// - Only the two members of the couple can read.
+// - Only the owner can upload (no overwrites) or delete.
+// - Size and type limits: photos are resized on device to <=1600px, and
+//   voice notes are capped at 5 minutes.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function members(cid) {
+      return firestore.get(/databases/(default)/documents/couples/$(cid)).data.members;
+    }
+    function mediaPath(cid, fileName) {
+      // "abc.jpg" and "abc_thumb.jpg" both belong to media record "abc".
+      return /databases/(default)/documents/couples/$(cid)/media/$(fileName.split('\\.')[0].split('_thumb')[0]);
+    }
+    function visibleToPartner(cid, fileName) {
+      return firestore.exists(mediaPath(cid, fileName))
+        && (!('hiddenUntil' in firestore.get(mediaPath(cid, fileName)).data)
+            || firestore.get(mediaPath(cid, fileName)).data.hiddenUntil <= request.time);
+    }
+
+    match /couples/{cid}/media/{ownerId}/{fileName} {
+      // Single files only (no listing). The partner can fetch a file once its
+      // Firestore record exists and isn't hidden (surprise media unlocks later).
+      allow get: if request.auth != null
+        && request.auth.uid in members(cid)
+        && (request.auth.uid == ownerId || visibleToPartner(cid, fileName));
+      allow list: if false;
+
+      allow create: if request.auth != null
+        && request.auth.uid == ownerId
+        && request.auth.uid in members(cid)
+        && (
+          (request.resource.contentType.matches('image/.*') && request.resource.size < 5 * 1024 * 1024)
+          || (request.resource.contentType.matches('audio/.*') && request.resource.size < 20 * 1024 * 1024)
+          || (request.resource.contentType.matches('video/.*') && request.resource.size < 100 * 1024 * 1024)
+        );
+
+      allow update: if false;
+      // The owner can always delete. The partner can delete view-once media
+      // (identified by its Firestore record) after opening it.
+      allow delete: if request.auth != null && (
+        request.auth.uid == ownerId
+        || (request.auth.uid in members(cid)
+            && firestore.exists(mediaPath(cid, fileName))
+            && firestore.get(mediaPath(cid, fileName)).data.visibility == 'viewOnce')
+      );
+    }
+
+    // Private files (voice check-ins, mood selfies, the media vault). Owner only, always.
+    match /users/{uid}/private/{fileName} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && (
+          (request.resource.contentType.matches('(audio|image)/.*') && request.resource.size < 20 * 1024 * 1024)
+          || (request.resource.contentType.matches('video/.*') && request.resource.size < 100 * 1024 * 1024)
+        );
+      allow update: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
