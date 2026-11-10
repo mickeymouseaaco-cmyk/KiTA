@@ -748,3 +748,37 @@ describe('one couple per person, and no couple can reach another', () => {
     );
   });
 });
+
+describe('profile pictures', () => {
+  test('only you and your current partner can see your photo', async () => {
+    await seedCouple();
+    await seedCouple('couple2', ['casey', 'drew']);
+    const path = `users/${A}/avatar/p1.jpg`;
+    await assertSucceeds(uploadBytes(ref(storage(A), path), new Uint8Array([1, 2, 3]), { contentType: 'image/jpeg' }));
+    await assertSucceeds(getBytes(ref(storage(A), path)));
+    await assertSucceeds(getBytes(ref(storage(B), path)));
+    await assertFails(getBytes(ref(storage('casey'), path)));
+    await assertFails(getBytes(ref(storage(EVE), path)));
+    // Partner cannot replace or delete it; nobody can upload into someone else's folder.
+    await assertFails(deleteObject(ref(storage(B), path)));
+    await assertFails(uploadBytes(ref(storage(B), `users/${A}/avatar/p2.jpg`), new Uint8Array([1]), { contentType: 'image/jpeg' }));
+    // After an unlink, the former partner can no longer see it.
+    await endCouple();
+    await assertFails(getBytes(ref(storage(B), path)));
+    await assertSucceeds(getBytes(ref(storage(A), path)));
+  });
+
+  test('photos must be small images', async () => {
+    await assertFails(uploadBytes(ref(storage(A), `users/${A}/avatar/x.txt`), new Uint8Array([1]), { contentType: 'text/plain' }));
+    await assertFails(uploadBytes(ref(storage(A), `users/${A}/avatar/big.jpg`), new Uint8Array(3 * 1024 * 1024), { contentType: 'image/jpeg' }));
+  });
+
+  test('each person sets only their own photo in the couple', async () => {
+    await seedCouple();
+    await assertSucceeds(updateDoc(doc(db(A), 'couples', CID), { [`avatars.${A}`]: 'p1' }));
+    await assertFails(updateDoc(doc(db(A), 'couples', CID), { [`avatars.${B}`]: 'p1' }));
+    await assertSucceeds(setDoc(doc(db(A), 'users', A), { displayName: 'Alex', coupleId: null }));
+    await assertSucceeds(updateDoc(doc(db(A), 'users', A), { avatarId: 'p1' }));
+    await assertFails(getDoc(doc(db(B), 'users', A))); // the profile itself stays private
+  });
+});

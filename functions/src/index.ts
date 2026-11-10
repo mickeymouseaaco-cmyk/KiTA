@@ -332,10 +332,11 @@ export const acceptInvite = onCall(async (req) => {
       throw new HttpsError('deadline-exceeded', 'That code has expired. Ask your partner for a new one.');
     }
 
-    const [mine, theirs, me] = await Promise.all([
+    const [mine, theirs, me, inviter] = await Promise.all([
       tx.get(db.doc(`memberships/${uid}`)),
       tx.get(db.doc(`memberships/${fromUid}`)),
       tx.get(db.doc(`users/${uid}`)),
+      tx.get(db.doc(`users/${fromUid}`)),
     ]);
     if (mine.exists) throw new HttpsError('failed-precondition', 'You’re already linked with someone. Unlink first to pair again.');
     if (theirs.exists) throw new HttpsError('failed-precondition', 'They’re already linked with someone.');
@@ -347,6 +348,7 @@ export const acceptInvite = onCall(async (req) => {
     tx.create(coupleRef, {
       members: [fromUid, uid],
       names: { [fromUid]: String(invite.fromName ?? 'Your partner').slice(0, 60), [uid]: myName },
+      avatars: avatarsOf({ [fromUid]: inviter.data(), [uid]: me.data() }),
       status: 'active',
       createdAt: now,
       createdBy: uid,
@@ -361,6 +363,13 @@ export const acceptInvite = onCall(async (req) => {
     return { coupleId: coupleRef.id };
   });
 });
+
+/** Each person's current profile picture id, for the couple doc. */
+function avatarsOf(users: Record<string, Record<string, unknown> | undefined>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [uid, u] of Object.entries(users)) if (typeof u?.avatarId === 'string' && u.avatarId) out[uid] = u.avatarId;
+  return out;
+}
 
 /**
  * End a couple: access stops for both at once (every rule requires status
@@ -425,6 +434,7 @@ export const requestReconnect = onCall(async (req) => {
     const members = c.members as string[];
     const mems = await Promise.all(members.map((u) => tx.get(db.doc(`memberships/${u}`))));
     if (mems.some((m) => m.exists)) throw new HttpsError('failed-precondition', 'One of you is linked with someone else now.');
+    const profiles = await Promise.all(members.map((u) => tx.get(db.doc(`users/${u}`))));
 
     const asked = Array.from(new Set([...((c.reconnect as string[] | undefined) ?? []), uid]));
     if (!members.every((u) => asked.includes(u))) {
@@ -433,6 +443,7 @@ export const requestReconnect = onCall(async (req) => {
     }
     tx.update(ref, {
       status: 'active',
+      avatars: avatarsOf(Object.fromEntries(members.map((u, i) => [u, profiles[i].data()]))),
       reconnect: FieldValue.delete(),
       endedAt: FieldValue.delete(),
       endedBy: FieldValue.delete(),

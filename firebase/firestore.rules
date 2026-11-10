@@ -122,6 +122,11 @@ service cloud.firestore {
             && incoming().loveLanguages.diff(resource.data.get('loveLanguages', {})).affectedKeys().hasOnly([me()])
             && incoming().loveLanguages[me()] is list
             && incoming().loveLanguages[me()].size() <= 5
+          ) || (
+            // My profile picture id (or removing it). Only my own entry.
+            changed().hasOnly(['avatars'])
+            && incoming().avatars.diff(resource.data.get('avatars', {})).affectedKeys().hasOnly([me()])
+            && (!(me() in incoming().avatars) || (incoming().avatars[me()] is string && incoming().avatars[me()].size() <= 40))
           )
         );
 

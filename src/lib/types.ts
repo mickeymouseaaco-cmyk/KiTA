@@ -8,6 +8,8 @@ export type UserProfile = {
   coupleId: string | null;
   /** The couple I was in until an unlink, for a possible reconnect (server-written). */
   lastCoupleId?: string | null;
+  /** My profile picture: users/{uid}/avatar/{avatarId}.jpg. Only me and my partner can open it. */
+  avatarId?: string | null;
   notificationsPaused: boolean;
   /** Opt-in: transcribe my own voice notes so my partner can read them too. */
   transcribeVoice?: boolean;
@@ -118,6 +120,8 @@ export type Couple = {
   names: Record<Uid, string>;
   /** Each person's own love languages, most important first. Each edits only their own. */
   loveLanguages?: Record<Uid, LoveLanguage[]>;
+  /** Which profile picture each person shows; each edits only their own. */
+  avatars?: Record<Uid, string>;
   createdAt: Timestamp;
   createdBy: Uid;
   inviteCode: string;

@@ -1,14 +1,16 @@
 import { router } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
-import { ChevronRight, Eye, HardDrive, Lock, LogOut, Trash, Unlink } from 'lucide-react-native';
+import { Camera, ChevronRight, Eye, HardDrive, ImagePlus, Lock, LogOut, Trash, Unlink } from 'lucide-react-native';
 import { useState } from 'react';
 import { Platform, Pressable, TextInput, View } from 'react-native';
 
+import { Avatar } from '@/components/avatar';
 import { Sheet, useFeedback } from '@/components/feedback';
 import { PinSetup } from '@/components/overlays';
 import { Button, Card, Chip, Field, Gap, Row, Screen, SectionTitle, T, ToggleRow, useInputStyle } from '@/components/ui';
 import { deleteMyAccount } from '@/lib/account';
+import { pickAvatar, removeMyAvatar, setMyAvatar } from '@/lib/avatar';
 import { gentleError } from '@/lib/copy';
 import { auth, db } from '@/lib/firebase';
 import { useLock } from '@/lib/lock';
@@ -29,6 +31,33 @@ export default function Settings() {
   const [settingPin, setSettingPin] = useState(false);
   const [confirmUnpair, setConfirmUnpair] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState<'camera' | 'library' | null>(null);
+
+  async function changePhoto(source: 'camera' | 'library') {
+    if (!uid) return;
+    setPhotoBusy(source);
+    try {
+      const uri = await pickAvatar(source);
+      if (uri) {
+        await setMyAvatar({ uid, cid, uri, previousId: profile?.avatarId });
+        toast(status === 'paired' ? `Lovely. ${partnerName} will see your new photo.` : 'Lovely. Your photo is saved.');
+      }
+    } catch {
+      toast('That photo didn’t save. Let’s try again in a moment.');
+    } finally {
+      setPhotoBusy(null);
+    }
+  }
+
+  async function removePhoto() {
+    if (!uid) return;
+    try {
+      await removeMyAvatar({ uid, cid, previousId: profile?.avatarId });
+      toast('Photo removed.');
+    } catch {
+      toast(gentleError.save);
+    }
+  }
   const [password, setPassword] = useState('');
   const [deleting, setDeleting] = useState(false);
 
@@ -63,6 +92,21 @@ export default function Settings() {
     <Screen edges={['bottom']}>
       <SectionTitle>You</SectionTitle>
       <Card>
+        <Row gap={space.lg} style={{ marginBottom: space.lg }}>
+          <Avatar uid={uid} avatarId={profile?.avatarId} name={name || 'You'} size={84} />
+          <View style={{ flex: 1, gap: space.sm }}>
+            <Row gap={space.sm} style={{ flexWrap: 'wrap' }}>
+              {Platform.OS !== 'web' ? (
+                <Button testID="avatar-camera" small kind="soft" icon={Camera} label="Take photo" loading={photoBusy === 'camera'} onPress={() => changePhoto('camera')} />
+              ) : null}
+              <Button testID="avatar-library" small kind="soft" icon={ImagePlus} label="Choose photo" loading={photoBusy === 'library'} onPress={() => changePhoto('library')} />
+            </Row>
+            {profile?.avatarId ? <Button testID="avatar-remove" small kind="ghost" label="Remove photo" onPress={removePhoto} /> : null}
+          </View>
+        </Row>
+        <T variant="small" muted style={{ marginBottom: space.md }}>
+          {status === 'paired' ? `Only you and ${partnerName} can see your photo. It’s never public.` : 'Only you, and the partner you pair with, can see your photo. It’s never public.'}
+        </T>
         <Field label="Your name" helper={status === 'paired' ? `This is how ${partnerName} sees you.` : undefined}>
           <TextInput value={name} onChangeText={setName} onBlur={saveName} onSubmitEditing={saveName} maxLength={60} style={input} />
         </Field>

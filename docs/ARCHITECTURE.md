@@ -169,6 +169,7 @@ All timestamps are Firestore `Timestamp`s. All `date` keys are local
 | displayName | string | |
 | coupleId | string \| null | server-written on acceptance, cleared on unlink |
 | lastCoupleId | string? | server-written on unlink, for a 30-day reconnect |
+| avatarId | string? | profile picture at `users/{uid}/avatar/{id}.jpg`; readable by the owner and their current partner only |
 | notificationsPaused | boolean | the one-tap pause; Cloud Function respects it |
 | pushTokens | string[] | Expo push tokens |
 | stepGoal | number | default 8000, gentle and editable |
@@ -203,7 +204,7 @@ week after they expire.
 ### `couples/{cid}`: **Couple**
 `{ members: [uidA, uidB], names: { uid: name }, loveLanguages?, status:
 'active'|'ended', createdAt, createdBy, inviteCode, endedAt?, endedBy?,
-purgeAfter?, reconnect?: uid[] }`. Created only by `acceptInvite`; `members`
+purgeAfter?, reconnect?: uid[], avatars?: { uid: avatarId } }`. `avatars` is copied from each profile on pairing and reconnect; each person updates only their own entry. Created only by `acceptInvite`; `members`
 never change. Each person may edit only their own `names` / `loveLanguages`
 entry. Members can read the couple doc even when ended (for the reconnect
 card); nothing under it.

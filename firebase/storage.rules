@@ -55,6 +55,25 @@ service firebase.storage {
         );
     }
 
+    // Profile pictures: the owner, and their partner while they share an active
+    // couple (both memberships exist and point at the same couple).
+    function sameCouple(uid) {
+      let mine = /databases/(default)/documents/memberships/$(request.auth.uid);
+      let theirs = /databases/(default)/documents/memberships/$(uid);
+      return firestore.exists(mine) && firestore.exists(theirs)
+        && firestore.get(mine).data.coupleId == firestore.get(theirs).data.coupleId;
+    }
+    match /users/{uid}/avatar/{fileName} {
+      allow get: if request.auth != null && (request.auth.uid == uid || sameCouple(uid));
+      allow list: if false;
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size < 2 * 1024 * 1024;
+      allow update: if false;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
     // Private files (voice check-ins, mood selfies, the media vault). Owner only, always.
     match /users/{uid}/private/{fileName} {
       allow get, delete: if request.auth != null && request.auth.uid == uid;

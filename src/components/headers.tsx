@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
 import { Bell, BellOff, Settings } from 'lucide-react-native';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { gentleError } from '@/lib/copy';
 import { setNotificationsPaused } from '@/lib/notifications';
 import { useSession } from '@/lib/session';
 import { space } from '@/theme';
 
+import { CoupleAvatars } from './avatar';
 import { useFeedback } from './feedback';
 import { IconButton, Row, Segmented, T } from './ui';
 
@@ -28,6 +29,15 @@ export function TopBar({ title, subtitle }: { title: string; subtitle?: string }
         </T>
       </View>
       <Row gap={space.sm}>
+        <Pressable
+          testID="open-profile"
+          accessibilityRole="button"
+          accessibilityLabel="Your profile and photo"
+          onPress={() => router.push('/settings')}
+          hitSlop={6}
+          style={{ minHeight: 44, justifyContent: 'center' }}>
+          <CoupleAvatars size={34} />
+        </Pressable>
         <IconButton
           testID="pause-notifications"
           icon={paused ? BellOff : Bell}
