@@ -9,7 +9,7 @@
  */
 import { router } from 'expo-router';
 import { ArrowLeft, Hammer, Lock, RotateCcw, UserRoundPen, Volume2, VolumeX } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { type ComponentRef, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Keyboard, Platform, Pressable, Text, TextInput, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Ellipse, Path, Polygon, Rect } from 'react-native-svg';
 
@@ -122,7 +122,7 @@ export default function StressSmash() {
   const busyRef = useRef(false);
   const bonusRef = useRef(0);
   const mutedRef = useRef(muted);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<ComponentRef<typeof TextInput>>(null);
 
   const [swing] = useState(() => new Animated.Value(REST));
   const [squash] = useState(() => new Animated.Value(0));
@@ -289,7 +289,7 @@ export default function StressSmash() {
 
   const scale = stageW ? Math.min(1.45, stageW / SCENE_W) : 1;
   const stageH = Math.round(SCENE_H * scale);
-  const deg = (v: Animated.Value | ReturnType<typeof Animated.add>) => v.interpolate({ inputRange: [-180, 180], outputRange: ['-180deg', '180deg'] });
+  const DEG = { inputRange: [-180, 180], outputRange: ['-180deg', '180deg'] };
 
   const wordOpacity = wordV.interpolate({ inputRange: [0, 0.12, 0.75, 1], outputRange: [0, 1, 1, 0] });
   const wordScale = reduced ? 1 : wordV.interpolate({ inputRange: [0, 0.18, 0.32, 1], outputRange: [0.3, 1.25, 1, 1.06] });
@@ -388,7 +388,7 @@ export default function StressSmash() {
                 height: DUMMY.h * 2,
                 pointerEvents: 'box-none',
                 transform: [
-                  { rotate: deg(Animated.add(wobble, sway)) },
+                  { rotate: Animated.add(wobble, sway).interpolate(DEG) },
                   { scaleX: squash.interpolate({ inputRange: [0, 1], outputRange: [1, 1.3] }) },
                   { scaleY: squash.interpolate({ inputRange: [0, 1], outputRange: [1, 0.62] }) },
                 ],
@@ -435,7 +435,7 @@ export default function StressSmash() {
                 width: HS * 2,
                 height: HS * 2,
                 pointerEvents: 'none',
-                transform: [{ rotate: deg(swing) }],
+                transform: [{ rotate: swing.interpolate(DEG) }],
               }}>
               <HammerArt />
             </Animated.View>
