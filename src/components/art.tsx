@@ -53,7 +53,8 @@ export function Blob({ size = 96, children }: { size?: number; children?: ReactN
         <Circle cx="84" cy="18" r="6" fill={c.heartSoft} />
         <Circle cx="14" cy="80" r="4" fill={c.butter} />
       </Svg>
-      {children}
+      {/* Above the blob: positioned shapes paint over plain content on the web. */}
+      <View style={{ position: 'relative', zIndex: 1 }}>{children}</View>
     </View>
   );
 }
