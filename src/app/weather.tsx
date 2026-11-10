@@ -1,5 +1,5 @@
 /** Weather & flood watch for home: Shah Alam and Klang. Calm, clear, and honest about its sources. */
-import { CloudRain, ExternalLink, HeartHandshake, Phone, RefreshCw, ShieldCheck, Waves } from 'lucide-react-native';
+import { AtSign, CloudRain, ExternalLink, HeartHandshake, Phone, RefreshCw, ShieldCheck, Waves } from 'lucide-react-native';
 import { useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
 
@@ -15,6 +15,7 @@ import {
   rainRisk,
   riverLevel,
   stationsFor,
+  threadsSearchUrl,
   useFloodWatch,
   warningsFor,
   weatherWords,
@@ -145,6 +146,24 @@ export default function Weather() {
             );
           })
         )}
+      </Card>
+      <Gap />
+
+      <SectionTitle right={<AtSign color={c.textMuted} size={18} />}>What people are posting · Threads</SectionTitle>
+      <Card>
+        <T variant="small" muted>
+          {`Recent public posts about flooding around ${area.name}: photos of roads, water levels, closures. Opens in Threads.`}
+        </T>
+        <Gap h={space.md} />
+        <Row gap={space.sm} style={{ flexWrap: 'wrap' }}>
+          {area.threads.map((s) => (
+            <Button key={s.query} testID={`threads-${s.query}`} small kind="soft" icon={ExternalLink} label={s.label} onPress={() => open(threadsSearchUrl(s.query))} />
+          ))}
+        </Row>
+        <Gap h={space.sm} />
+        <T variant="small" muted>
+          Posts are from people, not the authorities, and can be old or wrong. Check the date, and trust MET and JPS first.
+        </T>
       </Card>
       <Gap />
 

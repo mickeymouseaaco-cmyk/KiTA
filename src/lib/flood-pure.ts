@@ -12,11 +12,45 @@
  */
 
 export type AreaId = 'shahalam' | 'klang';
-export type Area = { id: AreaId; name: string; lat: number; lon: number; districts: string[]; keywords: string[] };
+export type Area = {
+  id: AreaId;
+  name: string;
+  lat: number;
+  lon: number;
+  districts: string[];
+  keywords: string[];
+  /** Searches that open recent public posts on Threads about flooding here. */
+  threads: { label: string; query: string }[];
+};
 
 export const AREAS: Area[] = [
-  { id: 'shahalam', name: 'Shah Alam', lat: 3.0733, lon: 101.5185, districts: ['petaling', 'shah alam'], keywords: ['shah alam', 'petaling'] },
-  { id: 'klang', name: 'Klang', lat: 3.0449, lon: 101.4456, districts: ['klang'], keywords: ['klang'] },
+  {
+    id: 'shahalam',
+    name: 'i-City, Shah Alam',
+    // Forecast centred on i-City (Seksyen 7), a known flash-flood spot.
+    lat: 3.0647,
+    lon: 101.4847,
+    districts: ['petaling', 'shah alam'],
+    keywords: ['shah alam', 'petaling', 'i-city'],
+    threads: [
+      { label: 'Banjir i-City', query: 'banjir i-City' },
+      { label: 'i-City flood', query: 'i-City Shah Alam flood' },
+      { label: 'Banjir Shah Alam', query: 'banjir Shah Alam' },
+    ],
+  },
+  {
+    id: 'klang',
+    name: 'Klang',
+    lat: 3.0449,
+    lon: 101.4456,
+    districts: ['klang'],
+    keywords: ['klang'],
+    threads: [
+      { label: 'Banjir Klang', query: 'banjir Klang' },
+      { label: 'Klang flood', query: 'Klang flood' },
+      { label: 'Jalan ditutup Klang', query: 'jalan ditutup banjir Klang' },
+    ],
+  },
 ];
 
 export type FloodLevel = 'calm' | 'watch' | 'warning';
@@ -282,6 +316,11 @@ export const SAFETY_TIPS: Record<FloodLevel, string[]> = {
     'Call 999 in an emergency.',
   ],
 };
+
+/** A Threads web search link. On phones with Threads installed it opens in the app. */
+export function threadsSearchUrl(query: string): string {
+  return `https://www.threads.com/search?q=${encodeURIComponent(query)}&serp_type=default`;
+}
 
 export const SOURCE_LINKS = {
   jps: 'https://publicinfobanjir.water.gov.my/',

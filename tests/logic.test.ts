@@ -334,7 +334,7 @@ describe('weekend planner', () => {
   });
 });
 
-import { AREAS, floodStatus, isActive, isFresh, myTime, parseForecast, parseStations, rainRisk, riverLevel, warningsFor, weatherWords, worst, SAFETY_TIPS, LEVEL_LABEL, type Warning } from '../src/lib/flood-pure';
+import { AREAS, threadsSearchUrl, floodStatus, isActive, isFresh, myTime, parseForecast, parseStations, rainRisk, riverLevel, warningsFor, weatherWords, worst, SAFETY_TIPS, LEVEL_LABEL, type Warning } from '../src/lib/flood-pure';
 
 describe('weather & flood watch (Shah Alam, Klang)', () => {
   const shahAlam = AREAS[0];
@@ -399,5 +399,13 @@ describe('weather & flood watch (Shah Alam, Klang)', () => {
     const lines = [...Object.values(LEVEL_LABEL), ...SAFETY_TIPS.calm, ...SAFETY_TIPS.watch];
     for (const l of lines) assert.doesNotMatch(l, /failed|you should have|panic/i);
     assert.match(SAFETY_TIPS.warning.join(' '), /999/);
+  });
+});
+
+describe('Threads links for local flood posts', () => {
+  test('each area has Threads searches, and links are properly encoded', () => {
+    for (const a of AREAS) assert.ok(a.threads.length >= 2, a.name);
+    assert.ok(AREAS[0].threads.some((s) => /i-City/.test(s.query)));
+    assert.equal(threadsSearchUrl('banjir i-City'), 'https://www.threads.com/search?q=banjir%20i-City&serp_type=default');
   });
 });
