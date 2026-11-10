@@ -93,6 +93,20 @@ jobs:
           # The very first deploy turns on Google Cloud services, and some of
           # them need a minute or two before they accept functions. Retry then.
           deploy || { echo "Retrying in 90 seconds…"; sleep 90; deploy; } || { echo "Retrying in 180 seconds…"; sleep 180; deploy; }
+      - uses: google-github-actions/setup-gcloud@v3
+        if: steps.key.outputs.present == 'true'
+      - name: Let the app call its functions
+        if: steps.key.outputs.present == 'true'
+        # The app's callable functions must accept requests from the internet;
+        # each one checks the caller's Firebase sign-in itself (functions/src/index.ts).
+        # firebase deploy tries to set this but skips unchanged functions, so it's set here every time.
+        run: |
+          for svc in acceptinvite unlinkcouple requestreconnect deleteaccount; do
+            gcloud run services add-iam-policy-binding "$svc" \
+              --project "$PROJECT_ID" --region asia-southeast1 \
+              --member=allUsers --role=roles/run.invoker --quiet >/dev/null
+            echo "✔ $svc can be called by the app"
+          done
 
   live-check:
     name: 3 · Test the live project

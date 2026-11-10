@@ -19,8 +19,8 @@ Steps 2 and 3 need one secret, set once:
    **Generate new private key** → **Generate key**. A `.json` file downloads.
 2. Google Cloud console → **IAM** (project kita-4a2e1) → find
    `firebase-adminsdk-…@kita-4a2e1.iam.gserviceaccount.com` → ✏️ → **Add another
-   role** → **Editor** → **Save**. (Uploading functions needs more than the key's
-   default role.)
+   role** → **Editor**, then **Add another role** → **Cloud Run Admin** → **Save**.
+   (Editor uploads the functions; Cloud Run Admin lets the app call them.)
    Then, once, give Google's own services what the functions need (Editor can't
    grant roles): **IAM** → **Grant access**:
    - `service-210014850282@gcp-sa-pubsub.iam.gserviceaccount.com` → **Service Account Token Creator**
