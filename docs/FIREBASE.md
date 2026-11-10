@@ -25,6 +25,8 @@ Steps 2 and 3 need one secret, set once:
    grant roles): **IAM** → **Grant access**:
    - `service-210014850282@gcp-sa-pubsub.iam.gserviceaccount.com` → **Service Account Token Creator**
    - `210014850282-compute@developer.gserviceaccount.com` → **Cloud Run Invoker** and **Eventarc Event Receiver**
+   - `service-210014850282@gcp-sa-firebasestorage.iam.gserviceaccount.com` → **Firebase Rules Firestore Service Agent**
+     (Storage rules read the database to know who is a couple; without this, couple photos are refused.)
 3. GitHub → KiTA → **Settings** → **Secrets and variables** → **Actions** →
    **New repository secret**. Name: `FIREBASE_SERVICE_ACCOUNT`. Value: open the
    `.json` file in Notepad/TextEdit, copy all of it, paste. **Add secret**.
