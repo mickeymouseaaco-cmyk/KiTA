@@ -108,9 +108,9 @@ export function useFloodWatch() {
     };
   }, []);
 
-  const now = data?.fetchedAt ?? Date.now();
+  // Judged at the time the data was fetched, so rendering stays pure.
   const status = Object.fromEntries(
-    AREAS.map((a) => [a.id, data ? floodStatus(a, { days: data.forecast[a.id] ?? [], warnings: data.warnings, stations: data.stations }, now) : null]),
+    AREAS.map((a) => [a.id, data ? floodStatus(a, { days: data.forecast[a.id] ?? [], warnings: data.warnings, stations: data.stations }, data.fetchedAt) : null]),
   ) as Record<AreaId, FloodStatus | null>;
 
   return { data, status, loading, refresh };

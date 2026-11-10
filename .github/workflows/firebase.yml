@@ -26,8 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -35,7 +35,7 @@ jobs:
             package-lock.json
             functions/package-lock.json
             firebase/tests/package-lock.json
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
@@ -64,9 +64,9 @@ jobs:
             echo "present=false" >> "$GITHUB_OUTPUT"
             echo "::warning::FIREBASE_SERVICE_ACCOUNT is not set, so nothing was uploaded. See docs/FIREBASE.md, 'Automatic deploys'."
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: steps.key.outputs.present == 'true'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         if: steps.key.outputs.present == 'true'
         with:
           node-version: 22
@@ -76,7 +76,7 @@ jobs:
             firebase/tests/package-lock.json
       - if: steps.key.outputs.present == 'true'
         run: npm ci --prefix functions && npm ci --prefix firebase/tests
-      - uses: google-github-actions/auth@v2
+      - uses: google-github-actions/auth@v3
         if: steps.key.outputs.present == 'true'
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -99,8 +99,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm

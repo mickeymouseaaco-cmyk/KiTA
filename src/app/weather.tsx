@@ -39,10 +39,9 @@ export default function Weather() {
   const [sent, setSent] = useState<string | null>(null);
   const area = AREAS.find((a) => a.id === areaId)!;
   const st = status[areaId];
-  const now = data?.fetchedAt ?? Date.now();
   const days = data?.forecast[areaId] ?? [];
-  const { local, state } = data ? warningsFor(area, data.warnings, now) : { local: [], state: [] };
-  const rivers = data ? stationsFor(area, data.stations, now) : [];
+  const { local, state } = data ? warningsFor(area, data.warnings, data.fetchedAt) : { local: [], state: [] };
+  const rivers = data ? stationsFor(area, data.stations, data.fetchedAt) : [];
   const toneOn = { calm: c.onSage, watch: c.onButter, warning: c.onPeach }[st?.level ?? 'calm'];
 
   async function send(kind: 'safe' | 'ask') {
