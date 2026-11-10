@@ -185,9 +185,13 @@ export const looks: Record<LookName, Look> = {
 
 export type MotionLevel = 'off' | 'gentle' | 'lively';
 export type ModeName = 'auto' | 'light' | 'dark';
+export type TextSize = 'small' | 'default' | 'large' | 'xlarge';
 
-export type Appearance = { color: ColorName; look: LookName; motion: MotionLevel; mode: ModeName };
-export const DEFAULT_APPEARANCE: Appearance = { color: 'lavender', look: 'soft', motion: 'gentle', mode: 'auto' };
+/** How much bigger (or smaller) all text is, on top of the phone's own text size. */
+export const TEXT_SCALE: Record<TextSize, number> = { small: 0.9, default: 1, large: 1.15, xlarge: 1.3 };
+
+export type Appearance = { color: ColorName; look: LookName; motion: MotionLevel; mode: ModeName; text: TextSize };
+export const DEFAULT_APPEARANCE: Appearance = { color: 'lavender', look: 'soft', motion: 'gentle', mode: 'auto', text: 'default' };
 
 /** Anything unknown (an older or newer app version wrote it) falls back to the default. */
 export function cleanAppearance(raw: unknown): Appearance {
@@ -198,5 +202,6 @@ export function cleanAppearance(raw: unknown): Appearance {
     look: pick(r.look, Object.keys(looks) as LookName[], DEFAULT_APPEARANCE.look),
     motion: pick(r.motion, ['off', 'gentle', 'lively'] as const, DEFAULT_APPEARANCE.motion),
     mode: pick(r.mode, ['auto', 'light', 'dark'] as const, DEFAULT_APPEARANCE.mode),
+    text: pick(r.text, ['small', 'default', 'large', 'xlarge'] as const, DEFAULT_APPEARANCE.text),
   };
 }

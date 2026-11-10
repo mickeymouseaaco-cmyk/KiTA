@@ -15,6 +15,7 @@ import {
   type LookName,
   type ModeName,
   type MotionLevel,
+  type TextSize,
 } from '@/theme';
 
 const LOOK_LINE: Record<LookName, string> = {
@@ -183,6 +184,24 @@ export default function AppearanceScreen() {
         {motion === 'off' && appearance.motion !== 'off'
           ? 'Your phone’s “Reduce motion” setting is on, so animations stay off.'
           : MOTION_LINE[appearance.motion]}
+      </T>
+      <Gap />
+
+      <SectionTitle>Text size</SectionTitle>
+      <Segmented<TextSize>
+        value={appearance.text}
+        onChange={(v) => choose({ text: v })}
+        options={[
+          { value: 'small', label: 'A-' },
+          { value: 'default', label: 'A' },
+          { value: 'large', label: 'A+' },
+          { value: 'xlarge', label: 'A++' },
+        ]}
+      />
+      <Gap h={space.sm} />
+      <T variant="small" muted>
+        {{ small: 'Smaller text, more on screen.', default: 'The standard size.', large: 'Larger, easier to read.', xlarge: 'Largest, for easy reading.' }[appearance.text]}
+        {' '}Your phone&apos;s own text size still applies on top.
       </T>
       <Gap />
 

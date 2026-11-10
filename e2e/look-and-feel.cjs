@@ -159,7 +159,15 @@ async function main() {
   await afiq.getByText(/Last sync .* 8,412 steps/).waitFor({ timeout: 10000 });
   await shot(afiq, '07-steps-sync', true);
   await aina.goto(BASE + '/their-day');
-  await aina.getByText(/8,412/).first().waitFor({ timeout: 10000 });
+  try {
+    await aina.getByText(/8,412/).first().waitFor({ timeout: 10000 });
+  } catch (e) {
+    await shot(aina, 'dbg-aina-their-day');
+    console.log('DEBUG url', aina.url());
+    console.log('DEBUG text', (await aina.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 600));
+    throw e;
+  }
+  await shot(aina, '07-their-day-steps');
   log('A Shortcut call with “8,412” lands in Afiq’s day and Aina sees it');
 
   // 4b. Question of the day: Afiq answers, Aina is told, answers, and both appear.

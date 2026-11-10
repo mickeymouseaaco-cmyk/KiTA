@@ -83,6 +83,7 @@ function Navigator() {
         <Stack.Screen name="steps-sync" options={{ title: 'Steps from iPhone' }} />
         <Stack.Screen name="appearance" options={{ title: 'Look & feel' }} />
         <Stack.Screen name="question" options={{ title: 'Question of the day' }} />
+        <Stack.Screen name="notes-media" options={{ title: 'Photos, videos & voice' }} />
         <Stack.Screen name="log-mood" options={{ title: 'How are you?', presentation: 'modal' }} />
         <Stack.Screen name="vent" options={{ title: 'Vent', presentation: 'modal' }} />
         <Stack.Screen name="calm" options={{ title: 'Calm Corner' }} />

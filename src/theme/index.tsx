@@ -12,6 +12,7 @@ import {
   type Colors,
   type Look,
   type MotionLevel,
+  TEXT_SCALE,
 } from './tokens';
 
 export * from './tokens';
@@ -22,6 +23,8 @@ type Theme = {
   look: Look;
   /** Animations after the person's choice and the phone's "Reduce motion" setting. */
   motion: MotionLevel;
+  /** Text size multiplier from Look & feel → Text size. */
+  textScale: number;
   appearance: Appearance;
   setAppearance: (next: Partial<Appearance>) => void;
 };
@@ -33,6 +36,7 @@ const ThemeContext = createContext<Theme>({
   c: palette.light,
   look: looks.soft,
   motion: 'gentle',
+  textScale: 1,
   appearance: DEFAULT_APPEARANCE,
   setAppearance: () => {},
 });
@@ -73,6 +77,7 @@ export function TogetherThemeProvider({ children }: { children: ReactNode }) {
       c: colorsFor(appearance.color, dark),
       look: looks[appearance.look],
       motion: reduceMotion ? 'off' : appearance.motion,
+      textScale: TEXT_SCALE[appearance.text],
       appearance,
       setAppearance,
     };

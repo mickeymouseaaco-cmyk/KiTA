@@ -36,14 +36,16 @@ export function T({
   style,
   ...rest
 }: TextProps & { variant?: Variant; muted?: boolean; color?: string; center?: boolean }) {
-  const { c, look } = useTheme();
+  const { c, look, textScale } = useTheme();
   const heading = variant === 'display' || variant === 'title' || variant === 'heading';
+  const base = typeScale[variant];
   return (
     <Text
       maxFontSizeMultiplier={1.6}
       {...rest}
       style={[
-        typeScale[variant],
+        base,
+        textScale !== 1 && { fontSize: Math.round(base.fontSize * textScale), lineHeight: Math.round(base.lineHeight * textScale) },
         heading && { fontFamily: look.headingFont },
         heading && look.name === 'professional' && { letterSpacing: -0.2 },
         { color: color ?? (muted ? c.textMuted : c.text) },
@@ -482,9 +484,11 @@ export function Field({
 }
 
 export function useInputStyle(): TextStyle {
-  const { c, look } = useTheme();
+  const { c, look, textScale } = useTheme();
   return {
     ...typeScale.body,
+    fontSize: Math.round(typeScale.body.fontSize * textScale),
+    lineHeight: Math.round(typeScale.body.lineHeight * textScale),
     color: c.text,
     backgroundColor: c.surface,
     borderColor: look.outlined ? c.text : c.border,
