@@ -89,6 +89,7 @@ function Navigator() {
         <Stack.Screen name="log-mood" options={{ title: 'How are you?', presentation: 'modal' }} />
         <Stack.Screen name="vent" options={{ title: 'Vent', presentation: 'modal' }} />
         <Stack.Screen name="calm" options={{ title: 'Calm Corner' }} />
+        <Stack.Screen name="stress-smash" options={{ title: 'Stress Smash', headerShown: false }} />
         <Stack.Screen name="cycle" options={{ title: 'Cycle' }} />
         <Stack.Screen name="check-in" options={{ title: 'Evening check-in', presentation: 'modal' }} />
         <Stack.Screen name="gratitude" options={{ title: 'Gratitude Wall' }} />

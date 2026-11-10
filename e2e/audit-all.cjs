@@ -28,6 +28,7 @@ const ROUTES = [
   ['/check-in', 'check-in'],
   ['/vent', 'vent'],
   ['/calm', 'calm'],
+  ['/stress-smash', 'stress-smash'],
   ['/cycle', 'cycle'],
   ['/mood-calendar', 'mood-calendar'],
   ['/gratitude', 'gratitude'],

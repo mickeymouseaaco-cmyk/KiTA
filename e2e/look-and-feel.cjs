@@ -224,6 +224,65 @@ async function main() {
   await afiq.locator(tid('partner-not-sharing')).waitFor({ timeout: 15000 });
   log('Find my partner: both opt in and see each other; stopping removes it at once');
 
+  // 4b3. Stress Smash: type a name, LET IT OUT, replay, bonus bonk, someone else, back.
+  //      The name must never leave the page: no request carries it, nothing stores it.
+  const leaks = [];
+  const watchLeak = (r) => {
+    const body = r.postData() ?? '';
+    if (r.url().includes('Boss Ahmad') || r.url().includes('Boss%20Ahmad') || body.includes('Boss Ahmad')) leaks.push(r.url());
+  };
+  afiq.on('request', watchLeak);
+  await afiq.goto(BASE + '/together');
+  await afiq.locator(tid('open-stress-smash')).click();
+  await afiq.locator(tid('smash-name')).waitFor({ timeout: 15000 });
+  assert.equal((await afiq.locator(tid('smash-target')).innerText()).trim(), 'Mr. Stress');
+  await afiq.locator(tid('smash-name')).fill('Boss Ahmad');
+  assert.equal((await afiq.locator(tid('smash-target')).innerText()).trim(), 'Boss Ahmad');
+  await shot(afiq, '07e-smash-ready');
+  await afiq.locator(tid('smash-go')).click();
+  await afiq.waitForTimeout(560);
+  await afiq.screenshot({ path: path.join(OUT, '07f-smash-bonk.png') });
+  await afiq.waitForTimeout(1500);
+  await afiq.screenshot({ path: path.join(OUT, '07g-smash-bonk-later.png') });
+  await afiq.locator(tid('smash-cheer')).waitFor({ timeout: 15000 });
+  assert.equal((await afiq.locator(tid('smash-cheer')).innerText()).trim(), 'There you go! Feeling better? 😂');
+  await shot(afiq, '07h-smash-done');
+  await afiq.locator(tid('smash-replay')).click();
+  await afiq.getByText('Stress level: hopefully reduced!').waitFor({ timeout: 15000 });
+  await afiq.locator(tid('smash-dummy')).click(); // bonus bonk
+  await afiq.waitForTimeout(800);
+  await afiq.locator(tid('smash-mute')).click();
+  assert.equal(await afiq.locator(tid('smash-mute')).getAttribute('aria-label'), 'Sound off. Tap to turn on');
+  // Desktop size.
+  await afiq.setViewportSize({ width: 1280, height: 800 });
+  await afiq.locator(tid('smash-replay')).click();
+  await afiq.waitForTimeout(560);
+  await afiq.screenshot({ path: path.join(OUT, '07i-smash-desktop-bonk.png') });
+  await afiq.getByText('Deep breath. You’ve got this! ❤️').waitFor({ timeout: 15000 });
+  await shot(afiq, '07j-smash-desktop-done');
+  await afiq.setViewportSize(small.viewport);
+  // Someone else clears the name.
+  await afiq.locator(tid('smash-someone-else')).click();
+  assert.equal(await afiq.locator(tid('smash-name')).inputValue(), '');
+  assert.equal((await afiq.locator(tid('smash-target')).innerText()).trim(), 'Mr. Stress');
+  // Reduce motion: a still version that still finishes.
+  await afiq.emulateMedia({ reducedMotion: 'reduce' });
+  await afiq.goto(BASE + '/stress-smash');
+  await afiq.locator(tid('smash-name')).fill('Boss Ahmad');
+  await afiq.locator(tid('smash-go')).click();
+  await afiq.waitForTimeout(400);
+  await afiq.screenshot({ path: path.join(OUT, '07k-smash-reduced-motion.png') });
+  await afiq.locator(tid('smash-cheer')).waitFor({ timeout: 15000 });
+  await afiq.emulateMedia({ reducedMotion: 'no-preference' });
+  // Back goes to Together even when the page was opened directly.
+  await afiq.locator(tid('smash-back')).click();
+  await afiq.locator(tid('open-stress-smash')).waitFor({ timeout: 15000 });
+  const stored = await afiq.evaluate(() => JSON.stringify({ ...localStorage }) + JSON.stringify({ ...sessionStorage }));
+  assert.ok(!stored.includes('Boss Ahmad'), 'the name is not stored');
+  afiq.off('request', watchLeak);
+  assert.deepEqual(leaks, [], 'the name is never sent anywhere');
+  log('Stress Smash: bonks, replays, bonus bonk, mute, desktop, reduced motion; the name never leaves the page');
+
   // 4c. Installable: manifest, icons and the service worker are served.
   const manifest = await (await fetch(BASE + '/manifest.json')).json();
   assert.equal(manifest.name, 'KiTA');

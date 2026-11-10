@@ -6,6 +6,7 @@ import { describe, test } from 'node:test';
 import { QUICK_MESSAGES, empty, summaryLine } from '../src/lib/copy';
 import { dayKey, lastNDays } from '../src/lib/dates';
 import { projectDay } from '../src/lib/projection';
+import { CHEERS, DEFAULT_TARGET, NAME_MAX, cheerFor, nameSize, stressAfter, targetName } from '../src/lib/smash-pure';
 import { gentleAlert, isHighSteps, suggestionsFor } from '../src/lib/suggestions';
 import { DEFAULT_SHARE, type DailyLog } from '../src/lib/types';
 import { dayKeyIn, hashStepsToken, newStepsToken, parseSteps, syncDay } from '../functions/src/steps-pure';
@@ -546,4 +547,22 @@ describe('find my partner', () => {
     assert.match(l.google, /destination=3.0657,101.4846/);
     assert.match(osmEmbed(3.0657, 101.4846), /marker=3.0657,101.4846/);
   });
+});
+
+// ------------------------------------------------------------ Stress Smash
+
+test('Stress Smash: the name is tidied, kept short, or defaults to Mr. Stress', () => {
+  assert.equal(targetName('  Boss   Man  '), 'Boss Man');
+  assert.equal(targetName('   '), DEFAULT_TARGET);
+  assert.equal(targetName('x'.repeat(40)).length, NAME_MAX);
+  assert.ok(nameSize('Ali') > nameSize('A very long name here'));
+});
+
+test('Stress Smash: the meter drops to zero over the bonks, and replays get a new message', () => {
+  assert.deepEqual([0, 1, 2, 3, 4, 5].map((h) => stressAfter(h, 5)), [100, 80, 60, 40, 20, 0]);
+  assert.equal(stressAfter(9, 5), 0);
+  assert.equal(cheerFor(0), 'There you go! Feeling better? 😂');
+  assert.notEqual(cheerFor(0), cheerFor(1));
+  assert.equal(cheerFor(CHEERS.length), cheerFor(0));
+  assert.equal(cheerFor(-1), CHEERS[CHEERS.length - 1]);
 });
