@@ -70,7 +70,7 @@ async function main() {
   const browser = await chromium.launch();
   const errors = [];
   const mk = async (who, opts) => {
-    const ctx = await browser.newContext({ ...opts, colorScheme: 'light' });
+    const ctx = await browser.newContext({ ...opts, colorScheme: 'light', timezoneId: 'Asia/Kuala_Lumpur', locale: 'en-MY' });
     await ctx.route('https://api.open-meteo.com/**', (r) => r.fulfill({ json: {} }));
     await ctx.route('https://api.data.gov.my/**', (r) => r.fulfill({ json: [] }));
     const page = await ctx.newPage();

@@ -94,7 +94,7 @@ async function signUp(page, name) {
 async function main() {
   const browser = await chromium.launch();
   const mk = async (who, opts = phone, scheme = 'light', geo = { latitude: 3.0657, longitude: 101.4846 }) => {
-    const ctx = await browser.newContext({ ...opts, colorScheme: scheme, permissions: ['geolocation'], geolocation: { ...geo, accuracy: 25 } });
+    const ctx = await browser.newContext({ ...opts, colorScheme: scheme, timezoneId: 'Asia/Kuala_Lumpur', locale: 'en-MY', permissions: ['geolocation'], geolocation: { ...geo, accuracy: 25 } });
     mockWeather(ctx);
     ctx.route('https://nominatim.openstreetmap.org/**', (r) => {
       const lat = Number(new URL(r.request().url()).searchParams.get('lat'));
