@@ -104,7 +104,10 @@ export function SkyScene({ kind, level, color, size = 88 }: { kind: SkyKind; lev
   const sway = drift.interpolate({ inputRange: [0, 0.5, 1], outputRange: [-4, 4, -4] });
 
   return (
-    <View style={{ width: size + 24, height: size + 28, alignItems: 'center' }} accessible={false} importantForAccessibility="no-hide-descendants">
+    <View
+      style={{ width: size + 24, height: size + (level !== 'calm' ? 52 : 30), alignItems: 'center' }}
+      accessible={false}
+      importantForAccessibility="no-hide-descendants">
       <Animated.View
         style={{
           transform:
@@ -114,9 +117,9 @@ export function SkyScene({ kind, level, color, size = 88 }: { kind: SkyKind; lev
         <Icon color={color} size={size} strokeWidth={1.4} />
       </Animated.View>
       {drops ? (
-        <View style={{ position: 'absolute', top: size * 0.62, left: size * 0.22, width: size * 0.7, height: 34 }}>
+        <View style={{ position: 'absolute', top: size * 0.62, left: size * 0.22, width: size * 0.7, height: 30, overflow: 'hidden' }}>
           {Array.from({ length: drops }, (_, i) => (
-            <Drop key={i} x={(i * size * 0.7) / drops} delay={(i * 0.37) % 1} color={color} motion={motion} height={28} />
+            <Drop key={i} x={(i * size * 0.7) / drops} delay={(i * 0.37) % 1} color={color} motion={motion} height={22} />
           ))}
         </View>
       ) : null}
@@ -127,7 +130,7 @@ export function SkyScene({ kind, level, color, size = 88 }: { kind: SkyKind; lev
             bottom: 0,
             transform: [{ translateX: wave.interpolate({ inputRange: [0, 0.5, 1], outputRange: [-6, 6, -6] }) }],
           }}>
-          <Waves color={color} size={size * 0.5} strokeWidth={1.8} />
+          <Waves color={color} size={size * 0.42} strokeWidth={1.8} />
         </Animated.View>
       ) : null}
     </View>

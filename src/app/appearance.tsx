@@ -39,19 +39,19 @@ function Swatch({ name, selected, onPress }: { name: ColorName; selected: boolea
       accessibilityLabel={`${accents[name].label} colours`}
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={{ alignItems: 'center', gap: space.xs, width: 64 }}>
+      style={{ alignItems: 'center', gap: space.xs, width: 58 }}>
       <View
         style={{
-          width: 52,
-          height: 52,
-          borderRadius: 26,
+          width: 48,
+          height: 48,
+          borderRadius: 24,
           backgroundColor: sw.primarySoft,
           borderWidth: selected ? 3 : 1,
           borderColor: selected ? c.text : c.border,
           alignItems: 'center',
           justifyContent: 'center',
         }}>
-        <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: sw.primary, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: sw.primary, alignItems: 'center', justifyContent: 'center' }}>
           {selected ? <Check color={sw.onPrimary} size={18} strokeWidth={3} /> : null}
         </View>
       </View>
@@ -153,7 +153,7 @@ export default function AppearanceScreen() {
       <Gap />
 
       <SectionTitle>Colours</SectionTitle>
-      <Row accessibilityRole="radiogroup" gap={space.xs} style={{ flexWrap: 'wrap', justifyContent: 'space-between' }}>
+      <Row accessibilityRole="radiogroup" gap={0} style={{ justifyContent: 'space-between' }}>
         {(Object.keys(accents) as ColorName[]).map((n) => (
           <Swatch key={n} name={n} selected={appearance.color === n} onPress={() => choose({ color: n })} />
         ))}
