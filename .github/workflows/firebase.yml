@@ -80,12 +80,14 @@ jobs:
         if: steps.key.outputs.present == 'true'
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-      - name: Deploy Firestore, Storage and Functions
+      - name: Deploy Firestore and Storage rules
+        if: steps.key.outputs.present == 'true'
+        run: npx --prefix firebase/tests firebase deploy --only firestore,storage --project "$PROJECT_ID" --force --non-interactive
+      - name: Deploy Functions to Singapore
         if: steps.key.outputs.present == 'true'
         run: |
           deploy() {
-            npx --prefix firebase/tests firebase deploy \
-              --only firestore,storage,functions \
+            npx --prefix firebase/tests firebase deploy --only functions \
               --project "$PROJECT_ID" --force --non-interactive
           }
           # The very first deploy turns on Google Cloud services, and some of

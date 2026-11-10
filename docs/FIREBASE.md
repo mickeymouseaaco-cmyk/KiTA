@@ -21,6 +21,10 @@ Steps 2 and 3 need one secret, set once:
    `firebase-adminsdk-…@kita-4a2e1.iam.gserviceaccount.com` → ✏️ → **Add another
    role** → **Editor** → **Save**. (Uploading functions needs more than the key's
    default role.)
+   Then, once, give Google's own services what the functions need (Editor can't
+   grant roles): **IAM** → **Grant access**:
+   - `service-210014850282@gcp-sa-pubsub.iam.gserviceaccount.com` → **Service Account Token Creator**
+   - `210014850282-compute@developer.gserviceaccount.com` → **Cloud Run Invoker** and **Eventarc Event Receiver**
 3. GitHub → KiTA → **Settings** → **Secrets and variables** → **Actions** →
    **New repository secret**. Name: `FIREBASE_SERVICE_ACCOUNT`. Value: open the
    `.json` file in Notepad/TextEdit, copy all of it, paste. **Add secret**.
