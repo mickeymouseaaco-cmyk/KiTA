@@ -106,6 +106,8 @@ async function main() {
   await a.goto(BASE + '/log-steps');
   await a.locator(tid('steps-input')).fill('6400');
   await a.locator(tid('save-steps')).click();
+  await a.waitForTimeout(1500);
+  await a.goto(BASE + '/');
   await a.locator(tid('summary-line')).waitFor();
   await b.goto(BASE + '/notes');
   await b.locator(tid('note-input')).fill('Miss you already. Lunch tomorrow? ♡');
