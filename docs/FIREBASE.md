@@ -63,7 +63,9 @@ the same values go into **Vercel** (Settings → Environment Variables) and **EA
 |---|---|
 | `FIREBASE_SERVICE_ACCOUNT` | the service-account key (Automatic deploys, above). Only GitHub uses it; never put it in the app or in Vercel. |
 
-### The server functions: `functions/.env` (optional, copy from `functions/.env.example`)
+### The server functions: `functions/.env.kita-4a2e1`
+
+Committed, so every deploy (GitHub included) has them. Change a value there and push.
 
 | Parameter | Default | What it does |
 |---|---|---|
