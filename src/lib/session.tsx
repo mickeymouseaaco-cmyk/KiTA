@@ -3,20 +3,11 @@
  * Everything else in the app reads from here.
  */
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import {
-  collection,
-  doc,
-  onSnapshot,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  where,
-} from 'firebase/firestore';
+import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { auth, db, isFirebaseConfigured } from './firebase';
-import { DEFAULT_SHARE, type Couple, type Invite, type UserProfile } from './types';
+import { DEFAULT_SHARE, type Couple, type UserProfile } from './types';
 
 export type SessionStatus = 'loading' | 'unconfigured' | 'signedOut' | 'needsPair' | 'paired';
 
@@ -30,6 +21,17 @@ export type Session = {
   partnerId: string | null;
   partnerName: string;
   myName: string;
+  /** After an unlink, within 30 days: the couple you could reconnect with. */
+  ended: EndedCouple | null;
+};
+
+export type EndedCouple = {
+  cid: string;
+  partnerName: string;
+  /** When the shared space is deleted for good. */
+  purgeAfterMs: number;
+  iAsked: boolean;
+  theyAsked: boolean;
 };
 
 const SessionContext = createContext<Session | null>(null);
@@ -71,7 +73,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     );
   }, [user]);
 
-  // Our couple. If it disappears (my partner unpaired), clear my pointer gently.
+  // Our couple. If it ends or disappears (either of us unlinked), we're simply
+  // no longer paired; the server has already cleared both pointers.
   const coupleId = profile?.coupleId ?? null;
   const couple: Couple | null | undefined = !coupleId
     ? null
@@ -80,35 +83,30 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       : undefined;
   useEffect(() => {
     if (!user || !coupleId) return;
-    const gone = () => {
-      setCoupleState({ cid: coupleId, value: null });
-      updateDoc(doc(db, 'users', user.uid), { coupleId: null }).catch(() => {});
-    };
+    const gone = () => setCoupleState({ cid: coupleId, value: null });
     return onSnapshot(
       doc(db, 'couples', coupleId),
-      (snap) => (snap.exists() ? setCoupleState({ cid: coupleId, value: snap.data() as Couple }) : gone()),
+      (snap) => {
+        const c = snap.exists() ? (snap.data() as Couple) : null;
+        if (c && (c.status ?? 'active') === 'active') setCoupleState({ cid: coupleId, value: c });
+        else gone();
+      },
       gone,
     );
   }, [user, coupleId]);
 
-  // While unpaired: if an invite I sent was accepted, link my profile to the new couple.
+  // After an unlink: the couple we could still reconnect with (30 days).
+  const lastCoupleId = !coupleId ? (profile?.lastCoupleId ?? null) : null;
+  const [endedState, setEndedState] = useState<{ cid: string; value: Couple | null } | null>(null);
   useEffect(() => {
-    if (!user || !profile || profile.coupleId) return;
-    const q = query(collection(db, 'invites'), where('fromUid', '==', user.uid));
+    if (!user || !lastCoupleId) return;
     return onSnapshot(
-      q,
-      (snap) => {
-        const accepted = snap.docs
-          .map((d) => d.data() as Invite)
-          .filter((i) => i.status === 'accepted' && i.coupleId)
-          .sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())[0];
-        if (accepted?.coupleId) {
-          updateDoc(doc(db, 'users', user.uid), { coupleId: accepted.coupleId }).catch(() => {});
-        }
-      },
-      () => {},
+      doc(db, 'couples', lastCoupleId),
+      (snap) => setEndedState({ cid: lastCoupleId, value: snap.exists() ? (snap.data() as Couple) : null }),
+      () => setEndedState({ cid: lastCoupleId, value: null }),
     );
-  }, [user, profile]);
+  }, [user, lastCoupleId]);
+  const endedCouple = lastCoupleId && endedState?.cid === lastCoupleId ? endedState.value : null;
 
   const value = useMemo<Session>(() => {
     const uid = user?.uid ?? null;
@@ -133,8 +131,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       partnerId,
       partnerName: (partnerId && couple?.names[partnerId]) || 'your partner',
       myName: profile?.displayName ?? '',
+      ended: endedFor(endedCouple, lastCoupleId, uid),
     };
-  }, [user, profile, couple, coupleId]);
+  }, [user, profile, couple, coupleId, endedCouple, lastCoupleId]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
@@ -153,5 +152,21 @@ export function usePaired() {
     uid: s.uid as string,
     cid: s.cid as string,
     partnerId: s.partnerId as string,
+  };
+}
+
+/** The reconnect offer, while it still stands. */
+function endedFor(c: Couple | null, cid: string | null, uid: string | null): EndedCouple | null {
+  if (!c || !cid || !uid || c.status !== 'ended' || !c.purgeAfter) return null;
+  const purgeAfterMs = c.purgeAfter.toMillis();
+  if (purgeAfterMs < Date.now()) return null;
+  const partner = c.members.find((m) => m !== uid);
+  const asked = c.reconnect ?? [];
+  return {
+    cid,
+    partnerName: (partner && c.names[partner]) || 'your partner',
+    purgeAfterMs,
+    iAsked: asked.includes(uid),
+    theyAsked: !!partner && asked.includes(partner),
   };
 }

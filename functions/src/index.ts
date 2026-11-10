@@ -5,15 +5,21 @@
  * - onCoupleDeleted: when either partner unpairs, remove every shared doc and file.
  * - fadeDisappearingNotes: hourly, deletes disappearing notes (and their media) past their time.
  * - transcribeVoiceNote: if the sender opted in, adds a transcript to their voice note.
- * - onAccountDeleted: when someone deletes their account, remove all their data and files.
+ * - onAccountDeleted: safety net if a sign-in account is removed another way.
+ * - acceptInvite, unlinkCouple, requestReconnect, deleteAccount: the couple's
+ *   lifecycle, run only on the server (see docs/ARCHITECTURE.md §2).
+ * - purgeEndedCouples, cleanupInvites, onShareSettingsChanged: daily and
+ *   background clean-up.
  */
 import { initializeApp } from 'firebase-admin/app';
 import { v2 as speech } from '@google-cloud/speech';
-import { Timestamp, getFirestore } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
+import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { logger } from 'firebase-functions';
-import { defineString } from 'firebase-functions/params';
-import { onDocumentCreated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
+import { defineBoolean, defineString } from 'firebase-functions/params';
+import { onDocumentCreated, onDocumentDeleted, onDocumentWritten } from 'firebase-functions/v2/firestore';
+import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 // Auth deletion triggers only exist in the 1st-gen API.
 import { auth as authV1 } from 'firebase-functions/v1';
@@ -97,30 +103,24 @@ export const onCoupleDeleted = onDocumentDeleted('couples/{cid}', async (event) 
     members.map(async (uid) => {
       const userRef = db.doc(`users/${uid}`);
       const snap = await userRef.get();
-      if (snap.exists && snap.data()?.coupleId === cid) await userRef.update({ coupleId: null });
+      const patch: Record<string, unknown> = {};
+      if (snap.data()?.coupleId === cid) patch.coupleId = null;
+      if (snap.data()?.lastCoupleId === cid) patch.lastCoupleId = FieldValue.delete();
+      if (snap.exists && Object.keys(patch).length) await userRef.update(patch);
+      const mem = db.doc(`memberships/${uid}`);
+      if ((await mem.get()).data()?.coupleId === cid) await mem.delete();
     }),
   );
 });
 
 /**
- * "Delete my account" (Settings). The app unpairs first; this removes whatever
- * is left: the couple space if it still exists, the private profile, logs,
- * settings and vault, private files, and any open invite.
+ * Safety net: if a sign-in account is removed some other way (for example in
+ * the Firebase console), remove everything that belonged to it. Same steps as
+ * deleteAccount, and safe to run twice.
  */
 export const onAccountDeleted = authV1.user().onDelete(async (user) => {
-  const uid = user.uid;
-  const userRef = db.doc(`users/${uid}`);
-  const cid = (await userRef.get()).data()?.coupleId as string | null | undefined;
-  if (cid) {
-    const couple = await db.doc(`couples/${cid}`).get();
-    // Deleting the couple doc runs onCoupleDeleted, which removes the shared space for both.
-    if (couple.exists && (couple.data()?.members ?? []).includes(uid)) await couple.ref.delete();
-  }
-  await db.recursiveDelete(userRef);
-  await getStorage().bucket().deleteFiles({ prefix: `users/${uid}/` });
-  const invites = await db.collection('invites').where('fromUid', '==', uid).where('status', '==', 'open').get();
-  await Promise.all(invites.docs.map((d) => d.ref.update({ status: 'cancelled' })));
-  logger.info('Account data removed', { uid });
+  await removeAllDataFor(user.uid);
+  logger.info('Account data removed', { uid: user.uid });
 });
 
 async function deleteMediaDoc(cid: string, mediaId: string) {
@@ -241,6 +241,7 @@ export const deliverScheduledNotes = onSchedule('every 10 minutes', async () => 
     if (n.surprise === 'open') continue;
     const cid = d.ref.parent.parent?.id;
     const couple = cid ? (await db.doc(`couples/${cid}`).get()).data() : null;
+    if (couple?.status === 'ended') continue;
     const name = couple?.names?.[n.fromUid] ?? 'Your partner';
     if (n.surprise === 'date') await pushTo(n.toUid, `${name} left you a surprise`, 'It just unlocked. Open it when you’re ready.', '/notes');
     else await pushTo(n.toUid, `A love note from ${name}`, (n.text ?? '').slice(0, 120) || 'Open to read it.', '/notes');
@@ -272,7 +273,7 @@ export const milestoneReminders = onSchedule({ schedule: 'every day 09:00', time
     if (![7, 1, 0].includes(days)) continue;
     const cid = d.ref.parent.parent?.id;
     const couple = cid ? (await db.doc(`couples/${cid}`).get()).data() : null;
-    if (!couple) continue;
+    if (!couple || couple.status === 'ended') continue;
     const when = days === 0 ? 'is today' : days === 1 ? 'is tomorrow' : 'is in a week';
     const body = days === 7 ? 'Plenty of time for a little plan.' : days === 1 ? 'A card tonight would be lovely.' : 'Enjoy it together.';
     for (const uid of couple.members as string[]) {
@@ -280,5 +281,258 @@ export const milestoneReminders = onSchedule({ schedule: 'every day 09:00', time
       if (m.kind === 'birthday' && m.personUid === uid && days > 0) continue;
       await pushTo(uid, `${m.title} ${when}`, body, '/milestones');
     }
+  }
+});
+
+// =====================================================================
+// The couple's lifecycle. Only these functions create a couple, change who
+// is in it, end it or delete it; the security rules refuse all of that from
+// the app. See docs/ARCHITECTURE.md §2.
+// =====================================================================
+
+/** Shared data is kept this long after an unlink, so the two of you can reconnect. */
+const GRACE_DAYS = 30;
+const DAY_MS = 86_400_000;
+
+/** Turn on once App Check is set up for every platform (docs/DEPLOY.md). */
+const requireAppCheck = defineBoolean('REQUIRE_APP_CHECK', {
+  default: false,
+  description: 'Refuse pairing, unlinking and deletion calls that do not carry a valid App Check token.',
+});
+
+function caller(req: CallableRequest): string {
+  if (!req.auth) throw new HttpsError('unauthenticated', 'Please sign in first.');
+  if (requireAppCheck.value() && !req.app) throw new HttpsError('failed-precondition', 'Please update the app and try again.');
+  return req.auth.uid;
+}
+
+export function normalizeInviteCode(input: unknown): string {
+  return String(input ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+}
+
+/**
+ * The invited person accepts. One transaction: either all of this happens or none of it.
+ * Checks: the invite is open and in date, it isn't your own, and neither of you is
+ * already in a couple (memberships/{uid} is the one-couple lock).
+ */
+export const acceptInvite = onCall(async (req) => {
+  const uid = caller(req);
+  const code = normalizeInviteCode((req.data as { code?: unknown } | undefined)?.code);
+  if (!/^[A-Z2-9]{6}$/.test(code)) throw new HttpsError('invalid-argument', 'That code doesn’t look quite right. It has 6 letters and numbers.');
+
+  return db.runTransaction(async (tx) => {
+    const inviteRef = db.doc(`invites/${code}`);
+    const inviteSnap = await tx.get(inviteRef);
+    const invite = inviteSnap.data();
+    if (!invite) throw new HttpsError('not-found', 'We couldn’t find that code. Could you check it with your partner?');
+    const fromUid = invite.fromUid as string;
+    if (fromUid === uid) throw new HttpsError('failed-precondition', 'That’s your own code. Send it to your partner instead.');
+    if (invite.status !== 'open') throw new HttpsError('failed-precondition', 'That code has already been used. Ask for a new one.');
+    if ((invite.expiresAt as Timestamp).toMillis() < Date.now()) {
+      throw new HttpsError('deadline-exceeded', 'That code has expired. Ask your partner for a new one.');
+    }
+
+    const [mine, theirs, me] = await Promise.all([
+      tx.get(db.doc(`memberships/${uid}`)),
+      tx.get(db.doc(`memberships/${fromUid}`)),
+      tx.get(db.doc(`users/${uid}`)),
+    ]);
+    if (mine.exists) throw new HttpsError('failed-precondition', 'You’re already linked with someone. Unlink first to pair again.');
+    if (theirs.exists) throw new HttpsError('failed-precondition', 'They’re already linked with someone.');
+    const otherInvites = await tx.get(db.collection('invites').where('fromUid', 'in', [uid, fromUid]).where('status', '==', 'open'));
+
+    const coupleRef = db.collection('couples').doc();
+    const now = FieldValue.serverTimestamp();
+    const myName = String(me.data()?.displayName ?? 'Your partner').slice(0, 60);
+    tx.create(coupleRef, {
+      members: [fromUid, uid],
+      names: { [fromUid]: String(invite.fromName ?? 'Your partner').slice(0, 60), [uid]: myName },
+      status: 'active',
+      createdAt: now,
+      createdBy: uid,
+      inviteCode: code,
+    });
+    for (const member of [fromUid, uid]) {
+      tx.create(db.doc(`memberships/${member}`), { coupleId: coupleRef.id, joinedAt: now });
+      tx.set(db.doc(`users/${member}`), { coupleId: coupleRef.id, lastCoupleId: FieldValue.delete() }, { merge: true });
+    }
+    tx.update(inviteRef, { status: 'accepted', acceptedBy: uid, coupleId: coupleRef.id });
+    otherInvites.docs.filter((d) => d.id !== code).forEach((d) => tx.update(d.ref, { status: 'cancelled' }));
+    return { coupleId: coupleRef.id };
+  });
+});
+
+/**
+ * End a couple: access stops for both at once (every rule requires status
+ * 'active'); both memberships go so each person can pair again; shared data
+ * is kept GRACE_DAYS for a possible reconnect, then purged.
+ */
+async function endCouple(cid: string, byUid: string): Promise<string | null> {
+  return db.runTransaction(async (tx) => {
+    const ref = db.doc(`couples/${cid}`);
+    const snap = await tx.get(ref);
+    const c = snap.data();
+    if (!c) return null;
+    const members = c.members as string[];
+    if (!members.includes(byUid)) throw new HttpsError('permission-denied', 'You’re not part of that couple.');
+    const mems = await Promise.all(members.map((u) => tx.get(db.doc(`memberships/${u}`))));
+    if (c.status !== 'ended') {
+      tx.update(ref, {
+        status: 'ended',
+        endedBy: byUid,
+        endedAt: FieldValue.serverTimestamp(),
+        purgeAfter: Timestamp.fromMillis(Date.now() + GRACE_DAYS * DAY_MS),
+        reconnect: [],
+      });
+    }
+    members.forEach((u, i) => {
+      if (mems[i].data()?.coupleId === cid) tx.delete(mems[i].ref);
+      tx.set(db.doc(`users/${u}`), { coupleId: null, lastCoupleId: cid }, { merge: true });
+    });
+    return members.find((u) => u !== byUid) ?? null;
+  });
+}
+
+/** Either person, any time, no permission needed from the other. */
+export const unlinkCouple = onCall(async (req) => {
+  const uid = caller(req);
+  const cid = (await db.doc(`memberships/${uid}`).get()).data()?.coupleId as string | undefined;
+  if (!cid) return { ok: true };
+  const partner = await endCouple(cid, uid);
+  if (partner) {
+    const name = (await db.doc(`couples/${cid}`).get()).data()?.names?.[uid] ?? 'Your partner';
+    await pushTo(partner, `${name} has unlinked`, 'Your private things are untouched. Be gentle with yourself today.', '/', 'love-notes').catch(() => {});
+  }
+  return { ok: true, graceDays: GRACE_DAYS };
+});
+
+/**
+ * Within the grace window, either person can ask to reconnect. It happens only
+ * when BOTH have asked and neither has paired with someone else since.
+ */
+export const requestReconnect = onCall(async (req) => {
+  const uid = caller(req);
+  const cid = (await db.doc(`users/${uid}`).get()).data()?.lastCoupleId as string | undefined;
+  if (!cid) throw new HttpsError('failed-precondition', 'There’s nothing to reconnect.');
+
+  const result = await db.runTransaction(async (tx) => {
+    const ref = db.doc(`couples/${cid}`);
+    const c = (await tx.get(ref)).data();
+    if (!c || c.status !== 'ended' || !(c.members as string[]).includes(uid)) {
+      throw new HttpsError('failed-precondition', 'That link can’t be restored any more.');
+    }
+    if ((c.purgeAfter as Timestamp).toMillis() < Date.now()) throw new HttpsError('deadline-exceeded', 'The 30 days have passed, so this can’t be restored.');
+    const members = c.members as string[];
+    const mems = await Promise.all(members.map((u) => tx.get(db.doc(`memberships/${u}`))));
+    if (mems.some((m) => m.exists)) throw new HttpsError('failed-precondition', 'One of you is linked with someone else now.');
+
+    const asked = Array.from(new Set([...((c.reconnect as string[] | undefined) ?? []), uid]));
+    if (!members.every((u) => asked.includes(u))) {
+      tx.update(ref, { reconnect: asked });
+      return { state: 'waiting' as const, partner: members.find((u) => u !== uid)! };
+    }
+    tx.update(ref, {
+      status: 'active',
+      reconnect: FieldValue.delete(),
+      endedAt: FieldValue.delete(),
+      endedBy: FieldValue.delete(),
+      purgeAfter: FieldValue.delete(),
+    });
+    const now = FieldValue.serverTimestamp();
+    for (const u of members) {
+      tx.create(db.doc(`memberships/${u}`), { coupleId: cid, joinedAt: now });
+      tx.set(db.doc(`users/${u}`), { coupleId: cid, lastCoupleId: FieldValue.delete() }, { merge: true });
+    }
+    return { state: 'reconnected' as const, partner: members.find((u) => u !== uid)! };
+  });
+
+  const name = (await db.doc(`couples/${cid}`).get()).data()?.names?.[uid] ?? 'Your partner';
+  if (result.state === 'waiting') {
+    await pushTo(result.partner, `${name} would like to reconnect`, 'If you’d like that too, open Together and tap Reconnect.', '/pair').catch(() => {});
+  } else {
+    await pushTo(result.partner, `You and ${name} are together again`, 'Everything you shared is back.', '/').catch(() => {});
+  }
+  return { state: result.state };
+});
+
+/**
+ * Remove everything that belongs to one person. Safe to run twice.
+ * A couple they were in can never be reconnected once they are gone, so its
+ * shared space is deleted now (onCoupleDeleted removes every doc and file).
+ */
+async function removeAllDataFor(uid: string) {
+  const [mem, user] = await Promise.all([db.doc(`memberships/${uid}`).get(), db.doc(`users/${uid}`).get()]);
+  const cids = new Set([mem.data()?.coupleId, user.data()?.coupleId, user.data()?.lastCoupleId].filter(Boolean) as string[]);
+  for (const cid of cids) {
+    const couple = await db.doc(`couples/${cid}`).get();
+    if (!couple.exists || !((couple.data()?.members as string[]) ?? []).includes(uid)) continue;
+    if (couple.data()?.status !== 'ended') await endCouple(cid, uid);
+    await couple.ref.delete();
+  }
+  await db.recursiveDelete(db.doc(`users/${uid}`));
+  await getStorage().bucket().deleteFiles({ prefix: `users/${uid}/` });
+  await db.doc(`memberships/${uid}`).delete();
+  const invites = await db.collection('invites').where('fromUid', '==', uid).where('status', '==', 'open').get();
+  await Promise.all(invites.docs.map((d) => d.ref.update({ status: 'cancelled' })));
+}
+
+/** Settings → Delete my account. The app re-checks the password just before calling this. */
+export const deleteAccount = onCall(async (req) => {
+  const uid = caller(req);
+  const authTime = Number(req.auth?.token.auth_time ?? 0);
+  if (Date.now() / 1000 - authTime > 10 * 60) {
+    throw new HttpsError('failed-precondition', 'Please confirm your password again, then try once more.');
+  }
+  await removeAllDataFor(uid);
+  await getAuth().deleteUser(uid); // last, so anything that failed above can simply be retried
+  return { ok: true };
+});
+
+/** Daily: couples ended more than GRACE_DAYS ago are deleted for good. */
+export const purgeEndedCouples = onSchedule({ schedule: 'every day 03:00', timeZone: 'Asia/Kuala_Lumpur' }, async () => {
+  const due = await db.collection('couples').where('status', '==', 'ended').where('purgeAfter', '<=', Timestamp.now()).get();
+  for (const d of due.docs) await d.ref.delete(); // onCoupleDeleted removes the shared space and files
+  logger.info('Purged ended couples', { count: due.size });
+});
+
+/** Daily: invites a week past their expiry are deleted. */
+export const cleanupInvites = onSchedule({ schedule: 'every day 03:30', timeZone: 'Asia/Kuala_Lumpur' }, async () => {
+  const old = await db.collection('invites').where('expiresAt', '<=', Timestamp.fromMillis(Date.now() - 7 * DAY_MS)).get();
+  await Promise.all(old.docs.map((d) => d.ref.delete()));
+});
+
+/** Which shared-day fields each privacy switch controls. */
+const SHARE_FIELDS: Record<string, string[]> = {
+  steps: ['steps', 'stepGoal'],
+  food: ['food'],
+  cycle: ['cycle'],
+  mood: ['mood'],
+  media: ['mood.mediaId'],
+};
+const SHARE_DEFAULTS: Record<string, boolean> = { steps: true, food: true, cycle: false, mood: false, media: false };
+
+/** The switches that went from on to off in one settings change. */
+export function switchedOff(before: Record<string, unknown> | undefined, after: Record<string, unknown> | undefined): string[] {
+  const on = (s: Record<string, unknown> | undefined, k: string) => (s && typeof s[k] === 'boolean' ? (s[k] as boolean) : SHARE_DEFAULTS[k]);
+  return Object.keys(SHARE_FIELDS).filter((k) => on(before, k) && !on(after, k));
+}
+
+/**
+ * Backup for the app: when a switch turns off, remove that field from every
+ * shared day this person owns, even if the app closed before finishing.
+ */
+export const onShareSettingsChanged = onDocumentWritten('users/{uid}/settings/share', async (event) => {
+  const off = switchedOff(event.data?.before.data(), event.data?.after.data());
+  if (!off.length) return;
+  const { uid } = event.params;
+  const cid = (await db.doc(`memberships/${uid}`).get()).data()?.coupleId as string | undefined;
+  if (!cid) return;
+  const mine = await db.collection(`couples/${cid}/shared`).where('ownerId', '==', uid).get();
+  const patch: Record<string, FieldValue> = {};
+  off.flatMap((k) => SHARE_FIELDS[k]).forEach((f) => (patch[f] = FieldValue.delete()));
+  for (let i = 0; i < mine.docs.length; i += 400) {
+    const batch = db.batch();
+    mine.docs.slice(i, i + 400).forEach((d) => batch.update(d.ref, patch));
+    await batch.commit();
   }
 });

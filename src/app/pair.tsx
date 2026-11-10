@@ -2,7 +2,7 @@ import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
-import { Copy, HeartHandshake, Link2, Share2, ShieldCheck } from 'lucide-react-native';
+import { Copy, HeartHandshake, Link2, RefreshCw, Share2, ShieldCheck } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Share, TextInput, View } from 'react-native';
 
@@ -10,7 +10,7 @@ import { useFeedback } from '@/components/feedback';
 import { Button, Card, Field, Gap, Row, Screen, Segmented, T, useInputStyle } from '@/components/ui';
 import { gentleError } from '@/lib/copy';
 import { auth, db } from '@/lib/firebase';
-import { acceptInvite, cancelInvite, createInvite, inviteLink, lookupInvite, normalizeCode } from '@/lib/pairing';
+import { acceptInvite, cancelInvite, createInvite, friendlyError, inviteLink, lookupInvite, normalizeCode, requestReconnect } from '@/lib/pairing';
 import { useSession } from '@/lib/session';
 import type { Invite } from '@/lib/types';
 import { radius, space, useTheme } from '@/theme';
@@ -28,6 +28,7 @@ export default function Pair() {
       <Gap h={space.sm} />
       <T muted>Nothing is shared until your partner accepts. You can unpair any time.</T>
       <Gap h={space.xl} />
+      <ReconnectCard />
       <Segmented
         value={mode}
         onChange={setMode}
@@ -41,6 +42,57 @@ export default function Pair() {
       <Gap h={space.xxl} />
       <Button label="Sign out" kind="ghost" small onPress={() => signOut(auth)} />
     </Screen>
+  );
+}
+
+/** Within 30 days of an unlink: reconnect, if you both want to. */
+function ReconnectCard() {
+  const { c } = useTheme();
+  const { ended } = useSession();
+  const { toast } = useFeedback();
+  const [busy, setBusy] = useState(false);
+  if (!ended) return null;
+  const until = new Date(ended.purgeAfterMs).toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
+
+  async function ask() {
+    setBusy(true);
+    try {
+      const state = await requestReconnect();
+      toast(state === 'reconnected' ? `You and ${ended!.partnerName} are together again.` : `We’ve let ${ended!.partnerName} know.`);
+    } catch (e) {
+      toast(friendlyError(e, gentleError.send));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <Card tone="peach">
+        <Row gap={space.md} style={{ alignItems: 'flex-start' }}>
+          <RefreshCw color={c.onPeach} size={24} />
+          <View style={{ flex: 1, gap: space.xs }}>
+            <T variant="heading" color={c.onPeach}>
+              {`Reconnect with ${ended.partnerName}?`}
+            </T>
+            <T color={c.onPeach}>
+              {ended.iAsked
+                ? `You’ve asked. If ${ended.partnerName} asks too before ${until}, everything you shared comes back.`
+                : ended.theyAsked
+                  ? `${ended.partnerName} would like to reconnect. Everything you shared is kept until ${until}.`
+                  : `Everything you shared is kept safely until ${until}. It comes back only if you both tap Reconnect.`}
+            </T>
+          </View>
+        </Row>
+        {!ended.iAsked ? (
+          <>
+            <Gap h={space.lg} />
+            <Button testID="reconnect" label="Reconnect" icon={RefreshCw} onPress={ask} loading={busy} />
+          </>
+        ) : null}
+      </Card>
+      <Gap h={space.xl} />
+    </>
   );
 }
 
@@ -148,7 +200,7 @@ function InvitePanel() {
 function JoinPanel({ initialCode }: { initialCode?: string }) {
   const { c } = useTheme();
   const input = useInputStyle();
-  const { uid, myName } = useSession();
+  const { uid } = useSession();
   const { toast } = useFeedback();
   const [code, setCode] = useState(normalizeCode(initialCode ?? ''));
   const [found, setFound] = useState<Invite | null>(null);
@@ -183,9 +235,9 @@ function JoinPanel({ initialCode }: { initialCode?: string }) {
     if (!uid || !found) return;
     setBusy(true);
     try {
-      await acceptInvite(code, found, uid, myName || 'Your partner');
-    } catch {
-      toast(gentleError.send);
+      await acceptInvite(code);
+    } catch (e) {
+      toast(friendlyError(e, gentleError.send));
       setBusy(false);
     }
   }

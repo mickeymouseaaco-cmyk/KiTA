@@ -4,7 +4,10 @@ export type Uid = string;
 
 export type UserProfile = {
   displayName: string;
+  /** Written only by server functions. */
   coupleId: string | null;
+  /** The couple I was in until an unlink, for a possible reconnect (server-written). */
+  lastCoupleId?: string | null;
   notificationsPaused: boolean;
   /** Opt-in: transcribe my own voice notes so my partner can read them too. */
   transcribeVoice?: boolean;
@@ -118,6 +121,14 @@ export type Couple = {
   createdAt: Timestamp;
   createdBy: Uid;
   inviteCode: string;
+  /** 'ended' after an unlink: nothing shared can be read until a reconnect. */
+  status?: 'active' | 'ended';
+  endedBy?: Uid;
+  endedAt?: Timestamp;
+  /** The shared space is deleted for good after this (30 days after the unlink). */
+  purgeAfter?: Timestamp;
+  /** Who has asked to reconnect. Both must. */
+  reconnect?: Uid[];
 };
 
 export type MessageKind = 'text' | 'photo' | 'voice' | 'video' | 'hug' | 'quick';

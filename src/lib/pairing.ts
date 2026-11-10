@@ -1,17 +1,8 @@
 import { getRandomBytes } from 'expo-crypto';
-import {
-  Timestamp,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  writeBatch,
-} from 'firebase/firestore';
+import { Timestamp, doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 
-import { db } from './firebase';
+import { db, functions } from './firebase';
 import type { Invite } from './types';
 
 // No 0/O/1/I/L, so codes are easy to read aloud.
@@ -62,27 +53,33 @@ export async function lookupInvite(code: string, myUid: string): Promise<InviteL
 }
 
 /**
- * The invited partner accepts. The couple doc and the invite update are written
- * in one batch, and the security rules verify the pair (see firestore.rules).
+ * The invited partner accepts. Runs on the server (acceptInvite) in one
+ * transaction: it checks the code and that neither of you is already in a
+ * couple, then creates the couple and both memberships together.
  */
-export async function acceptInvite(code: string, invite: Invite, myUid: string, myName: string): Promise<string> {
-  const coupleRef = doc(collection(db, 'couples'));
-  const batch = writeBatch(db);
-  batch.set(coupleRef, {
-    members: [invite.fromUid, myUid],
-    names: { [invite.fromUid]: invite.fromName, [myUid]: myName },
-    createdAt: serverTimestamp(),
-    createdBy: myUid,
-    inviteCode: code,
-  });
-  batch.update(doc(db, 'invites', code), { status: 'accepted', acceptedBy: myUid, coupleId: coupleRef.id });
-  await batch.commit();
-  await updateDoc(doc(db, 'users', myUid), { coupleId: coupleRef.id });
-  return coupleRef.id;
+export async function acceptInvite(code: string): Promise<string> {
+  const res = await httpsCallable<{ code: string }, { coupleId: string }>(functions, 'acceptInvite')({ code });
+  return res.data.coupleId;
 }
 
-/** Either partner can unpair. All shared data becomes unreadable immediately. */
-export async function unpair(cid: string, myUid: string): Promise<void> {
-  await deleteDoc(doc(db, 'couples', cid));
-  await updateDoc(doc(db, 'users', myUid), { coupleId: null });
+/**
+ * Either partner can unlink, any time. Sharing stops for both at once; what you
+ * shared is kept 30 days in case you both want to reconnect, then deleted.
+ */
+export async function unpair(): Promise<void> {
+  await httpsCallable(functions, 'unlinkCouple')({});
+}
+
+/** Ask to reconnect. It happens only when both of you have asked, within 30 days. */
+export async function requestReconnect(): Promise<'waiting' | 'reconnected'> {
+  const res = await httpsCallable<Record<string, never>, { state: 'waiting' | 'reconnected' }>(functions, 'requestReconnect')({});
+  return res.data.state;
+}
+
+/** The server's own gentle words when it says no, or our fallback for anything else. */
+export function friendlyError(e: unknown, fallback: string): string {
+  const err = e as { code?: string; message?: string } | null;
+  const code = err?.code ?? '';
+  const ours = code.startsWith('functions/') && !['functions/internal', 'functions/unavailable', 'functions/unknown'].includes(code);
+  return ours && err?.message ? err.message : fallback;
 }

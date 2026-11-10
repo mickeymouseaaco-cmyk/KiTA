@@ -71,7 +71,7 @@
     "typecheck": "tsc --noEmit",
     "test:unit": "node --import tsx --test tests/logic.test.ts",
     "test:rules": "npm --prefix firebase/tests test",
-    "emulators": "npx --prefix firebase/tests firebase emulators:start --only auth,firestore,storage --project demo-together",
+    "emulators": "npm --prefix functions run build && npx --prefix firebase/tests firebase emulators:start --only auth,firestore,storage,functions --project demo-together",
     "dev:local": "EXPO_PUBLIC_USE_EMULATORS=1 expo start"
   },
   "private": true

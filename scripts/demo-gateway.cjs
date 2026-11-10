@@ -16,6 +16,7 @@ const routes = [
   { prefix: '/emulator/', port: 9099 },
   { prefix: '/v0/b/', port: 9199 }, // Storage
   { prefix: '/b/', port: 9199 },
+  { prefix: '/demo-together/', port: 5001 }, // Cloud Functions (pairing, unlink, delete account)
 ];
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.ico': 'image/x-icon', '.ttf': 'font/ttf', '.wav': 'audio/wav', '.svg': 'image/svg+xml' };
 

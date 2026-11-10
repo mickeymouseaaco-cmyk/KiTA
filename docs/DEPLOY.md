@@ -120,6 +120,16 @@ The six names are in `.env.example`. These Firebase web values are meant to be i
   3. Firebase → Project settings → Service accounts → **Generate new private key**. Upload it with
      `npx eas-cli@latest credentials` → Android → production → Google Service Account → FCM V1.
 
+## 5b. App Check (before public launch)
+
+App Check makes Firebase accept requests only from your real app.
+
+1. Firebase console → **App Check** → register each app:
+   - **Web:** reCAPTCHA Enterprise. Put its site key in `EXPO_PUBLIC_RECAPTCHA_SITE_KEY` (in `.env` and in Vercel or EAS). The app turns App Check on by itself when this is set.
+   - **iPhone and Android:** App Attest / DeviceCheck and Play Integrity. These need the native module `@react-native-firebase/app-check` and a development build; it isn't installed yet. Until it is, leave enforcement off for the native apps.
+2. Watch the App Check metrics for a few days, until almost all requests are verified.
+3. Turn on enforcement: in the console for Firestore and Storage, and for the pairing, unlink and delete functions by deploying with `REQUIRE_APP_CHECK=true` (Firebase asks for this value on deploy; it can also go in `functions/.env`).
+
 ## 6. Try it on your own phones first
 
 **Android:** this makes an install link you can open on both phones:

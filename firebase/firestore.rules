@@ -4,7 +4,10 @@ rules_version = '2';
 //
 // Principle: private data and shared data live in different places.
 //   users/{uid}/**                 -> owner only. Never readable by the partner.
-//   couples/{cid}/shared/{uid_date} -> the owner's chosen projection. Both read, owner writes.
+//   memberships/{uid}              -> one couple per person. Written only by server functions.
+//   couples/{cid}                  -> created, ended and deleted only by server functions.
+//   couples/{cid}/**               -> the two members of an ACTIVE couple. Nobody else, ever.
+//   couples/{cid}/shared/{uid_date} -> the owner's chosen projection, limited by their own switches.
 // See docs/ARCHITECTURE.md §2.
 
 service cloud.firestore {
@@ -19,10 +22,23 @@ service cloud.firestore {
     function coupleDoc(cid) {
       return get(/databases/$(database)/documents/couples/$(cid));
     }
+    // THE gate for all shared data: an active couple that lists me.
+    // A cid from another couple fails here, whatever the path.
     function isMember(cid) {
       return signedIn()
         && exists(/databases/$(database)/documents/couples/$(cid))
+        && coupleDoc(cid).data.get('status', 'active') == 'active'
         && me() in coupleDoc(cid).data.members;
+    }
+    function hasCouple() {
+      return exists(/databases/$(database)/documents/memberships/$(me()));
+    }
+    // My own privacy switch for one category (steps, food, cycle, mood, media).
+    // Defaults match the app's DEFAULT_SHARE: steps and food on; mood, cycle and media off.
+    function shareOn(key) {
+      let path = /databases/$(database)/documents/users/$(me())/settings/share;
+      let fallback = key in ['steps', 'food'];
+      return exists(path) ? get(path).data.get(key, fallback) == true : fallback;
     }
     function incoming() {
       return request.resource.data;
@@ -35,13 +51,24 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------- users
-    // Profile, settings, private daily logs, vent/journal (future). Owner only.
+    // Profile, settings, private daily logs, vault. Owner only.
+    // The couple pointer (coupleId) is written only by server functions.
     match /users/{uid} {
-      allow read, write: if signedIn() && me() == uid;
+      allow read: if signedIn() && me() == uid;
+      allow create: if signedIn() && me() == uid && incoming().get('coupleId', null) == null;
+      allow update: if signedIn() && me() == uid && !('coupleId' in changed());
+      allow delete: if false; // the deleteAccount function only
 
       match /{document=**} {
         allow read, write: if signedIn() && me() == uid;
       }
+    }
+
+    // ---------------------------------------------------------- memberships
+    // One document per person = one couple per person. Server functions only.
+    match /memberships/{uid} {
+      allow read: if signedIn() && me() == uid;
+      allow write: if false;
     }
 
     // -------------------------------------------------------------- invites
@@ -52,6 +79,7 @@ service cloud.firestore {
       allow list: if signedIn() && resource.data.fromUid == me();
 
       allow create: if signedIn()
+        && !hasCouple()
         && code.matches('^[A-Z2-9]{6}$')
         && incoming().keys().hasOnly(['fromUid', 'fromName', 'status', 'createdAt', 'expiresAt'])
         && incoming().fromUid == me()
@@ -59,58 +87,30 @@ service cloud.firestore {
         && incoming().status == 'open'
         && incoming().createdAt == request.time
         && incoming().expiresAt is timestamp
-        && incoming().expiresAt <= request.time + duration.value(49, 'h');
+        && incoming().expiresAt <= request.time + duration.value(48, 'h');
 
-      // The inviter may cancel their own open invite.
-      // The invitee may accept it, which must happen in the same batch that
-      // creates the couple doc (checked with getAfter).
-      allow update: if signedIn() && (
-        (
-          resource.data.fromUid == me()
-          && resource.data.status == 'open'
-          && changed().hasOnly(['status'])
-          && incoming().status == 'cancelled'
-        ) || (
-          resource.data.fromUid != me()
-          && resource.data.status == 'open'
-          && resource.data.expiresAt > request.time
-          && changed().hasOnly(['status', 'acceptedBy', 'coupleId'])
-          && incoming().status == 'accepted'
-          && incoming().acceptedBy == me()
-          && incoming().coupleId is string
-          && getAfter(/databases/$(database)/documents/couples/$(incoming().coupleId)).data.members
-               == [resource.data.fromUid, me()]
-        )
-      );
+      // The inviter may cancel their own open invite. Accepting happens only
+      // in the acceptInvite server function, in one transaction.
+      allow update: if signedIn()
+        && resource.data.fromUid == me()
+        && resource.data.status == 'open'
+        && changed().hasOnly(['status'])
+        && incoming().status == 'cancelled';
       allow delete: if false;
     }
 
     // -------------------------------------------------------------- couples
     match /couples/{cid} {
+      // Members may read the couple doc even after it ends, so the app can say goodbye gently.
       allow get: if signedIn() && me() in resource.data.members;
-      allow list: if false;
+      allow list: if false; // nobody can browse couples
 
-      // Created only by the accepting partner, only alongside a valid acceptance.
-      allow create: if signedIn()
-        && incoming().keys().hasOnly(['members', 'names', 'createdAt', 'createdBy', 'inviteCode'])
-        && incoming().members is list
-        && incoming().members.size() == 2
-        && incoming().members[1] == me()
-        && incoming().members[0] != me()
-        && incoming().createdBy == me()
-        && incoming().createdAt == request.time
-        && incoming().names is map
-        && incoming().names.keys().hasOnly(incoming().members)
-        && incoming().inviteCode is string
-        && get(/databases/$(database)/documents/invites/$(incoming().inviteCode)).data.status == 'open'
-        && get(/databases/$(database)/documents/invites/$(incoming().inviteCode)).data.fromUid == incoming().members[0]
-        && get(/databases/$(database)/documents/invites/$(incoming().inviteCode)).data.expiresAt > request.time
-        && getAfter(/databases/$(database)/documents/invites/$(incoming().inviteCode)).data.status == 'accepted'
-        && getAfter(/databases/$(database)/documents/invites/$(incoming().inviteCode)).data.coupleId == cid;
+      // Created (acceptInvite), ended (unlinkCouple) and deleted (the 30-day purge)
+      // only by server functions. Members never change.
+      allow create, delete: if false;
 
       // Each person may only change their own display name and love languages.
-      allow update: if signedIn()
-        && me() in resource.data.members
+      allow update: if isMember(cid)
         && (
           (
             changed().hasOnly(['names'])
@@ -125,10 +125,6 @@ service cloud.firestore {
           )
         );
 
-      // Either partner can unpair at any time. Every subcollection rule checks
-      // membership through this doc, so deleting it cuts off all sharing at once.
-      allow delete: if signedIn() && me() in resource.data.members;
-
       // ---- shared daily projections
       match /shared/{docId} {
         allow read: if isMember(cid);
@@ -137,7 +133,14 @@ service cloud.firestore {
           && docId == me() + '_' + incoming().date
           && incoming().keys().hasOnly(['ownerId', 'date', 'steps', 'stepGoal', 'mood', 'food', 'cycle', 'updatedAt'])
           && (!('mood' in incoming()) || incoming().mood.keys().hasOnly(['emoji', 'label', 'stress', 'note', 'mediaId']))
-          && incoming().date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+          && incoming().date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          // Only what my own privacy switches allow, whatever the app sends.
+          && (!('steps' in incoming()) || shareOn('steps'))
+          && (!('stepGoal' in incoming()) || shareOn('steps'))
+          && (!('food' in incoming()) || shareOn('food'))
+          && (!('cycle' in incoming()) || shareOn('cycle'))
+          && (!('mood' in incoming()) || shareOn('mood'))
+          && (!('mood' in incoming()) || !('mediaId' in incoming().mood) || shareOn('media'));
         allow delete: if isMember(cid) && resource.data.ownerId == me();
       }
 

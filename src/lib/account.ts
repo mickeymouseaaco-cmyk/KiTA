@@ -2,15 +2,14 @@
  * Delete my account (required by the App Store and Google Play).
  *
  * 1. Confirm it's really you (your password), before anything is touched.
- * 2. Unpair, so the shared space and its files are removed for both of you
- *    (the onCoupleDeleted function cleans up).
- * 3. Delete the sign-in account. The onAccountDeleted function then removes
- *    your private logs, settings, vault and private files.
+ * 2. The deleteAccount server function does the rest, in order: unlinks,
+ *    deletes the shared space (a reconnect is no longer possible), your private
+ *    logs, settings, vault and files, your invites, and last your sign-in.
  */
-import { EmailAuthProvider, deleteUser, reauthenticateWithCredential } from 'firebase/auth';
+import { EmailAuthProvider, reauthenticateWithCredential, signOut } from 'firebase/auth';
+import { httpsCallable } from 'firebase/functions';
 
-import { auth } from './firebase';
-import { unpair } from './pairing';
+import { auth, functions } from './firebase';
 
 export type DeleteAccountResult = 'deleted' | 'wrong-password' | 'failed';
 
@@ -24,8 +23,8 @@ export async function deleteMyAccount(opts: { uid: string; cid: string | null; p
     return code.includes('wrong-password') || code.includes('invalid-credential') || code.includes('invalid-login') ? 'wrong-password' : 'failed';
   }
   try {
-    if (opts.cid) await unpair(opts.cid, opts.uid).catch(() => {});
-    await deleteUser(user);
+    await httpsCallable(functions, 'deleteAccount')({});
+    await signOut(auth).catch(() => {});
     return 'deleted';
   } catch {
     return 'failed';

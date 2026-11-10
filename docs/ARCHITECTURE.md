@@ -113,6 +113,44 @@ couples/{cid}/shared/{uid_date}   ← projection containing ONLY the categories
 * The owner of any message, memory or media can delete it at any time. That
   removes the Storage object and the doc, so it disappears from the partner's
   view too.
+* The rules also check each shared-day write against the owner's own
+  `ShareSettings`, so a field whose switch is off is refused whatever the app
+  sends. A server function (`onShareSettingsChanged`) repeats the "remove from
+  every shared day" step in case the app closed before finishing.
+
+### Couples: one per person, and sealed from each other
+
+```
+users/{uid}          ← private. Owner only. coupleId / lastCoupleId are server-written.
+memberships/{uid}    ← { coupleId, joinedAt }. One per person = one couple per person. Server only.
+invites/{code}       ← created and cancelled by the inviter; accepted only by the server.
+couples/{cid}        ← { members: [a, b], status: active|ended, … }. Created, ended, deleted by the server.
+couples/{cid}/**     ← every rule passes through isMember(cid): an ACTIVE couple whose members include me.
+```
+
+* **Pairing** is the `acceptInvite` function, one transaction: the invite is
+  open and in date, it isn't your own, and neither person has a membership.
+  It creates the couple (random id), both memberships and both pointers, marks
+  the invite accepted and cancels any other open invites from either person.
+* **Members never change.** No rule lets an app write `members`, a membership or
+  a couple pointer, so nobody can add themselves to a couple.
+* **Isolation.** Listing couples is refused; Storage listing is refused; every
+  shared document and file is checked against that couple's own `members`, and
+  cross-references (a note's recipient, a note's media) must be in the same couple.
+* **Unlink** is the `unlinkCouple` function: `status: ended` (access stops for
+  both at once, Firestore and Storage), both memberships removed (each can pair
+  again), `purgeAfter` = 30 days. Within that window the two can reconnect, but
+  only if **both** tap Reconnect (`requestReconnect`) and neither has paired with
+  someone else. `purgeEndedCouples` deletes the couple after 30 days, and
+  `onCoupleDeleted` removes every shared doc and file.
+* **Delete my account**: the app re-checks the password, then `deleteAccount`
+  ends any couple, deletes its shared space at once (a reconnect is impossible
+  without them), deletes `users/{uid}/**`, private files, the membership and open
+  invites, and the sign-in last. `onAccountDeleted` runs the same steps as a
+  safety net. Private data is never touched by an unlink.
+* **App Check** (`REQUIRE_APP_CHECK`) can require every call to come from the
+  real app; see docs/DEPLOY.md.
+
 * In transit: TLS (Firebase default). At rest: Google-managed encryption
   (Firestore and Cloud Storage default). On device: optional PIN/biometric lock;
   the PIN hash lives in SecureStore. End-to-end encryption of media is a
@@ -129,7 +167,8 @@ All timestamps are Firestore `Timestamp`s. All `date` keys are local
 | field | type | notes |
 |---|---|---|
 | displayName | string | |
-| coupleId | string \| null | set only after acceptance |
+| coupleId | string \| null | server-written on acceptance, cleared on unlink |
+| lastCoupleId | string? | server-written on unlink, for a 30-day reconnect |
 | notificationsPaused | boolean | the one-tap pause; Cloud Function respects it |
 | pushTokens | string[] | Expo push tokens |
 | stepGoal | number | default 8000, gentle and editable |
@@ -154,13 +193,20 @@ All timestamps are Firestore `Timestamp`s. All `date` keys are local
 `{ fromUid, fromName, status: 'open'|'accepted'|'cancelled', createdAt,
 expiresAt (48h), acceptedBy?, coupleId? }`. Anyone signed in can `get` a code
 (it's a 6-character capability with 30 bits of entropy and an expiry). Nobody can
-`list` codes. Only the inviter can cancel.
+`list` codes. Only someone not already in a couple can create one; only the
+inviter can cancel; only the server accepts. `cleanupInvites` deletes invites a
+week after they expire.
+
+### `memberships/{uid}`: **Membership** (server only)
+`{ coupleId, joinedAt }`. Its existence is the one-couple-per-person lock.
 
 ### `couples/{cid}`: **Couple**
-`{ members: [uidA, uidB], names: { uid: name }, createdAt, createdBy }`.
-Created by the **accepting** partner in the same batch that marks the invite
-accepted. The rules check the invite is open, unexpired and from the other
-member.
+`{ members: [uidA, uidB], names: { uid: name }, loveLanguages?, status:
+'active'|'ended', createdAt, createdBy, inviteCode, endedAt?, endedBy?,
+purgeAfter?, reconnect?: uid[] }`. Created only by `acceptInvite`; `members`
+never change. Each person may edit only their own `names` / `loveLanguages`
+entry. Members can read the couple doc even when ended (for the reconnect
+card); nothing under it.
 
 ### `couples/{cid}/shared/{uid}_{date}`: **SharedDay**
 `{ ownerId, date, steps?, stepGoal?, mood?: { emoji, label, stress, note? }, updatedAt }`

@@ -12,7 +12,9 @@ import {
   type Auth,
   type Persistence,
 } from 'firebase/auth';
+import { ReCaptchaEnterpriseProvider, initializeAppCheck } from 'firebase/app-check';
 import { connectFirestoreEmulator, getFirestore, initializeFirestore, type Firestore } from 'firebase/firestore';
+import { connectFunctionsEmulator, getFunctions, type Functions } from 'firebase/functions';
 import { connectStorageEmulator, getStorage, type FirebaseStorage } from 'firebase/storage';
 import { Platform } from 'react-native';
 
@@ -44,6 +46,7 @@ function reactNativePersistence(): Persistence {
 let auth: Auth;
 let db: Firestore;
 let storage: FirebaseStorage;
+let functions: Functions;
 
 if (isFirebaseConfigured) {
   const firstInit = getApps().length === 0;
@@ -64,22 +67,33 @@ if (isFirebaseConfigured) {
         : { experimentalAutoDetectLongPolling: true, ignoreUndefinedProperties: true },
     );
     storage = getStorage(app);
+    functions = getFunctions(app);
+    // App Check (web): proves calls come from your real site. Native apps need a
+    // native App Check provider; see docs/DEPLOY.md.
+    const recaptchaKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY;
+    if (Platform.OS === 'web' && recaptchaKey && !useEmulators) {
+      initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(recaptchaKey), isTokenAutoRefreshEnabled: true });
+    }
     if (origin) {
       connectAuthEmulator(auth, origin.origin, { disableWarnings: true });
       const port = Number(origin.port || (origin.protocol === 'https:' ? 443 : 80));
       connectStorageEmulator(storage, origin.hostname, port);
       (storage as unknown as { _protocol: string })._protocol = origin.protocol.replace(':', '');
+      // The gateway forwards /<project>/<region>/<function> to the Functions emulator.
+      (functions as unknown as { emulatorOrigin: string }).emulatorOrigin = origin.origin;
     } else if (useEmulators) {
       connectAuthEmulator(auth, `http://${emulatorHost}:9099`, { disableWarnings: true });
       connectFirestoreEmulator(db, emulatorHost, 8080);
       connectStorageEmulator(storage, emulatorHost, 9199);
+      connectFunctionsEmulator(functions, emulatorHost, 5001);
     }
   } else {
     // Fast refresh re-evaluates this module; reuse the existing instances.
     auth = getAuth(app);
     db = getFirestore(app);
     storage = getStorage(app);
+    functions = getFunctions(app);
   }
 }
 
-export { auth, db, storage };
+export { auth, db, functions, storage };

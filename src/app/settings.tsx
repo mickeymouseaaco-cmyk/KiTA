@@ -13,7 +13,7 @@ import { gentleError } from '@/lib/copy';
 import { auth, db } from '@/lib/firebase';
 import { useLock } from '@/lib/lock';
 import { registerForPush, setNotificationsPaused } from '@/lib/notifications';
-import { unpair } from '@/lib/pairing';
+import { friendlyError, unpair } from '@/lib/pairing';
 import { useSession } from '@/lib/session';
 import { LOVE_LANGUAGES } from '@/lib/suggestions';
 import { space, useTheme } from '@/theme';
@@ -238,8 +238,8 @@ export default function Settings() {
         </T>
         <Gap h={space.sm} />
         <T muted center>
-          You&apos;ll both stop seeing each other&apos;s shared days, notes and memories straight away. Your own private logs stay with
-          you.
+          You&apos;ll both stop seeing each other&apos;s shared days, notes and memories straight away. They&apos;re kept safely for 30
+          days in case you both want to reconnect, then deleted for good. Your own private logs stay with you.
         </T>
         <Gap h={space.xl} />
         <Button
@@ -248,9 +248,9 @@ export default function Settings() {
             setConfirmUnpair(false);
             if (!cid || !uid) return;
             try {
-              await unpair(cid, uid);
-            } catch {
-              toast(gentleError.save);
+              await unpair();
+            } catch (e) {
+              toast(friendlyError(e, gentleError.save));
             }
           }}
         />

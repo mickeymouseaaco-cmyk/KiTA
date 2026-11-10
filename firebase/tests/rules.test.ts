@@ -40,16 +40,34 @@ const db = (uid: string | null) =>
   (uid ? env.authenticatedContext(uid) : env.unauthenticatedContext()).firestore();
 const storage = (uid: string) => env.authenticatedContext(uid).storage();
 
-async function seedCouple() {
+/** A couple as the acceptInvite function creates it: active, with both memberships. */
+async function seedCouple(cid = CID, members: [string, string] = [A, B]) {
   await env.withSecurityRulesDisabled(async (ctx) => {
     const d = ctx.firestore();
-    await setDoc(doc(d, 'couples', CID), {
-      members: [A, B],
-      names: { [A]: 'Alex', [B]: 'Blair' },
+    await setDoc(doc(d, 'couples', cid), {
+      members,
+      names: { [members[0]]: 'Alex', [members[1]]: 'Blair' },
+      status: 'active',
       createdAt: Timestamp.now(),
-      createdBy: B,
+      createdBy: members[1],
       inviteCode: CODE,
     });
+    for (const u of members) await setDoc(doc(d, 'memberships', u), { coupleId: cid, joinedAt: Timestamp.now() });
+  });
+}
+
+/** What the unlinkCouple function does: the couple ends, both memberships go. */
+async function endCouple(cid = CID, members: string[] = [A, B]) {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const d = ctx.firestore();
+    await updateDoc(doc(d, 'couples', cid), { status: 'ended', endedBy: members[0], purgeAfter: Timestamp.fromMillis(Date.now() + 30 * 86_400_000) });
+    for (const u of members) await deleteDoc(doc(d, 'memberships', u));
+  });
+}
+
+async function seedShare(uid: string, share: Record<string, boolean>) {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), `users/${uid}/settings/share`), share);
   });
 }
 
@@ -150,11 +168,13 @@ describe('pairing requires acceptance', () => {
   }
 
   function acceptBatch(uid: string, members: string[]) {
+    // What an app would have to do to pair without the server. Never allowed now.
     const d = db(uid);
     const batch = writeBatch(d);
     batch.set(doc(d, 'couples', CID), {
       members,
       names: { [members[0]]: 'Alex', [members[1]]: 'Someone' },
+      status: 'active',
       createdAt: serverTimestamp(),
       createdBy: uid,
       inviteCode: CODE,
@@ -180,36 +200,32 @@ describe('pairing requires acceptance', () => {
     await assertFails(getDocs(collection(db(EVE), 'invites')));
   });
 
-  test('invitee accepts: couple + invite in one batch', async () => {
+  test('the app can never accept an invite or create a couple itself (only the server can)', async () => {
     await seedInvite();
-    await assertSucceeds(acceptBatch(B, [A, B]));
-    await assertSucceeds(getDoc(doc(db(A), 'couples', CID)));
-  });
-
-  test('a couple cannot be created without accepting a real invite', async () => {
-    const d = db(B);
+    await assertFails(acceptBatch(B, [A, B]));
+    await assertFails(updateDoc(doc(db(B), 'invites', CODE), { status: 'accepted', acceptedBy: B, coupleId: CID }));
     await assertFails(
-      setDoc(doc(d, 'couples', CID), {
-        members: [A, B],
-        names: {},
-        createdAt: serverTimestamp(),
-        createdBy: B,
-        inviteCode: CODE,
-      }),
+      setDoc(doc(db(B), 'couples', CID), { members: [A, B], names: {}, status: 'active', createdAt: serverTimestamp(), createdBy: B, inviteCode: CODE }),
     );
   });
 
-  test('inviter cannot accept their own invite', async () => {
+  test('the inviter can cancel their own open invite; nobody else can', async () => {
     await seedInvite();
-    await assertFails(acceptBatch(A, [B, A]));
+    await assertFails(updateDoc(doc(db(B), 'invites', CODE), { status: 'cancelled' }));
+    await assertSucceeds(updateDoc(doc(db(A), 'invites', CODE), { status: 'cancelled' }));
   });
 
-  test('expired or cancelled invites cannot be accepted', async () => {
-    await seedInvite({ expiresAt: Timestamp.fromMillis(Date.now() - 1000) });
-    await assertFails(acceptBatch(B, [A, B]));
-    await env.clearFirestore();
-    await seedInvite({ status: 'cancelled' });
-    await assertFails(acceptBatch(B, [A, B]));
+  test('someone already in a couple cannot create an invite', async () => {
+    await seedCouple();
+    await assertFails(
+      setDoc(doc(db(A), 'invites', 'XYZ234'), {
+        fromUid: A,
+        fromName: 'Alex',
+        status: 'open',
+        createdAt: serverTimestamp(),
+        expiresAt: Timestamp.fromMillis(Date.now() + 3600_000),
+      }),
+    );
   });
 
   test('an outsider cannot add themselves to an existing couple', async () => {
@@ -280,16 +296,23 @@ describe('love notes', () => {
     await assertSucceeds(deleteDoc(doc(db(A), `couples/${CID}/media/p1`)));
   });
 
-  test('unpairing (deleting the couple) cuts off access immediately', async () => {
+  test('unlinking (the couple ends) cuts off access for both immediately', async () => {
     await seedCouple();
     await assertSucceeds(
       setDoc(doc(db(A), `couples/${CID}/messages/m4`), {
         fromUid: A, toUid: B, kind: 'hug', favoriteBy: [], createdAt: serverTimestamp(),
       }),
     );
-    await assertSucceeds(deleteDoc(doc(db(B), 'couples', CID)));
+    // The app cannot delete the couple itself; the unlinkCouple function ends it.
+    await assertFails(deleteDoc(doc(db(B), 'couples', CID)));
+    await endCouple();
     await assertFails(getDoc(doc(db(A), `couples/${CID}/messages/m4`)));
     await assertFails(getDoc(doc(db(B), `couples/${CID}/messages/m4`)));
+    await assertFails(
+      setDoc(doc(db(A), `couples/${CID}/messages/m5`), { fromUid: A, toUid: B, kind: 'hug', favoriteBy: [], createdAt: serverTimestamp() }),
+    );
+    // They can still read the couple doc itself, so the app can offer a gentle reconnect.
+    await assertSucceeds(getDoc(doc(db(A), 'couples', CID)));
   });
 });
 
@@ -452,6 +475,7 @@ describe('private files (voice check-ins)', () => {
 describe('shared projections (Phase 2 fields)', () => {
   test('food and cycle may be shared; check-ins may not', async () => {
     await seedCouple();
+    await seedShare(A, { steps: true, food: true, cycle: true, mood: false, media: false });
     const id = `${A}_2026-11-09`;
     await assertSucceeds(
       setDoc(doc(db(A), `couples/${CID}/shared/${id}`), {
@@ -642,5 +666,85 @@ describe('starred notes, shared to-dos and the weekend planner', () => {
     await assertSucceeds(updateDoc(doc(db(B), `couples/${CID}/plans/p1`), { slot: 'afternoon' }));
     await assertFails(getDoc(doc(db(EVE), `couples/${CID}/plans/p1`)));
     await assertSucceeds(deleteDoc(doc(db(B), `couples/${CID}/plans/p1`)));
+  });
+});
+
+describe('one couple per person, and no couple can reach another', () => {
+  const C = 'casey';
+  const D = 'drew';
+  const CID2 = 'couple2';
+
+  test('nobody can write a membership, or their own couple pointer', async () => {
+    await assertFails(setDoc(doc(db(A), 'memberships', A), { coupleId: CID }));
+    await assertFails(setDoc(doc(db(A), 'users', A), { displayName: 'Alex', coupleId: CID }));
+    await assertSucceeds(setDoc(doc(db(A), 'users', A), { displayName: 'Alex', coupleId: null }));
+    await assertSucceeds(updateDoc(doc(db(A), 'users', A), { displayName: 'Alex B' }));
+    await assertFails(updateDoc(doc(db(A), 'users', A), { coupleId: CID }));
+    await assertFails(deleteDoc(doc(db(A), 'users', A)));
+  });
+
+  test('a member of one couple cannot read, list or write anything in another couple', async () => {
+    await seedCouple();
+    await seedCouple(CID2, [C, D]);
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `couples/${CID2}/messages/x1`), { fromUid: C, toUid: D, kind: 'text', text: 'ours', favoriteBy: [], createdAt: Timestamp.now() });
+      await setDoc(doc(ctx.firestore(), `couples/${CID2}/todos/t1`), { text: 'ours', forUid: 'both', dueDate: null, important: false, done: false, addedBy: C, createdAt: Timestamp.now() });
+    });
+    await assertFails(getDoc(doc(db(A), 'couples', CID2)));
+    await assertFails(getDoc(doc(db(A), `couples/${CID2}/messages/x1`)));
+    await assertFails(getDocs(collection(db(A), `couples/${CID2}/messages`)));
+    await assertFails(getDocs(collection(db(A), `couples/${CID2}/shared`)));
+    await assertFails(updateDoc(doc(db(A), `couples/${CID2}/todos/t1`), { done: true, doneBy: A }));
+    await assertFails(
+      setDoc(doc(db(A), `couples/${CID2}/messages/x2`), { fromUid: A, toUid: C, kind: 'text', text: 'hi', favoriteBy: [], createdAt: serverTimestamp() }),
+    );
+    // Nor send a note in their own couple addressed to someone outside it.
+    await assertFails(
+      setDoc(doc(db(A), `couples/${CID}/messages/x3`), { fromUid: A, toUid: C, kind: 'text', text: 'hi', favoriteBy: [], createdAt: serverTimestamp() }),
+    );
+    await assertFails(getDocs(collection(db(A), 'couples')));
+  });
+
+  test('another couple\'s media files cannot be fetched even with the exact path', async () => {
+    await seedCouple();
+    await seedCouple(CID2, [C, D]);
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `couples/${CID2}/media/m1`), { ownerId: C, type: 'photo', visibility: 'couple', createdAt: Timestamp.now() });
+      await uploadBytes(ref(ctx.storage(), `couples/${CID2}/media/${C}/m1.jpg`), new Uint8Array([1, 2, 3]), { contentType: 'image/jpeg' });
+    });
+    await assertSucceeds(getBytes(ref(storage(D), `couples/${CID2}/media/${C}/m1.jpg`)));
+    await assertFails(getBytes(ref(storage(A), `couples/${CID2}/media/${C}/m1.jpg`)));
+    await assertFails(uploadBytes(ref(storage(A), `couples/${CID2}/media/${A}/m2.jpg`), new Uint8Array([1]), { contentType: 'image/jpeg' }));
+    await assertFails(deleteObject(ref(storage(A), `couples/${CID2}/media/${C}/m1.jpg`)));
+  });
+
+  test('after an unlink, shared files are unreadable for both', async () => {
+    await seedCouple();
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `couples/${CID}/media/m9`), { ownerId: A, type: 'photo', visibility: 'couple', createdAt: Timestamp.now() });
+      await uploadBytes(ref(ctx.storage(), `couples/${CID}/media/${A}/m9.jpg`), new Uint8Array([1]), { contentType: 'image/jpeg' });
+    });
+    await assertSucceeds(getBytes(ref(storage(B), `couples/${CID}/media/${A}/m9.jpg`)));
+    await endCouple();
+    await assertFails(getBytes(ref(storage(B), `couples/${CID}/media/${A}/m9.jpg`)));
+    await assertFails(getBytes(ref(storage(A), `couples/${CID}/media/${A}/m9.jpg`)));
+  });
+
+  test('privacy switches are enforced: mood and cycle cannot be shared while switched off', async () => {
+    await seedCouple();
+    const id = `${A}_2026-11-10`;
+    const mood = { emoji: '\u{1F60C}', label: 'Calm', stress: 2 };
+    // Defaults (no settings yet): steps and food on, mood and cycle off.
+    await assertSucceeds(setDoc(doc(db(A), `couples/${CID}/shared/${id}`), { ownerId: A, date: '2026-11-10', steps: 4000 }));
+    await assertFails(setDoc(doc(db(A), `couples/${CID}/shared/${id}`), { ownerId: A, date: '2026-11-10', mood }));
+    await seedShare(A, { steps: false, food: true, cycle: false, mood: true, media: false });
+    await assertSucceeds(setDoc(doc(db(A), `couples/${CID}/shared/${id}`), { ownerId: A, date: '2026-11-10', mood }));
+    await assertFails(setDoc(doc(db(A), `couples/${CID}/shared/${id}`), { ownerId: A, date: '2026-11-10', steps: 4000 }));
+    await assertFails(
+      setDoc(doc(db(A), `couples/${CID}/shared/${id}`), { ownerId: A, date: '2026-11-10', cycle: { phase: 'luteal', day: 20, daysUntilNext: 9, symptoms: [] } }),
+    );
+    await assertFails(
+      setDoc(doc(db(A), `couples/${CID}/shared/${id}`), { ownerId: A, date: '2026-11-10', mood: { ...mood, mediaId: 'm1' } }),
+    );
   });
 });
