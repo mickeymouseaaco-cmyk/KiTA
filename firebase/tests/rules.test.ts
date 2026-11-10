@@ -817,3 +817,36 @@ describe('question of the day', () => {
     await assertFails(setDoc(doc(db(B), Q(B)), answer()));
   });
 });
+
+describe('find my partner', () => {
+  const L = (uid: string) => `couples/${CID}/locations/${uid}`;
+  const here = (extra: Record<string, unknown> = {}) => ({ lat: 3.0657, lng: 101.4846, accuracy: 25, at: serverTimestamp(), source: 'app', ...extra });
+
+  test('you share your own location; your partner can see it; nobody else can', async () => {
+    await seedCouple();
+    await assertSucceeds(setDoc(doc(db(A), L(A)), here()));
+    await assertSucceeds(getDoc(doc(db(B), L(A))));
+    await assertFails(getDoc(doc(db(EVE), L(A))));
+    await assertFails(setDoc(doc(db(B), L(A)), here())); // pretending to be your partner
+    await assertFails(deleteDoc(doc(db(B), L(A))));
+    await assertSucceeds(deleteDoc(doc(db(A), L(A)))); // stop sharing
+  });
+
+  test('only a real, current position, nothing extra', async () => {
+    await seedCouple();
+    await assertFails(setDoc(doc(db(A), L(A)), here({ lat: 91 })));
+    await assertFails(setDoc(doc(db(A), L(A)), here({ lng: -181 })));
+    await assertFails(setDoc(doc(db(A), L(A)), here({ lat: '3.06' })));
+    await assertFails(setDoc(doc(db(A), L(A)), here({ history: [1, 2] })));
+    await assertFails(setDoc(doc(db(A), L(A)), here({ source: 'shortcut' }))); // only the server writes those
+    await assertFails(setDoc(doc(db(A), L(A)), { ...here(), at: Timestamp.fromMillis(0) }));
+  });
+
+  test('after an unlink, locations are closed to both', async () => {
+    await seedCouple();
+    await assertSucceeds(setDoc(doc(db(A), L(A)), here()));
+    await endCouple();
+    await assertFails(getDoc(doc(db(B), L(A))));
+    await assertFails(setDoc(doc(db(A), L(A)), here()));
+  });
+});

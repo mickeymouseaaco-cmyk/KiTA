@@ -48,3 +48,11 @@ export function syncDay(requested: unknown, timeZone: string, at: Date = new Dat
   const yesterday = dayKeyIn(timeZone, new Date(at.getTime() - 86_400_000));
   return typeof requested === 'string' && (requested === today || requested === yesterday) ? requested : today;
 }
+
+/** A coordinate as a Shortcut sends it ("3.0738" or, in some regions, "3,0738"). */
+export function parseCoord(raw: unknown, max: number): number | null {
+  const s = typeof raw === 'number' ? String(raw) : typeof raw === 'string' ? raw.trim() : '';
+  if (!/^-?\d{1,3}([.,]\d+)?$/.test(s)) return null;
+  const n = Number(s.replace(',', '.'));
+  return Number.isFinite(n) && Math.abs(n) <= max ? Math.round(n * 1e6) / 1e6 : null;
+}

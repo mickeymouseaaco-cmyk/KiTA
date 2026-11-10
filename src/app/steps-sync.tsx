@@ -128,7 +128,7 @@ export default function StepsSyncScreen() {
             <Button testID="copy-steps-link" small icon={copied ? Check : Copy} label={copied ? 'Copied' : 'Copy link'} onPress={() => copy(sync.url)} />
             <Gap h={space.sm} />
             <T variant="small" muted>
-              This link can only set your step count. Keep it to yourself. If you think someone else has it, make a new one: the old one stops
+              This link can only update your step count (and your location, if you share it in Find my partner). Keep it to yourself. If you think someone else has it, make a new one: the old one stops
               working straight away.
             </T>
             <Gap h={space.sm} />

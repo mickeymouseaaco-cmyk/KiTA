@@ -11,6 +11,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { CelebrateProvider } from '@/components/celebrate';
 import { FeedbackProvider } from '@/components/feedback';
 import { IncomingLove, LockScreen, SurpriseWatcher } from '@/components/overlays';
+import { LocationSync } from '@/components/location-sync';
 import { WebPushSync } from '@/components/web-push-row';
 import { AppearanceSync } from '@/lib/appearance';
 import { LockProvider } from '@/lib/lock';
@@ -84,6 +85,7 @@ function Navigator() {
         <Stack.Screen name="appearance" options={{ title: 'Look & feel' }} />
         <Stack.Screen name="question" options={{ title: 'Question of the day' }} />
         <Stack.Screen name="notes-media" options={{ title: 'Photos, videos & voice' }} />
+        <Stack.Screen name="find" options={{ title: 'Find my partner' }} />
         <Stack.Screen name="log-mood" options={{ title: 'How are you?', presentation: 'modal' }} />
         <Stack.Screen name="vent" options={{ title: 'Vent', presentation: 'modal' }} />
         <Stack.Screen name="calm" options={{ title: 'Calm Corner' }} />
@@ -112,6 +114,7 @@ function Navigator() {
       <Gate />
       <AppearanceSync />
       <WebPushSync />
+      <LocationSync />
       <IncomingLove />
       <SurpriseWatcher />
       <LockScreen />

@@ -159,7 +159,7 @@ jobs:
         # each one checks the caller's Firebase sign-in itself (functions/src/index.ts).
         # firebase deploy tries to set this but skips unchanged functions, so it's set here every time.
         run: |
-          for svc in acceptinvite unlinkcouple requestreconnect deleteaccount startstepssync stopstepssync syncsteps; do
+          for svc in acceptinvite unlinkcouple requestreconnect deleteaccount startstepssync stopstepssync syncsteps synclocation; do
             gcloud run services add-iam-policy-binding "$svc" \
               --project "$PROJECT_ID" --region asia-southeast1 \
               --member=allUsers --role=roles/run.invoker --quiet >/dev/null

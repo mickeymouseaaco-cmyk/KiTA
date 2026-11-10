@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { CalendarHeart, ChevronRight, CloudSun, Droplets, MessageCircleHeart, Eye, Footprints, Heart, Lock, Mail, Moon, Pencil, Smile, Smartphone, Wind, type LucideIcon } from 'lucide-react-native';
+import { CalendarHeart, ChevronRight, CloudSun, Droplets, MapPin, MessageCircleHeart, Eye, Footprints, Heart, Lock, Mail, Moon, Pencil, Smile, Smartphone, Wind, type LucideIcon } from 'lucide-react-native';
 import { useEffect, useMemo } from 'react';
 import { Pressable, View } from 'react-native';
 
@@ -331,6 +331,9 @@ export default function Today() {
           </Pressable>
         )}
       </Card>
+      <Gap />
+
+      <LinkCard testID="open-find" icon={MapPin} title={`Find ${partnerName}`} detail="See where you both are, if you each choose to share." onPress={() => router.push('/find')} />
       <Gap />
 
       <LinkCard

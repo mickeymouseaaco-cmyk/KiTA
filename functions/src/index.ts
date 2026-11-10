@@ -28,7 +28,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 // Auth deletion triggers only exist in the 1st-gen API.
 import * as functionsV1 from 'firebase-functions/v1';
 
-import { hashStepsToken, newStepsToken, parseSteps, syncDay } from './steps-pure';
+import { hashStepsToken, newStepsToken, parseCoord, parseSteps, syncDay } from './steps-pure';
 
 /**
  * Every function runs in Singapore, next to the Firestore database and Storage
@@ -418,6 +418,14 @@ function avatarsOf(users: Record<string, Record<string, unknown> | undefined>): 
  * is kept GRACE_DAYS for a possible reconnect, then purged.
  */
 async function endCouple(cid: string, byUid: string): Promise<string | null> {
+  const partner = await endCoupleTx(cid, byUid);
+  // Locations are never kept after an unlink, not even for the grace period.
+  const locs = await db.collection(`couples/${cid}/locations`).get();
+  await Promise.all(locs.docs.map((d) => d.ref.delete()));
+  return partner;
+}
+
+async function endCoupleTx(cid: string, byUid: string): Promise<string | null> {
   return db.runTransaction(async (tx) => {
     const ref = db.doc(`couples/${cid}`);
     const snap = await tx.get(ref);
@@ -725,4 +733,55 @@ export const onQuestionAnswered = onDocumentWritten('couples/{cid}/questions/{da
     '/question',
     'love-notes',
   ).catch(() => {});
+});
+
+// ------------------------------------------------------------ find my partner
+//
+// couples/{cid}/locations/{uid}: the latest location only, never a history.
+// Each person turns sharing on for themselves (users/{uid}/settings/location),
+// and turning it off deletes their location. The app updates it while open;
+// on iPhone a Shortcut can also send it (syncLocation, with the same private
+// link as steps).
+
+/** Tell the partner when someone starts sharing their location. */
+export const onLocationShared = onDocumentCreated('couples/{cid}/locations/{uid}', async (event) => {
+  const { cid, uid } = event.params;
+  const couple = (await db.doc(`couples/${cid}`).get()).data();
+  if (!couple || couple.status === 'ended') return;
+  const partner = ((couple.members as string[]) ?? []).find((m) => m !== uid);
+  if (!partner) return;
+  const name: string = couple.names?.[uid] ?? 'Your partner';
+  await pushTo(partner, `${name} is sharing their location with you`, 'You can see where they are in KiTA. They can stop any time.', '/find').catch(() => {});
+});
+
+
+/** Called by an iPhone Shortcut: …/syncLocation?t=<private link>&lat=..&lng=.. */
+export const syncLocation = onRequest({ cors: false }, async (req, res) => {
+  const q = { ...(typeof req.body === 'object' && req.body ? req.body : {}), ...req.query } as Record<string, unknown>;
+  const token = typeof q.t === 'string' ? q.t : '';
+  const owner = /^[A-Za-z0-9_-]{20,64}$/.test(token) ? await db.doc(`stepTokens/${hashStepsToken(token)}`).get() : null;
+  const uid = owner?.data()?.uid as string | undefined;
+  if (!uid) {
+    res.status(401).send('This KiTA link isn’t right, or was replaced. Copy it again from KiTA → Find my partner.');
+    return;
+  }
+  const lat = parseCoord(q.lat, 90);
+  const lng = parseCoord(q.lng, 180);
+  if (lat === null || lng === null) {
+    res.status(400).send('KiTA didn’t get a location. Check the Shortcut sends Latitude and Longitude.');
+    return;
+  }
+  const [user, setting] = await Promise.all([db.doc(`users/${uid}`).get(), db.doc(`users/${uid}/settings/location`).get()]);
+  if (setting.data()?.sharing !== true) {
+    res.status(403).send('Location sharing is off in KiTA. Turn it on in Find my partner first.');
+    return;
+  }
+  const cid = user.data()?.coupleId as string | null | undefined;
+  const couple = cid ? (await db.doc(`couples/${cid}`).get()).data() : undefined;
+  if (!cid || !couple || couple.status === 'ended' || !((couple.members as string[]) ?? []).includes(uid)) {
+    res.status(403).send('You’re not connected with a partner right now.');
+    return;
+  }
+  await db.doc(`couples/${cid}/locations/${uid}`).set({ lat, lng, accuracy: 0, at: FieldValue.serverTimestamp(), source: 'shortcut' });
+  res.status(200).send('Location shared with KiTA ♡');
 });

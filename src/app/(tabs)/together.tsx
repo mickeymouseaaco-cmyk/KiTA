@@ -16,7 +16,7 @@ import type { Memory } from '@/lib/types';
 import { space, useTheme } from '@/theme';
 
 type Tile = {
-  route: '/todos' | '/weather' | '/weekend' | '/gratitude' | '/mood-calendar' | '/date-night' | '/milestones' | '/reset' | '/schedule-note' | '/bucket-list' | '/calm';
+  route: '/todos' | '/find' | '/weather' | '/weekend' | '/gratitude' | '/mood-calendar' | '/date-night' | '/milestones' | '/reset' | '/schedule-note' | '/bucket-list' | '/calm';
   testID: string;
   icon: typeof ListTodo;
   title: string;
@@ -46,6 +46,7 @@ const GROUPS: { title: string; line: string; tiles: Tile[] }[] = [
       { route: '/mood-calendar', testID: 'open-mood-calendar', icon: CalendarDays, title: 'Our moods', detail: 'A month, side by side', tone: 'lavender' },
       { route: '/calm', testID: 'open-calm-tile', icon: Wind, title: 'Calm Corner', detail: 'Breathe, sounds, vent', tone: 'sage' },
       { route: '/reset', testID: 'open-reset-tile', icon: HeartHandshake, title: 'Gentle reset', detail: 'After a tense day', tone: 'peach' },
+      { route: '/find', testID: 'open-find-tile', icon: MapPin, title: 'Find each other', detail: 'Where you both are', tone: 'lavender' },
       { route: '/weather', testID: 'open-weather-tile', icon: CloudRain, title: 'Weather & floods', detail: 'Shah Alam and Klang', tone: 'sky' },
     ],
   },

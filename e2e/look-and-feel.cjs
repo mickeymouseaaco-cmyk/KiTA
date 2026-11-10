@@ -91,15 +91,20 @@ async function signUp(page, name) {
 async function main() {
   const browser = await chromium.launch();
   const errors = [];
-  const mk = async (who, opts = phone, scheme = 'light') => {
-    const ctx = await browser.newContext({ ...opts, colorScheme: scheme });
+  const mk = async (who, opts = phone, scheme = 'light', geo = { latitude: 3.0657, longitude: 101.4846 }) => {
+    const ctx = await browser.newContext({ ...opts, colorScheme: scheme, permissions: ['geolocation'], geolocation: { ...geo, accuracy: 25 } });
     mockWeather(ctx);
+    ctx.route('https://nominatim.openstreetmap.org/**', (r) => {
+      const lat = Number(new URL(r.request().url()).searchParams.get('lat'));
+      r.fulfill({ json: lat > 3.055 ? { name: 'i-City', address: { suburb: 'Seksyen 7', city: 'Shah Alam' } } : { address: { road: 'Jalan Meru', city: 'Klang' } } });
+    });
+    ctx.route('https://www.openstreetmap.org/**', (r) => r.fulfill({ contentType: 'text/html', body: '<body style="margin:0;background:#dfe8d8;font:14px sans-serif;display:grid;place-items:center;height:100vh">map</body>' }));
     const page = await ctx.newPage();
     page.on('pageerror', (e) => errors.push(`${who}: ${e.message}`));
     return page;
   };
   const afiq = await mk('afiq', small);
-  const aina = await mk('aina');
+  const aina = await mk('aina', phone, 'light', { latitude: 3.0449, longitude: 101.4456 });
 
   await signUp(afiq, 'Afiq Hakimi');
   await afiq.locator(tid('create-invite')).click();
@@ -138,6 +143,17 @@ async function main() {
   await afiq.locator(tid('send-note')).click();
   await aina.goto(BASE + '/notes');
   await aina.getByText('Don’t forget your umbrella').first().waitFor({ timeout: 10000 });
+  // Long-press a note for its options (no more buttons under every note).
+  assert.equal(await afiq.locator('[data-testid^="heart-"], [data-testid^="star-"], [data-testid^="take-back-"]').count(), 0, 'no buttons under notes');
+  await afiq.getByText('Don’t forget your umbrella').first().hover();
+  await afiq.mouse.down();
+  await afiq.waitForTimeout(800);
+  await afiq.mouse.up();
+  await afiq.locator(tid('opt-star')).waitFor({ timeout: 5000 });
+  await shot(afiq, '04b-notes-long-press');
+  await afiq.locator(tid('opt-star')).click();
+  await afiq.locator(tid('pinned-notes')).waitFor({ timeout: 10000 });
+  log('Long-press opens note options; starring pins it for both');
   log(`Love-note box is ${Math.round(w)}px wide, grows to ${Math.round(grown)}px, and sends`);
 
   // 3. Weather at a glance.
@@ -188,6 +204,20 @@ async function main() {
   await shot(aina, '07c-question-both');
   await afiq.getByText('Our slow breakfast on Saturday').waitFor({ timeout: 10000 });
   log('Question of the day: hidden until both answer, then both see both answers');
+
+  // 4b2. Find my partner: both choose to share, then see each other.
+  await afiq.goto(BASE + '/find');
+  await afiq.locator(tid('partner-not-sharing')).waitFor({ timeout: 15000 });
+  await afiq.locator(tid('share-location')).click();
+  await aina.goto(BASE + '/find');
+  await aina.getByText('i-City, Seksyen 7, Shah Alam').waitFor({ timeout: 15000 });
+  await aina.locator(tid('share-location')).click();
+  await afiq.getByText('Jalan Meru, Klang').waitFor({ timeout: 15000 });
+  await afiq.getByText(/km apart/).first().waitFor({ timeout: 15000 });
+  await shot(afiq, '07d-find', true);
+  await aina.locator(tid('share-location')).click(); // Aina stops: her location disappears for Afiq
+  await afiq.locator(tid('partner-not-sharing')).waitFor({ timeout: 15000 });
+  log('Find my partner: both opt in and see each other; stopping removes it at once');
 
   // 4c. Installable: manifest, icons and the service worker are served.
   const manifest = await (await fetch(BASE + '/manifest.json')).json();

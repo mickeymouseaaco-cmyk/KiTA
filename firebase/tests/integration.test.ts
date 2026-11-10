@@ -18,6 +18,7 @@ import {
   Timestamp,
   collection,
   connectFirestoreEmulator,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -296,9 +297,30 @@ describe('Together on Firebase, end to end', () => {
     await denied(getDoc(doc(casey.db, `couples/${cid}/questions/${date}`)));
   });
 
+  test('Find my partner: share, see, iPhone Shortcut, stop', async () => {
+    // Off by default: the Shortcut is refused until Aina turns sharing on.
+    const { url } = await aina.call<{ url: string }>('startStepsSync');
+    const loc = url.replace('/syncSteps?', '/syncLocation?');
+    assert.equal((await fetch(`${loc}&lat=3.0657&lng=101.4846`)).status, 403);
+    await setDoc(doc(aina.db, 'users', aina.uid, 'settings', 'location'), { sharing: true, updatedAt: serverTimestamp() });
+    const ok = await fetch(`${loc}&lat=${encodeURIComponent('3,0657')}&lng=101.4846`);
+    assert.equal(ok.status, 200, await ok.text());
+    const seen = (await getDoc(doc(afiq.db, `couples/${cid}/locations/${aina.uid}`))).data();
+    assert.equal(seen?.lat, 3.0657);
+    assert.equal(seen?.source, 'shortcut');
+    assert.equal((await fetch(`${loc}&lat=200&lng=1`)).status, 400);
+    await denied(getDoc(doc(casey.db, `couples/${cid}/locations/${aina.uid}`)));
+    // Stop sharing: the location is deleted.
+    await deleteDoc(doc(aina.db, `couples/${cid}/locations/${aina.uid}`));
+    assert.equal(await adminGet(`couples/${cid}/locations/${aina.uid}`), undefined);
+    // Afiq shares from the app, then the couple unlinks: locations go at once.
+    await setDoc(doc(afiq.db, `couples/${cid}/locations/${afiq.uid}`), { lat: 3.04, lng: 101.44, accuracy: 30, at: serverTimestamp(), source: 'app' });
+  });
+
   test('Unlink stops access at once; reconnect needs both people', async () => {
     await afiq.call('unlinkCouple');
     assert.equal((await getDoc(doc(afiq.db, 'couples', cid))).data()?.status, 'ended');
+    assert.equal(await adminGet(`couples/${cid}/locations/${afiq.uid}`), undefined, 'locations are deleted on unlink, not kept for 30 days');
     await denied(getDoc(doc(aina.db, `couples/${cid}/messages/n1`)));
     await denied(getBytes(ref(aina.storage, `users/${afiq.uid}/avatar/p1.jpg`)));
     assert.equal((await getDoc(doc(aina.db, 'memberships', aina.uid))).exists(), false);

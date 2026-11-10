@@ -471,6 +471,21 @@ service cloud.firestore {
           && resource.data.who.toSet().difference(incoming().who.toSet()).size() == 0;
       }
 
+      // Find my partner: each person's latest location, only while they share it.
+      // Only the owner writes it (or the server, from their iPhone Shortcut).
+      match /locations/{ownerUid} {
+        allow read: if isMember(cid);
+        allow create, update: if isMember(cid)
+          && ownerUid == me()
+          && incoming().keys().hasOnly(['lat', 'lng', 'accuracy', 'at', 'source'])
+          && incoming().lat is number && incoming().lat >= -90 && incoming().lat <= 90
+          && incoming().lng is number && incoming().lng >= -180 && incoming().lng <= 180
+          && incoming().accuracy is number && incoming().accuracy >= 0 && incoming().accuracy <= 100000
+          && incoming().at == request.time
+          && incoming().source == 'app';
+        allow delete: if isMember(cid) && ownerUid == me();
+      }
+
       // Question of the day. The day document (who has answered) is written by
       // the server. Each answer is its own document, and your partner's answer
       // only opens once yours exists: no peeking.
