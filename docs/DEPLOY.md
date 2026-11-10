@@ -23,6 +23,29 @@ Check current prices when you sign up. You can do Android first and add iPhone l
 
 ---
 
+## Web first (Vercel)
+
+You can put Together online as a website before going to the app stores. `vercel.json`
+already tells Vercel how to build it.
+
+1. On vercel.com, **Add New → Project** and import the GitHub repo. Leave the framework
+   as **Other**; `vercel.json` sets the build command (`npx expo export --platform web`)
+   and the output folder (`dist`).
+2. Before deploying, open **Settings → Environment Variables** and add the six
+   `EXPO_PUBLIC_FIREBASE_*` values from your Firebase web app (see `.env.example`), for
+   Production and Preview. They're baked in at build time, so **redeploy** after adding
+   or changing them.
+3. In Firebase → Authentication → Settings → **Authorized domains**, add your Vercel
+   address (for example `together-xyz.vercel.app`) so sign-in works there.
+4. Deploy, open the link on both phones, and use **Add to Home Screen**.
+
+If Vercel shows **404: NOT_FOUND**, the build didn't produce `dist/` (check the build log)
+or the project's Output Directory was overridden in Vercel settings; clear it so
+`vercel.json` is used. If the site opens on a "set up Firebase" screen, step 2 is missing.
+
+On the web, a few phone-only features are unavailable: background push alerts, app lock,
+the home screen widget, screenshot blocking and video trimming.
+
 ## 1. Install the project
 
 ```bash
