@@ -1,0 +1,109 @@
+# Checks the code, uploads the rules and server functions to your Firebase
+# project (kita-4a2e1, Singapore), then tests the live project.
+#
+# Runs on every push to main, and on demand: GitHub → Actions → "Firebase" →
+# Run workflow. The upload and live test need one secret,
+# FIREBASE_SERVICE_ACCOUNT (docs/FIREBASE.md, "Automatic deploys"). Without it
+# they are skipped and only the checks run.
+name: Firebase
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: firebase-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: kita-4a2e1
+
+jobs:
+  verify:
+    name: 1 · Check everything (emulators)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
+            firebase/tests/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm ci --prefix functions
+      - run: npm ci --prefix firebase/tests
+      - name: Typecheck, lint, logic tests, rules tests, end-to-end test
+        run: npm run verify
+
+  deploy:
+    name: 2 · Upload rules and functions to Singapore
+    needs: verify
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      deployed: ${{ steps.key.outputs.present }}
+    steps:
+      - name: Is the deploy key set?
+        id: key
+        env:
+          KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -n "$KEY" ]; then echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::FIREBASE_SERVICE_ACCOUNT is not set, so nothing was uploaded. See docs/FIREBASE.md, 'Automatic deploys'."
+          fi
+      - uses: actions/checkout@v4
+        if: steps.key.outputs.present == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.key.outputs.present == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            functions/package-lock.json
+            firebase/tests/package-lock.json
+      - if: steps.key.outputs.present == 'true'
+        run: npm ci --prefix functions && npm ci --prefix firebase/tests
+      - uses: google-github-actions/auth@v2
+        if: steps.key.outputs.present == 'true'
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      - name: Deploy Firestore, Storage and Functions
+        if: steps.key.outputs.present == 'true'
+        run: |
+          deploy() {
+            npx --prefix firebase/tests firebase deploy \
+              --only firestore,storage,functions \
+              --project "$PROJECT_ID" --force --non-interactive
+          }
+          # The very first deploy turns on Google Cloud services, and some of
+          # them need a minute or two before they accept functions. Retry then.
+          deploy || { echo "Retrying in 90 seconds…"; sleep 90; deploy; } || { echo "Retrying in 180 seconds…"; sleep 180; deploy; }
+
+  live-check:
+    name: 3 · Test the live project
+    needs: deploy
+    if: needs.deploy.outputs.deployed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Register, pair, check rules, delete (temporary accounts)
+        run: npm run verify:live

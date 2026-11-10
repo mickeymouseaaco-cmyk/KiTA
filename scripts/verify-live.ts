@@ -1,5 +1,6 @@
 /**
- * Live check of YOUR Firebase project, using the settings in .env.
+ * Live check of YOUR Firebase project (src/lib/firebase-config.ts, or .env
+ * if you have one). GitHub runs it after every deploy.
  *
  *   npm run verify:live
  *
@@ -16,6 +17,7 @@ import { Timestamp, collection, doc, getDoc, getDocs, getFirestore, serverTimest
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { getBytes, getStorage, ref, uploadBytes, type FirebaseStorage } from 'firebase/storage';
 
+import { FIREBASE_WEB_CONFIG as KITA } from '../src/lib/firebase-config';
 import { DEFAULT_SHARE } from '../src/lib/types';
 
 const REQUIRED = [
@@ -56,13 +58,14 @@ async function refused(p: Promise<unknown>, what: string) {
   throw new Error(`${what} was allowed, but should have been refused`);
 }
 
+// .env wins; otherwise the project's own web settings (src/lib/firebase-config.ts).
 const config: FirebaseOptions = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || KITA.apiKey,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || KITA.authDomain,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || KITA.projectId,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || KITA.storageBucket,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || KITA.messagingSenderId,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || KITA.appId,
 };
 
 function connect(name: string) {
@@ -100,9 +103,17 @@ async function main() {
   let cid = '';
 
   await check('9', 'Environment variables are set', async () => {
-    const missing = REQUIRED.filter((k) => !process.env[k]);
-    ensure(!missing.length, `missing in .env: ${missing.join(', ')}`);
-    const bucket = process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET!;
+    const fromConfig: Record<(typeof REQUIRED)[number], string | undefined> = {
+      EXPO_PUBLIC_FIREBASE_API_KEY: config.apiKey,
+      EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: config.authDomain,
+      EXPO_PUBLIC_FIREBASE_PROJECT_ID: config.projectId,
+      EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: config.storageBucket,
+      EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: config.messagingSenderId,
+      EXPO_PUBLIC_FIREBASE_APP_ID: config.appId,
+    };
+    const missing = REQUIRED.filter((k) => !fromConfig[k]);
+    ensure(!missing.length, `missing settings: ${missing.join(', ')}`);
+    const bucket = config.storageBucket!;
     ensure(/\.(firebasestorage\.app|appspot\.com)$/.test(bucket), `storage bucket "${bucket}" should end in .firebasestorage.app or .appspot.com`);
   });
   if (results.some((r) => !r.ok)) return;

@@ -1,16 +1,45 @@
 # Firebase: connect, deploy, verify
 
-Your console setup (web app, Authentication, Firestore, Storage, Blaze, Singapore)
-is the starting point. These steps connect this code to that project, deploy
-the rules and functions, and prove it works. Run them on your computer, in
-this folder.
+This code is connected to your Firebase project **kita-4a2e1** (Singapore).
+GitHub checks, uploads and tests everything for you, so you don't need a terminal.
+
+## Automatic deploys (GitHub does it)
+
+Every push to `main` runs the **Firebase** workflow (`.github/workflows/firebase.yml`):
+
+1. **Check everything:** typecheck, lint, logic tests, rule tests, and an
+   end-to-end run on the Firebase emulators.
+2. **Upload:** Firestore rules and indexes, Storage rules, and the server
+   functions, to `asia-southeast1` (Singapore).
+3. **Test the live project:** `npm run verify:live` (section 5 below).
+
+Steps 2 and 3 need one secret, set once:
+
+1. Firebase console → ⚙️ **Project settings** → **Service accounts** →
+   **Generate new private key** → **Generate key**. A `.json` file downloads.
+2. Google Cloud console → **IAM** (project kita-4a2e1) → find
+   `firebase-adminsdk-…@kita-4a2e1.iam.gserviceaccount.com` → ✏️ → **Add another
+   role** → **Editor** → **Save**. (Uploading functions needs more than the key's
+   default role.)
+3. GitHub → KiTA → **Settings** → **Secrets and variables** → **Actions** →
+   **New repository secret**. Name: `FIREBASE_SERVICE_ACCOUNT`. Value: open the
+   `.json` file in Notepad/TextEdit, copy all of it, paste. **Add secret**.
+4. GitHub → **Actions** → **Firebase** → **Run workflow**.
+
+Keep the `.json` file private, and delete it from Downloads once it's in GitHub.
+Without the secret, the workflow still runs step 1 and skips the rest.
+
+The sections below are the same steps by hand, for running them on your own computer.
 
 ## 1. Settings (environment variables)
 
-### The app: `.env` (copy from `.env.example`)
+### The app: built in, or `.env` to override
 
-Firebase console → Project settings → General → **Your apps** → your Web app →
-*SDK setup and configuration* → **Config**. Copy each value across:
+Your project's web settings are already in `src/lib/firebase-config.ts`, so the
+app, the website on Vercel and the live check need no variables. Set these only
+to point a build at a different project (they win over the built-in values).
+They come from Firebase console → Project settings → General → **Your apps** →
+Web app → **Config**:
 
 | Variable | Required | Where it comes from | Example |
 |---|---|---|---|
@@ -25,9 +54,14 @@ Firebase console → Project settings → General → **Your apps** → your Web
 | `EXPO_PUBLIC_USE_EMULATORS` | no | `1` to run against local emulators instead | `1` |
 | `EXPO_PUBLIC_EMULATOR_HOST` | no | Your computer's network address, when testing emulators from a phone | `192.168.1.20` |
 
-These web values are meant to ship inside the app; the security rules are what
-protect the data. The same values go into **Vercel** (Settings → Environment
-Variables) and **EAS** (`eas env:set`, DEPLOY.md step 4). `.env` is never committed.
+These web values are meant to ship inside the app, which is why they are
+committed; the security rules are what protect the data. If you do override them,
+the same values go into **Vercel** (Settings → Environment Variables) and **EAS**
+(`eas env:set`). `.env` is never committed.
+
+| GitHub secret | Where it comes from |
+|---|---|
+| `FIREBASE_SERVICE_ACCOUNT` | the service-account key (Automatic deploys, above). Only GitHub uses it; never put it in the app or in Vercel. |
 
 ### The server functions: `functions/.env` (optional, copy from `functions/.env.example`)
 
@@ -45,10 +79,9 @@ npm install
 npm --prefix functions install
 npm --prefix firebase/tests install
 npx --prefix firebase/tests firebase login
-npx --prefix firebase/tests firebase use --add      # pick your project, alias "default"
 ```
 
-This writes `.firebaserc` with your project id (safe to commit).
+`.firebaserc` already points at `kita-4a2e1`.
 
 ## 3. Check everything locally first
 
@@ -83,7 +116,7 @@ npx --prefix firebase/tests firebase deploy --only firestore,storage,functions
 npm run verify:live
 ```
 
-It uses your `.env`, creates three temporary accounts
+It uses the built-in settings (or your `.env`), creates three temporary accounts
 (`together-check-…@example.com`), pairs two of them through the real `acceptInvite`
 in Singapore, tests the rules from outside, then deletes all three with the real
 `deleteAccount`. Nothing of yours is touched. Expected output ends with
@@ -93,7 +126,7 @@ in Singapore, tests the rules from outside, then deletes all three with the real
 
 | # | Requirement | Emulators (`npm run verify`) | Live (`npm run verify:live`) |
 |---|---|---|---|
-| 1 | Firebase initialises | each test user connects with the app's config | your `.env` config connects |
+| 1 | Firebase initialises | each test user connects with the app's config | the app's config connects to kita-4a2e1 |
 | 2 | Registration and sign-in | sign-up, profile and settings exactly as the app writes them; sign-in again | the same, on your project |
 | 3 | Invite and linking | `acceptInvite` pairs; codes can't be reused; a paired person can't invite or be invited; nobody can pair by writing directly | `acceptInvite` pairs; reuse refused |
 | 4 | Database structure matches the app | every couple, membership and profile field checked against what the app reads | couple fields checked |
@@ -101,7 +134,7 @@ in Singapore, tests the rules from outside, then deletes all three with the real
 | 6 | Storage rules | partner can open your photo, another couple can't; private files hidden even from the partner; nobody uploads into your folder | the same for photos |
 | 7 | Functions in Singapore | calls answer in `asia-southeast1` and not in `us-central1` | the same |
 | 8 | Account deletion | profile, private logs, settings, photo, private files, memberships, the couple and every shared note removed; sign-in gone; the partner is unlinked and can pair again; the other couple is untouched | partner unlinked, couple gone, sign-in gone |
-| 9 | Settings documented | this file and `.env.example` | missing settings are named before anything runs |
+| 9 | Settings documented | this file, `.env.example` and `src/lib/firebase-config.ts` | missing settings are named before anything runs |
 
 Also covered by the emulator run: unlinking cuts access at once, data is kept 30
 days, and a reconnect needs both people.

@@ -73,7 +73,7 @@
     "test:rules": "npm --prefix firebase/tests test",
     "test:integration": "npm --prefix functions run build && npm --prefix firebase/tests run test:integration",
     "verify": "npm run typecheck && npm run lint && npm run test:unit && npm --prefix functions run build && npm run test:rules && npm --prefix firebase/tests run test:integration",
-    "verify:live": "node --env-file=.env --import tsx scripts/verify-live.ts",
+    "verify:live": "node --env-file-if-exists=.env --import tsx scripts/verify-live.ts",
     "emulators": "npm --prefix functions run build && npx --prefix firebase/tests firebase emulators:start --only auth,firestore,storage,functions --project demo-together",
     "dev:local": "EXPO_PUBLIC_USE_EMULATORS=1 expo start"
   },

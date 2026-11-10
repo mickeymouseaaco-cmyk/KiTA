@@ -31,10 +31,9 @@ already tells Vercel how to build it.
 1. On vercel.com, **Add New → Project** and import the GitHub repo. Leave the framework
    as **Other**; `vercel.json` sets the build command (`npx expo export --platform web`)
    and the output folder (`dist`).
-2. Before deploying, open **Settings → Environment Variables** and add the six
-   `EXPO_PUBLIC_FIREBASE_*` values from your Firebase web app (see `.env.example`), for
-   Production and Preview. They're baked in at build time, so **redeploy** after adding
-   or changing them.
+2. No environment variables are needed: your Firebase settings (project kita-4a2e1)
+   are built in (`src/lib/firebase-config.ts`). Only add `EXPO_PUBLIC_FIREBASE_*`
+   variables here to point the site at a different project, then **redeploy**.
 3. In Firebase → Authentication → Settings → **Authorized domains**, add your Vercel
    address (for example `together-xyz.vercel.app`) so sign-in works there.
 4. Deploy, open the link on both phones, and use **Add to Home Screen**.
@@ -98,16 +97,9 @@ npx eas-cli@latest init
 `init` links the project to your Expo account and writes its project ID into `app.json`
 (push notifications need it). Commit that change.
 
-Your `.env` file stays on your computer, so give EAS the same values. Do this for each
-of the six values, and for both the `preview` and `production` environments:
-
-```bash
-npx eas-cli@latest env:set --name EXPO_PUBLIC_FIREBASE_API_KEY --value <value> --environment production --visibility plaintext
-npx eas-cli@latest env:set --name EXPO_PUBLIC_FIREBASE_API_KEY --value <value> --environment preview --visibility plaintext
-```
-
-The six names are in `.env.example`. These Firebase web values are meant to be in the app
-(the security rules are what keep your data private), so `plaintext` is right.
+The Firebase settings are built in, so EAS needs no variables. To point a build at a
+different project, set the six `EXPO_PUBLIC_FIREBASE_*` values (names in `.env.example`)
+with `npx eas-cli@latest env:set --name … --value … --environment production --visibility plaintext`.
 
 ## 5. Push notifications
 
@@ -185,5 +177,5 @@ adds a native package still needs a new build (step 7).
 ### If something goes wrong
 
 - **Build fails:** open the build page on expo.dev and read the first red error in the logs. `npx expo-doctor` catches most setup problems.
-- **App opens to the "set up Firebase" screen:** the `EXPO_PUBLIC_FIREBASE_*` values weren't set for that build's environment (step 4).
+- **App opens to the "set up Firebase" screen:** the built-in settings in `src/lib/firebase-config.ts` are missing, or an `EXPO_PUBLIC_FIREBASE_*` override is set to a wrong value (step 4).
 - **No push notifications:** check Settings → "Turn on hug & love note alerts" on the phone, step 5, and that the functions are deployed (step 2.7).

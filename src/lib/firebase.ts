@@ -18,20 +18,31 @@ import { connectFunctionsEmulator, getFunctions, type Functions } from 'firebase
 import { connectStorageEmulator, getStorage, type FirebaseStorage } from 'firebase/storage';
 import { Platform } from 'react-native';
 
+import { FIREBASE_WEB_CONFIG as KITA } from './firebase-config';
+
 const useEmulators = process.env.EXPO_PUBLIC_USE_EMULATORS === '1';
 /** Where the Cloud Functions run: Singapore, next to the database (functions/src/index.ts). */
 export const FUNCTIONS_REGION = process.env.EXPO_PUBLIC_FUNCTIONS_REGION || 'asia-southeast1';
 const emulatorHost = process.env.EXPO_PUBLIC_EMULATOR_HOST || '127.0.0.1';
 
-const config: FirebaseOptions = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || (useEmulators ? 'demo-key' : undefined),
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || (useEmulators ? 'demo-together' : undefined),
-  storageBucket:
-    process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || (useEmulators ? 'demo-together.appspot.com' : undefined),
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || (useEmulators ? 'demo-app' : undefined),
-};
+// Environment variables win; otherwise the project's own web settings
+// (src/lib/firebase-config.ts), or a demo project when using the emulators.
+// (Written out in full: Expo only bakes in `process.env.EXPO_PUBLIC_…` as literal text.)
+const config: FirebaseOptions = useEmulators
+  ? {
+      apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || 'demo-key',
+      projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'demo-together',
+      storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || 'demo-together.appspot.com',
+      appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || 'demo-app',
+    }
+  : {
+      apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || KITA.apiKey,
+      authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || KITA.authDomain,
+      projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || KITA.projectId,
+      storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || KITA.storageBucket,
+      messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || KITA.messagingSenderId,
+      appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || KITA.appId,
+    };
 
 export const isFirebaseConfigured = Boolean(config.apiKey && config.projectId);
 
