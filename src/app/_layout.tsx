@@ -11,6 +11,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { CelebrateProvider } from '@/components/celebrate';
 import { FeedbackProvider } from '@/components/feedback';
 import { IncomingLove, LockScreen, SurpriseWatcher } from '@/components/overlays';
+import { AppearanceSync } from '@/lib/appearance';
 import { LockProvider } from '@/lib/lock';
 import { configureNotifications } from '@/lib/notifications';
 import { outbox } from '@/lib/outbox';
@@ -76,6 +77,8 @@ function Navigator() {
         <Stack.Screen name="setup" options={{ headerShown: false }} />
         <Stack.Screen name="pair" options={{ title: 'Connect with your partner', headerShown: false }} />
         <Stack.Screen name="log-steps" options={{ title: 'Steps', presentation: 'modal' }} />
+        <Stack.Screen name="steps-sync" options={{ title: 'Steps from iPhone' }} />
+        <Stack.Screen name="appearance" options={{ title: 'Look & feel' }} />
         <Stack.Screen name="log-mood" options={{ title: 'How are you?', presentation: 'modal' }} />
         <Stack.Screen name="vent" options={{ title: 'Vent', presentation: 'modal' }} />
         <Stack.Screen name="calm" options={{ title: 'Calm Corner' }} />
@@ -102,6 +105,7 @@ function Navigator() {
         <Stack.Screen name="privacy" options={{ title: 'What they can see' }} />
       </Stack>
       <Gate />
+      <AppearanceSync />
       <IncomingLove />
       <SurpriseWatcher />
       <LockScreen />

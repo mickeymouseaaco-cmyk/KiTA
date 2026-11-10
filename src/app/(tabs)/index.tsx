@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { CalendarHeart, ChevronRight, Eye, Footprints, Lock, Moon, Pencil, Wind } from 'lucide-react-native';
+import { CalendarHeart, ChevronRight, Eye, Footprints, Lock, Moon, Pencil, Smartphone, Wind } from 'lucide-react-native';
 import { useEffect, useMemo } from 'react';
 import { Pressable, View } from 'react-native';
 
@@ -51,7 +51,7 @@ function ShareNote({ shared, partnerName }: { shared: boolean; partnerName: stri
 }
 
 export default function Today() {
-  const { c } = useTheme();
+  const { c, look } = useTheme();
   const { uid, cid, myName, partnerName, profile } = usePaired();
   const month = useMemo(() => lastNDays(30), []);
   const week = month.slice(-7);
@@ -79,8 +79,8 @@ export default function Today() {
   return (
     <Screen>
       <TopBar
-        subtitle={new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
-        title={greeting(myName, timeOfDay())}
+        subtitle={new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+        title={greeting(myName, timeOfDay()) + (look.emoji ? ` ${{ morning: '☀️', afternoon: '🌤️', evening: '🌙' }[timeOfDay()]}` : '')}
       />
       <DaySwitch value="mine" />
 
@@ -109,9 +109,7 @@ export default function Today() {
         <Gap h={space.md} />
         <Button testID="log-steps" small kind="soft" icon={Footprints} label="Log steps" onPress={() => router.push('/log-steps')} />
         <Gap h={space.sm} />
-        <T variant="small" muted>
-          Apple Health and Google Fit syncing is coming soon.
-        </T>
+        <Button testID="today-steps-sync" small kind="ghost" icon={Smartphone} label="Sync from iPhone Health" onPress={() => router.push('/steps-sync')} />
       </Card>
       <Gap />
 

@@ -170,6 +170,8 @@ async function main() {
   await alex.locator(tid('note-input')).fill('Thank you, love. Dinner’s on me tonight.');
   await alex.locator(tid('send-note')).click();
 
+  await alex.locator(tid('attach-toggle')).click();
+
   const [chooser] = await Promise.all([alex.waitForEvent('filechooser'), alex.locator(tid('attach-photo')).click()]);
   await chooser.setFiles(PHOTO);
   await alex.locator(tid('photo-caption')).fill('Sunset from our walk');
@@ -177,6 +179,7 @@ async function main() {
   log('Alex sends a text note and a photo (resized, then uploaded via the outbox)');
 
   // Voice note with the fake microphone: tap once to lock, then Stop.
+  await alex.locator(tid('attach-toggle')).click();
   await alex.locator(tid('attach-voice')).click();
   await alex.getByText('Record a voice note').first().waitFor();
   const mic = alex.locator(tid('record'));
@@ -324,6 +327,7 @@ async function main() {
 
   // ------------------------------------------------------------- view-once photo
   await tab(alex, 'Love Notes');
+  await alex.locator(tid('attach-toggle')).click();
   const [chooser3] = await Promise.all([alex.waitForEvent('filechooser'), alex.locator(tid('attach-photo')).click()]);
   await chooser3.setFiles(PHOTO);
   await alex.locator(tid('opt-view-once')).click();
@@ -342,6 +346,7 @@ async function main() {
   log('View-once photo: Blair opens it once, closing deletes it; Alex sees "opened"');
 
   // ------------------------------------------------------------- disappearing video
+  await alex.locator(tid('attach-toggle')).click();
   await alex.locator(tid('attach-video')).click();
   const [chooser4] = await Promise.all([alex.waitForEvent('filechooser'), alex.locator(tid('choose-video')).click()]);
   await chooser4.setFiles(CLIP);

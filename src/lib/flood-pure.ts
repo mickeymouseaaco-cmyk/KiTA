@@ -147,6 +147,20 @@ export function weatherWords(code: number): string {
   return 'Mixed';
 }
 
+/** The sky in one word, for picking an icon or animation. */
+export type SkyKind = 'sun' | 'partly' | 'cloud' | 'fog' | 'drizzle' | 'rain' | 'storm';
+
+export function skyKind(code: number): SkyKind {
+  if (code === 0) return 'sun';
+  if (code <= 2) return 'partly';
+  if (code === 3) return 'cloud';
+  if (code === 45 || code === 48) return 'fog';
+  if (code >= 51 && code <= 57) return 'drizzle';
+  if (code >= 95) return 'storm';
+  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return 'rain';
+  return 'cloud';
+}
+
 /** How much rain a day brings: a gentle 0–3 scale. */
 export function rainRisk(d: Pick<ForecastDay, 'rainMm' | 'maxHourlyMm'>): 0 | 1 | 2 | 3 {
   if (d.maxHourlyMm >= 30 || d.rainMm >= 60) return 3; // intense bursts: flash floods possible in low spots
@@ -206,6 +220,38 @@ export function warningsFor(a: Area, all: Warning[], now: number): { local: Warn
     else if (body.includes('selangor')) state.push(w);
   }
   return { local, state };
+}
+
+/** An official warning in a few words, with an icon kind and how serious it is. */
+export type WarningKind = 'storm' | 'rain' | 'wind' | 'cyclone' | 'flood' | 'other';
+export type WarningLevel = 'advisory' | 'alert' | 'severe' | 'danger';
+export type WarningBrief = { kind: WarningKind; label: string; level: WarningLevel; untilMs: number | null };
+
+export const WARNING_LEVEL_LABEL: Record<WarningLevel, string> = { advisory: 'Heads-up', alert: 'Alert', severe: 'Severe', danger: 'Danger' };
+
+export function warningBrief(w: Pick<Warning, 'title' | 'heading' | 'validTo'>): WarningBrief {
+  const s = `${w.title} ${w.heading}`.toLowerCase();
+  const kind: WarningKind = /cyclone|siklon|tropical storm/.test(s)
+    ? 'cyclone'
+    : /thunder|ribut petir/.test(s)
+      ? 'storm'
+      : /flood|banjir/.test(s)
+        ? 'flood'
+        : /continuous rain|heavy rain|hujan/.test(s)
+          ? 'rain'
+          : /wind|sea|angin|laut/.test(s)
+            ? 'wind'
+            : 'other';
+  const label = {
+    cyclone: 'Tropical storm',
+    storm: 'Thunderstorms',
+    flood: 'Flood',
+    rain: 'Non-stop rain',
+    wind: 'Strong wind & rough seas',
+    other: 'Bad weather',
+  }[kind];
+  const level: WarningLevel = /danger|bahaya/.test(s) ? 'danger' : /severe|buruk/.test(s) ? 'severe' : /alert|waspada/.test(s) ? 'alert' : 'advisory';
+  return { kind, label, level, untilMs: myTime(w.validTo) };
 }
 
 // ---------------------------------------------------------------- JPS rivers

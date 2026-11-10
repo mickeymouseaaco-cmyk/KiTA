@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
-import { Camera, ChevronRight, Eye, HardDrive, ImagePlus, Lock, LogOut, Trash, Unlink } from 'lucide-react-native';
+import { Camera, ChevronRight, Eye, Footprints, HardDrive, ImagePlus, Lock, LogOut, Palette, Trash, Unlink, type LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
 import { Platform, Pressable, TextInput, View } from 'react-native';
 
@@ -19,6 +19,26 @@ import { friendlyError, unpair } from '@/lib/pairing';
 import { useSession } from '@/lib/session';
 import { LOVE_LANGUAGES } from '@/lib/suggestions';
 import { space, useTheme } from '@/theme';
+
+function NavRow({ icon: Icon, title, detail, onPress, testID }: { icon: LucideIcon; title: string; detail: string; onPress: () => void; testID?: string }) {
+  const { c } = useTheme();
+  return (
+    <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={title} accessibilityHint={detail} onPress={onPress}>
+      <Card>
+        <Row>
+          <Icon color={c.primary} size={22} />
+          <View style={{ flex: 1 }}>
+            <T variant="bodyStrong">{title}</T>
+            <T variant="small" muted>
+              {detail}
+            </T>
+          </View>
+          <ChevronRight color={c.textMuted} size={20} />
+        </Row>
+      </Card>
+    </Pressable>
+  );
+}
 
 export default function Settings() {
   const { c } = useTheme();
@@ -111,6 +131,11 @@ export default function Settings() {
           <TextInput value={name} onChangeText={setName} onBlur={saveName} onSubmitEditing={saveName} maxLength={60} style={input} />
         </Field>
       </Card>
+
+      <Gap />
+      <NavRow testID="open-appearance" icon={Palette} title="Look & feel" detail="Colours, style and animations" onPress={() => router.push('/appearance')} />
+      <Gap h={space.sm} />
+      <NavRow testID="open-steps-sync" icon={Footprints} title="Steps from iPhone" detail="Sync your steps from Apple Health" onPress={() => router.push('/steps-sync')} />
 
       {status === 'paired' ? (
         <>

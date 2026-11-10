@@ -67,6 +67,12 @@ service cloud.firestore {
       }
     }
 
+    // ----------------------------------------------------------- stepTokens
+    // Hashes of the private "steps from iPhone" links. Server functions only.
+    match /stepTokens/{tokenHash} {
+      allow read, write: if false;
+    }
+
     // ---------------------------------------------------------- memberships
     // One document per person = one couple per person. Server functions only.
     match /memberships/{uid} {

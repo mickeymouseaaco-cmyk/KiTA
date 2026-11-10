@@ -10,6 +10,8 @@
  *   lifecycle, run only on the server (see docs/ARCHITECTURE.md §2).
  * - purgeEndedCouples, cleanupInvites, onShareSettingsChanged: daily and
  *   background clean-up.
+ * - startStepsSync, stopStepsSync, syncSteps: steps from Apple Health, sent by
+ *   an iPhone Shortcut with a personal link (docs/STEPS-SYNC.md).
  */
 import { initializeApp } from 'firebase-admin/app';
 import { v2 as speech } from '@google-cloud/speech';
@@ -19,11 +21,13 @@ import { getStorage } from 'firebase-admin/storage';
 import { logger } from 'firebase-functions';
 import { defineBoolean, defineString } from 'firebase-functions/params';
 import { onDocumentCreated, onDocumentDeleted, onDocumentWritten } from 'firebase-functions/v2/firestore';
-import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/https';
+import { HttpsError, onCall, onRequest, type CallableRequest } from 'firebase-functions/v2/https';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 // Auth deletion triggers only exist in the 1st-gen API.
 import * as functionsV1 from 'firebase-functions/v1';
+
+import { hashStepsToken, newStepsToken, parseSteps, syncDay } from './steps-pure';
 
 /**
  * Every function runs in Singapore, next to the Firestore database and Storage
@@ -494,6 +498,8 @@ async function removeAllDataFor(uid: string) {
   await db.doc(`memberships/${uid}`).delete();
   const invites = await db.collection('invites').where('fromUid', '==', uid).where('status', '==', 'open').get();
   await Promise.all(invites.docs.map((d) => d.ref.update({ status: 'cancelled' })));
+  const tokens = await db.collection('stepTokens').where('uid', '==', uid).get();
+  await Promise.all(tokens.docs.map((d) => d.ref.delete()));
 }
 
 /** Settings → Delete my account. The app re-checks the password just before calling this. */
@@ -555,4 +561,92 @@ export const onShareSettingsChanged = onDocumentWritten('users/{uid}/settings/sh
     mine.docs.slice(i, i + 400).forEach((d) => batch.update(d.ref, patch));
     await batch.commit();
   }
+});
+
+// ------------------------------------------------------------ steps from iPhone
+//
+// Web apps can't read Apple Health, so an iPhone Shortcut reads today's steps
+// and opens a personal link: syncSteps?t=<secret>&steps=<number>. The secret
+// only lets someone set that one person's step count. Only its hash is used
+// for the lookup (stepTokens/{hash}); the owner can see their own link in
+// users/{uid}/settings/stepsSync. Making a new link or turning sync off
+// retires the old one.
+
+const STEPS_TIME_ZONE = 'Asia/Kuala_Lumpur';
+
+function syncStepsUrl(token: string): string {
+  const project = process.env.GCLOUD_PROJECT ?? JSON.parse(process.env.FIREBASE_CONFIG ?? '{}').projectId;
+  const base =
+    process.env.FUNCTIONS_EMULATOR === 'true'
+      ? `http://127.0.0.1:5001/${project}/${REGION}`
+      : `https://${REGION}-${project}.cloudfunctions.net`;
+  return `${base}/syncSteps?t=${token}`;
+}
+
+async function retireStepsLink(uid: string) {
+  const settings = db.doc(`users/${uid}/settings/stepsSync`);
+  const old = (await settings.get()).data()?.tokenHash as string | undefined;
+  if (old) await db.doc(`stepTokens/${old}`).delete();
+  return settings;
+}
+
+/** Settings → Steps from iPhone → Make my link. Replaces any earlier link. */
+export const startStepsSync = onCall(async (req) => {
+  const uid = caller(req);
+  const settings = await retireStepsLink(uid);
+  const token = newStepsToken();
+  const tokenHash = hashStepsToken(token);
+  const url = syncStepsUrl(token);
+  await db.doc(`stepTokens/${tokenHash}`).set({ uid, createdAt: FieldValue.serverTimestamp() });
+  await settings.set({ url, tokenHash, createdAt: FieldValue.serverTimestamp(), lastSyncAt: null, lastSteps: null });
+  return { url };
+});
+
+/** Settings → Steps from iPhone → Turn off. The old link stops working at once. */
+export const stopStepsSync = onCall(async (req) => {
+  const uid = caller(req);
+  const settings = await retireStepsLink(uid);
+  await settings.delete();
+  return { ok: true };
+});
+
+/** Called by the iPhone Shortcut. Answers in plain words, which the Shortcut can show. */
+export const syncSteps = onRequest({ cors: false }, async (req, res) => {
+  const q = { ...(typeof req.body === 'object' && req.body ? req.body : {}), ...req.query } as Record<string, unknown>;
+  const token = typeof q.t === 'string' ? q.t : '';
+  if (!/^[A-Za-z0-9_-]{20,64}$/.test(token)) {
+    res.status(401).send('This sync link isn’t right. Copy it again from Together → Settings → Steps from iPhone.');
+    return;
+  }
+  const owner = await db.doc(`stepTokens/${hashStepsToken(token)}`).get();
+  const uid = owner.data()?.uid as string | undefined;
+  if (!uid) {
+    res.status(401).send('This sync link was turned off or replaced. Copy the new one from Together → Settings → Steps from iPhone.');
+    return;
+  }
+  const steps = parseSteps(q.steps);
+  if (steps === null) {
+    res.status(400).send('Together didn’t get a step count. Check the Shortcut sends “Statistics” (the sum of today’s steps).');
+    return;
+  }
+  const date = syncDay(q.date, STEPS_TIME_ZONE);
+  const user = (await db.doc(`users/${uid}`).get()).data() ?? {};
+  const day = db.doc(`users/${uid}/days/${date}`);
+  const stepGoal = ((await day.get()).data()?.stepGoal as number | undefined) ?? (user.stepGoal as number | undefined) ?? 8000;
+  await day.set({ date, steps, stepGoal, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+
+  // Share with the partner exactly as the app would: only if steps sharing is on.
+  const cid = user.coupleId as string | null | undefined;
+  if (cid) {
+    const [couple, share] = await Promise.all([db.doc(`couples/${cid}`).get(), db.doc(`users/${uid}/settings/share`).get()]);
+    const shareSteps = typeof share.data()?.steps === 'boolean' ? (share.data()!.steps as boolean) : SHARE_DEFAULTS.steps;
+    const active = couple.exists && couple.data()?.status !== 'ended' && ((couple.data()?.members as string[]) ?? []).includes(uid);
+    if (active && shareSteps) {
+      await db
+        .doc(`couples/${cid}/shared/${uid}_${date}`)
+        .set({ ownerId: uid, date, steps, stepGoal, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    }
+  }
+  await db.doc(`users/${uid}/settings/stepsSync`).set({ lastSyncAt: FieldValue.serverTimestamp(), lastSteps: steps, lastDate: date }, { merge: true });
+  res.status(200).send(`Synced ${steps.toLocaleString('en-US')} steps to Together ♡`);
 });
