@@ -46,8 +46,11 @@ export default function TabsLayout() {
       <Tabs.Screen name="notes" options={{ title: 'Notes', tabBarIcon: ({ color }) => <Mail color={color} size={24} /> }} />
       <Tabs.Screen name="together" options={{ title: 'Together', tabBarIcon: ({ color }) => <Users color={color} size={24} /> }} />
       <Tabs.Screen name="trip" options={{ title: 'Trips', tabBarIcon: ({ color }) => <Plane color={color} size={24} /> }} />
-      {/* Not in the bar: opened from the switch on Home. */}
-      <Tabs.Screen name="their-day" options={{ href: null, title: 'Their day', tabBarIcon: ({ color }) => <HeartHandshake color={color} size={24} /> }} />
+      {/* Not in the bar (opened from the switch on Home), but still a normal page, so /their-day links work. */}
+      <Tabs.Screen
+        name="their-day"
+        options={{ title: 'Their day', tabBarItemStyle: { display: 'none' }, tabBarIcon: ({ color }) => <HeartHandshake color={color} size={24} /> }}
+      />
     </Tabs>
   );
 }

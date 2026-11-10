@@ -181,6 +181,7 @@ async function main() {
     await shot(aina, 'dbg-aina-their-day');
     console.log('DEBUG url', aina.url());
     console.log('DEBUG text', (await aina.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 600));
+    console.log('DEBUG page errors', errors.join(' | ') || 'none');
     throw e;
   }
   await shot(aina, '07-their-day-steps');
