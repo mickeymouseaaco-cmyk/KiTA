@@ -51,6 +51,8 @@ jobs:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     # Playwright's browsers don't support Ubuntu 26.04 (ubuntu-latest) yet.
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
@@ -88,6 +90,18 @@ jobs:
           name: screens
           path: e2e/screens
           if-no-files-found: ignore
+      - name: Keep the screenshots on the "screenshots" branch
+        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          [ -d e2e/screens ] || exit 0
+          cd e2e/screens
+          git init -q -b screenshots
+          git add .
+          git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" commit -qm "Screenshots for $SHA"
+          git push -qf "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" screenshots
 
   deploy:
     name: 2 · Upload rules and functions to Singapore
