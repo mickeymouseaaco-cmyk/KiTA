@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Minus, Plus } from 'lucide-react-native';
+import { Minus, Plus, Smartphone } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, TextInput, View } from 'react-native';
 
@@ -54,7 +54,19 @@ function StepsForm({ initialSteps }: { initialSteps: number }) {
 
   return (
     <Screen edges={['bottom']}>
-      <T muted>Enter today&apos;s steps from your phone or watch. Health app syncing is coming soon.</T>
+      <T muted>Enter today&apos;s steps from your phone or watch.</T>
+      <Gap h={space.sm} />
+      <Button
+        testID="open-steps-sync"
+        small
+        kind="ghost"
+        icon={Smartphone}
+        label="Sync from iPhone Health instead"
+        onPress={() => {
+          router.back();
+          router.push('/steps-sync');
+        }}
+      />
       <Gap h={space.xl} />
       <Row gap={space.md} style={{ justifyContent: 'center' }}>
         <IconButton icon={Minus} label="Remove 500 steps" size={56} onPress={() => bump(-500)} />

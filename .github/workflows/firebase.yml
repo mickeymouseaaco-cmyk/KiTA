@@ -45,6 +45,49 @@ jobs:
       - name: Typecheck, lint, logic tests, rules tests, end-to-end test
         run: npm run verify
 
+  screenshots:
+    name: Screenshots of the app (preview)
+    needs: verify
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
+            firebase/tests/package-lock.json
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci && npm ci --prefix functions && npm ci --prefix firebase/tests
+      - run: npm --prefix functions run build
+      - name: Build the website against the emulators
+        run: npx expo export --platform web --output-dir dist
+        env:
+          EXPO_PUBLIC_USE_EMULATORS: '1'
+      - name: Install a browser
+        run: |
+          npm install --prefix /tmp/pw playwright@1.56.1
+          npx --prefix /tmp/pw playwright install --with-deps chromium
+      - name: Two phones, real app, emulators
+        env:
+          NODE_PATH: /tmp/pw/node_modules
+        run: |
+          npx --prefix firebase/tests firebase emulators:exec --only auth,firestore,storage,functions --project demo-together \
+            "node e2e/serve.cjs dist 8099 & sleep 1 && node e2e/look-and-feel.cjs"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screens
+          path: e2e/screens
+          if-no-files-found: ignore
+
   deploy:
     name: 2 · Upload rules and functions to Singapore
     needs: verify
@@ -101,7 +144,7 @@ jobs:
         # each one checks the caller's Firebase sign-in itself (functions/src/index.ts).
         # firebase deploy tries to set this but skips unchanged functions, so it's set here every time.
         run: |
-          for svc in acceptinvite unlinkcouple requestreconnect deleteaccount; do
+          for svc in acceptinvite unlinkcouple requestreconnect deleteaccount startstepssync stopstepssync syncsteps; do
             gcloud run services add-iam-policy-binding "$svc" \
               --project "$PROJECT_ID" --region asia-southeast1 \
               --member=allUsers --role=roles/run.invoker --quiet >/dev/null

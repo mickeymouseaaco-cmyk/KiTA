@@ -8,6 +8,7 @@ import { dayKey, lastNDays } from '../src/lib/dates';
 import { projectDay } from '../src/lib/projection';
 import { gentleAlert, isHighSteps, suggestionsFor } from '../src/lib/suggestions';
 import { DEFAULT_SHARE, type DailyLog } from '../src/lib/types';
+import { dayKeyIn, hashStepsToken, newStepsToken, parseSteps, syncDay } from '../functions/src/steps-pure';
 
 const day: DailyLog = {
   date: '2026-11-09',
@@ -407,5 +408,69 @@ describe('Threads links for local flood posts', () => {
     for (const a of AREAS) assert.ok(a.threads.length >= 2, a.name);
     assert.ok(AREAS[0].threads.some((s) => /i-City/.test(s.query)));
     assert.equal(threadsSearchUrl('banjir i-City'), 'https://www.threads.com/search?q=banjir%20i-City&serp_type=default');
+  });
+});
+
+describe('steps from iPhone (functions/src/steps-pure.ts)', () => {
+  test('reads step counts however the phone formats them', () => {
+    assert.equal(parseSteps('8412'), 8412);
+    assert.equal(parseSteps('8,412'), 8412);
+    assert.equal(parseSteps('8.412'), 8412);
+    assert.equal(parseSteps('8 412'), 8412);
+    assert.equal(parseSteps('8412.0'), 8412);
+    assert.equal(parseSteps('8412,6'), 8413);
+    assert.equal(parseSteps(' 12,345 '), 12345);
+    assert.equal(parseSteps(9001.4), 9001);
+    assert.equal(parseSteps('0'), 0);
+  });
+  test('refuses anything that is not a believable step count', () => {
+    for (const bad of ['', 'abc', '-5', '1e9', '200000', '12,345,678', undefined, null, {}, NaN, -1]) assert.equal(parseSteps(bad), null, String(bad));
+  });
+  test('links are long, random and looked up by hash', () => {
+    const a = newStepsToken();
+    const b = newStepsToken();
+    assert.match(a, /^[A-Za-z0-9_-]{32}$/);
+    assert.notEqual(a, b);
+    assert.equal(hashStepsToken(a), hashStepsToken(a));
+    assert.notEqual(hashStepsToken(a), a);
+    assert.match(hashStepsToken(a), /^[0-9a-f]{64}$/);
+  });
+  test('steps land on today in Malaysia, or yesterday for a late sync', () => {
+    const at = new Date('2026-11-10T17:30:00Z'); // 1:30 am on 11 Nov in Kuala Lumpur
+    assert.equal(dayKeyIn('Asia/Kuala_Lumpur', at), '2026-11-11');
+    assert.equal(syncDay(undefined, 'Asia/Kuala_Lumpur', at), '2026-11-11');
+    assert.equal(syncDay('2026-11-10', 'Asia/Kuala_Lumpur', at), '2026-11-10');
+    assert.equal(syncDay('2026-11-01', 'Asia/Kuala_Lumpur', at), '2026-11-11');
+    assert.equal(syncDay('nonsense', 'Asia/Kuala_Lumpur', at), '2026-11-11');
+  });
+});
+
+describe('weather at a glance', () => {
+  test('sky kinds follow the weather code', async () => {
+    const { skyKind } = await import('../src/lib/flood-pure');
+    assert.equal(skyKind(0), 'sun');
+    assert.equal(skyKind(2), 'partly');
+    assert.equal(skyKind(3), 'cloud');
+    assert.equal(skyKind(45), 'fog');
+    assert.equal(skyKind(53), 'drizzle');
+    assert.equal(skyKind(63), 'rain');
+    assert.equal(skyKind(81), 'rain');
+    assert.equal(skyKind(95), 'storm');
+  });
+  test('official warnings shrink to an icon, a few words and a level', async () => {
+    const { warningBrief } = await import('../src/lib/flood-pure');
+    const b = (title: string, validTo: string | null = null) => warningBrief({ title, heading: '', validTo });
+    assert.deepEqual(
+      { ...b('Continuous Rain Warning (Danger Level)', '2026-11-11 18:00:00') },
+      { kind: 'rain', label: 'Non-stop rain', level: 'danger', untilMs: Date.parse('2026-11-11T18:00:00+08:00') },
+    );
+    assert.equal(b('Continuous Rain Warning (Alert Level)').level, 'alert');
+    assert.equal(b('Continuous Rain Warning (Severe Level)').level, 'severe');
+    assert.equal(b('Thunderstorms Warning').kind, 'storm');
+    assert.equal(b('Thunderstorms Warning').level, 'advisory');
+    assert.equal(b('Strong Wind and Rough Seas Warning (First Category)').kind, 'wind');
+    assert.equal(b('Tropical Cyclone Warning').kind, 'cyclone');
+    assert.equal(b('Amaran Ribut Petir').kind, 'storm');
+    assert.equal(b('Something new').label, 'Bad weather');
   });
 });

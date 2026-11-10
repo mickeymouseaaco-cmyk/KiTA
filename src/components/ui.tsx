@@ -33,13 +33,16 @@ export function T({
   style,
   ...rest
 }: TextProps & { variant?: Variant; muted?: boolean; color?: string; center?: boolean }) {
-  const { c } = useTheme();
+  const { c, look } = useTheme();
+  const heading = variant === 'display' || variant === 'title' || variant === 'heading';
   return (
     <Text
       maxFontSizeMultiplier={1.6}
       {...rest}
       style={[
         typeScale[variant],
+        heading && { fontFamily: look.headingFont },
+        heading && look.name === 'professional' && { letterSpacing: -0.2 },
         { color: color ?? (muted ? c.textMuted : c.text) },
         center && { textAlign: 'center' },
         style as StyleProp<TextStyle>,
@@ -90,7 +93,7 @@ export function Card({
   tone?: 'surface' | 'lavender' | 'peach' | 'sage' | 'sky' | 'rose' | 'butter';
   style?: StyleProp<ViewStyle>;
 }) {
-  const { c, dark } = useTheme();
+  const { c, dark, look } = useTheme();
   const bg = {
     surface: c.surface,
     lavender: c.surfaceAlt,
@@ -104,8 +107,12 @@ export function Card({
     <View
       style={[
         styles.card,
-        { backgroundColor: bg, borderColor: c.border },
-        dark ? { borderWidth: 1 } : styles.cardShadow,
+        { backgroundColor: bg, borderColor: c.border, borderRadius: look.cardRadius },
+        look.outlined
+          ? { borderWidth: look.cardBorder, borderColor: c.text, boxShadow: `4px 4px 0px ${c.primary}` }
+          : look.softShadow && !dark
+            ? styles.cardShadow
+            : { borderWidth: Math.max(1, look.cardBorder) },
         style,
       ]}>
       {children}
@@ -152,10 +159,11 @@ export function Button({
   accessibilityHint?: string;
   testID?: string;
 }) {
-  const { c } = useTheme();
+  const { c, look, motion } = useTheme();
   const bg = { primary: c.primary, soft: c.primarySoft, ghost: 'transparent', quiet: c.surfaceAlt }[kind];
   const fg = { primary: c.onPrimary, soft: c.primary, ghost: c.primary, quiet: c.text }[kind];
   const off = disabled || loading;
+  const pop = look.outlined && kind !== 'ghost' && !off;
   return (
     <Pressable
       testID={testID}
@@ -170,9 +178,10 @@ export function Button({
       }}
       style={({ pressed }) => [
         styles.button,
-        { backgroundColor: bg, minHeight: small ? touch.min : touch.comfy, opacity: off ? 0.55 : pressed ? 0.85 : 1 },
-        kind === 'ghost' && { borderWidth: 1.5, borderColor: c.border },
-        pressed && { transform: [{ scale: 0.98 }] },
+        { backgroundColor: bg, borderRadius: look.controlRadius, minHeight: small ? touch.min : touch.comfy, opacity: off ? 0.55 : pressed ? 0.85 : 1 },
+        kind === 'ghost' && { borderWidth: 1.5, borderColor: look.outlined ? c.text : c.border },
+        pop && { borderWidth: 2, borderColor: c.text, boxShadow: pressed ? `1px 1px 0px ${c.text}` : `3px 3px 0px ${c.text}` },
+        pressed && motion !== 'off' && { transform: pop ? [{ translateX: 2 }, { translateY: 2 }] : [{ scale: motion === 'lively' ? 0.95 : 0.98 }] },
         style,
       ]}>
       {loading ? (
@@ -249,7 +258,7 @@ export function Chip({
   onPress?: () => void;
   testID?: string;
 }) {
-  const { c } = useTheme();
+  const { c, look } = useTheme();
   return (
     <Pressable
       testID={testID}
@@ -263,8 +272,10 @@ export function Chip({
         styles.chip,
         {
           backgroundColor: selected ? c.primary : c.surfaceAlt,
+          borderRadius: look.name === 'professional' ? 8 : radius.pill,
           opacity: pressed ? 0.8 : 1,
         },
+        look.outlined && { borderWidth: 1.5, borderColor: c.text },
       ]}>
       <T variant="small" color={selected ? c.onPrimary : c.text} style={{ fontFamily: 'Raleway_600SemiBold' }}>
         {label}
@@ -356,9 +367,12 @@ export function Segmented<V extends string>({
   value: V;
   onChange: (v: V) => void;
 }) {
-  const { c } = useTheme();
+  const { c, look } = useTheme();
+  const r = look.controlRadius;
   return (
-    <View accessibilityRole="tablist" style={[styles.segment, { backgroundColor: c.surfaceAlt }]}>
+    <View
+      accessibilityRole="tablist"
+      style={[styles.segment, { backgroundColor: c.surfaceAlt, borderRadius: r }, look.outlined && { borderWidth: 2, borderColor: c.text }]}>
       {options.map((o) => {
         const on = o.value === value;
         return (
@@ -370,7 +384,7 @@ export function Segmented<V extends string>({
               haptic.tap();
               onChange(o.value);
             }}
-            style={[styles.segmentItem, on && { backgroundColor: c.surface }, on && styles.cardShadow]}>
+            style={[styles.segmentItem, { borderRadius: r >= radius.pill ? r : Math.max(4, r - 3) }, on && { backgroundColor: c.surface }, on && styles.cardShadow]}>
             <T variant="bodyStrong" color={on ? c.primary : c.textMuted}>
               {o.label}
             </T>
@@ -417,14 +431,14 @@ export function Field({
 }
 
 export function useInputStyle(): TextStyle {
-  const { c } = useTheme();
+  const { c, look } = useTheme();
   return {
     ...typeScale.body,
     color: c.text,
     backgroundColor: c.surface,
-    borderColor: c.border,
-    borderWidth: 1.5,
-    borderRadius: radius.md,
+    borderColor: look.outlined ? c.text : c.border,
+    borderWidth: look.outlined ? 2 : 1.5,
+    borderRadius: look.name === 'professional' ? 8 : radius.md,
     paddingHorizontal: space.lg,
     paddingVertical: 14,
     minHeight: touch.comfy,

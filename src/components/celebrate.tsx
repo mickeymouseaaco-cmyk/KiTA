@@ -2,8 +2,8 @@
  * Confetti for small wins and couple streaks. Soft colors, short, and skipped
  * entirely when Reduce Motion is on (a gentle haptic and message instead).
  */
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { AccessibilityInfo, Animated, Dimensions, Easing, Platform, View } from 'react-native';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { Animated, Dimensions, Easing, Platform, View } from 'react-native';
 
 import { haptic } from '@/lib/haptics';
 import { space, useTheme } from '@/theme';
@@ -51,22 +51,18 @@ function Confetti({ pieces, onDone }: { pieces: Piece[]; onDone: () => void }) {
 }
 
 export function CelebrateProvider({ children }: { children: ReactNode }) {
-  const { c } = useTheme();
+  // `motion` is already 'off' when the phone asks for reduced motion.
+  const { c, motion } = useTheme();
   const { toast } = useFeedback();
   const [burst, setBurst] = useState<{ id: number; pieces: Piece[] } | null>(null);
-  const reduceMotion = useRef(false);
-
-  useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled().then((v) => (reduceMotion.current = v)).catch(() => {});
-  }, []);
 
   const celebrate = useCallback<Celebrate>(
     (message) => {
       haptic.success();
       if (message) toast(message);
-      if (reduceMotion.current) return;
+      if (motion === 'off') return;
       const colors = [c.heart, c.primary, c.ring, '#F6C97A', '#9CC7F0', '#F4A6B8'];
-      const pieces = Array.from({ length: PIECES }, (_, i) => ({
+      const pieces = Array.from({ length: motion === 'lively' ? PIECES * 2 : PIECES }, (_, i) => ({
         x: Math.random() * 100,
         drift: (Math.random() - 0.5) * 120,
         delay: Math.random() * 0.4,
@@ -76,7 +72,7 @@ export function CelebrateProvider({ children }: { children: ReactNode }) {
       }));
       setBurst({ id: Date.now(), pieces });
     },
-    [c, toast],
+    [c, toast, motion],
   );
 
   return (

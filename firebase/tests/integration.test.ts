@@ -22,9 +22,11 @@ import {
   getDoc,
   getDocs,
   getFirestore,
+  query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
   type Firestore,
 } from 'firebase/firestore';
 import { connectFunctionsEmulator, getFunctions, httpsCallable } from 'firebase/functions';
@@ -252,6 +254,35 @@ describe('Together on Firebase, end to end', () => {
     await assert.rejects(httpsCallable(other, 'unlinkCouple')({}));
   });
 
+  test('Steps from iPhone: a private link sets only its owner’s steps', async () => {
+    const { url } = await afiq.call<{ url: string }>('startStepsSync');
+    assert.match(url, /\/syncSteps\?t=[A-Za-z0-9_-]{32}$/);
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+
+    const ok = await fetch(`${url}&steps=${encodeURIComponent('8,412')}`);
+    assert.equal(ok.status, 200, await ok.text());
+    assert.equal((await adminGet(`users/${afiq.uid}/days/${today}`))?.steps, 8412);
+    assert.equal((await getDoc(doc(aina.db, `couples/${cid}/shared/${afiq.uid}_${today}`))).data()?.steps, 8412, 'partner sees shared steps');
+    assert.equal((await getDoc(doc(afiq.db, 'users', afiq.uid, 'settings', 'stepsSync'))).data()?.lastSteps, 8412);
+
+    // Bad input and bad links change nothing.
+    assert.equal((await fetch(`${url}&steps=lots`)).status, 400);
+    assert.equal((await fetch(url.replace(/t=.*/, 't=wrongwrongwrongwrongwrongwrong12') + '&steps=5')).status, 401);
+    await denied(getDoc(doc(aina.db, 'stepTokens', 'anything')));
+
+    // A new link retires the old one; turning sync off retires the new one.
+    const { url: url2 } = await afiq.call<{ url: string }>('startStepsSync');
+    assert.equal((await fetch(`${url}&steps=1`)).status, 401);
+    assert.equal((await fetch(`${url2}&steps=9000`)).status, 200);
+    assert.equal((await adminGet(`users/${afiq.uid}/days/${today}`))?.steps, 9000);
+    await afiq.call('stopStepsSync');
+    assert.equal((await fetch(`${url2}&steps=2`)).status, 401);
+    assert.equal(await adminGet(`users/${afiq.uid}/settings/stepsSync`), undefined);
+
+    // Afiq keeps a link for the account-deletion check below.
+    await afiq.call('startStepsSync');
+  });
+
   test('Unlink stops access at once; reconnect needs both people', async () => {
     await afiq.call('unlinkCouple');
     assert.equal((await getDoc(doc(afiq.db, 'couples', cid))).data()?.status, 'ended');
@@ -279,6 +310,11 @@ describe('Together on Firebase, end to end', () => {
     assert.equal(await adminGet(`users/${afiq.uid}/days/2026-11-10`), undefined, 'private logs gone');
     assert.equal(await adminGet(`users/${afiq.uid}/settings/share`), undefined, 'settings gone');
     assert.equal(await adminGet(`memberships/${afiq.uid}`), undefined, 'membership gone');
+    let tokensLeft = -1;
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      tokensLeft = (await getDocs(query(collection(ctx.firestore(), 'stepTokens'), where('uid', '==', afiq.uid)))).size;
+    });
+    assert.equal(tokensLeft, 0, 'steps sync link removed');
     assert.equal(await adminGet(`memberships/${aina.uid}`), undefined, 'partner is free to pair again');
     assert.equal(await adminGet(`couples/${cid}`), undefined, 'couple gone');
     await eventually(async () => (await adminGet(`couples/${cid}/messages/n1`)) === undefined, 'shared notes removed');

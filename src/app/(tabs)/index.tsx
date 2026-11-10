@@ -51,7 +51,7 @@ function ShareNote({ shared, partnerName }: { shared: boolean; partnerName: stri
 }
 
 export default function Today() {
-  const { c } = useTheme();
+  const { c, look } = useTheme();
   const { uid, cid, myName, partnerName, profile } = usePaired();
   const month = useMemo(() => lastNDays(30), []);
   const week = month.slice(-7);
@@ -80,7 +80,7 @@ export default function Today() {
     <Screen>
       <TopBar
         subtitle={new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
-        title={greeting(myName, timeOfDay())}
+        title={greeting(myName, timeOfDay()) + (look.emoji ? ` ${{ morning: '☀️', afternoon: '🌤️', evening: '🌙' }[timeOfDay()]}` : '')}
       />
       <DaySwitch value="mine" />
 

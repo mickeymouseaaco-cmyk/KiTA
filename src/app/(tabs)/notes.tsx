@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
-import { CalendarClock, Camera, Check, Clock, Gift, Heart, ImagePlus, ListTodo, Mail, Mic, Send, Star, Trash, Video, X } from 'lucide-react-native';
+import { CalendarClock, Camera, Check, Clock, Gift, Heart, ImagePlus, ListTodo, Mail, Mic, Plus, Send, Star, Trash, Video, X } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -56,6 +56,10 @@ function PrivacyOptions({ value, onChange, partnerName }: { value: NoteOptions; 
   );
 }
 
+/** The note box starts one line tall and grows to about six lines. */
+const COMPOSER_MIN = 44;
+const COMPOSER_MAX = 160;
+
 export default function LoveNotes() {
   const { c } = useTheme();
   const input = useInputStyle();
@@ -67,6 +71,8 @@ export default function LoveNotes() {
   const pending = useOutbox((j) => j.uid === uid && j.cid === cid && j.target.kind === 'message');
   const [filter, setFilter] = useState<'all' | 'starred' | 'saved'>('all');
   const [text, setText] = useState('');
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [inputH, setInputH] = useState(COMPOSER_MIN);
   const [important, setImportant] = useState(false);
   const { todos } = useTodos(cid);
   const todoFrom = new Set(todos.map((t) => t.fromMessageId).filter(Boolean));
@@ -129,6 +135,7 @@ export default function LoveNotes() {
     if (!body) return;
     const star = important;
     setText('');
+    setInputH(COMPOSER_MIN);
     setImportant(false);
     try {
       await sendText(who, body, 'text', { important: star });
@@ -325,22 +332,62 @@ export default function LoveNotes() {
               </Row>
             </Pressable>
           ) : null}
-          <Row gap={space.xs} style={{ width: '100%', maxWidth: 560, alignSelf: 'center' }}>
-            <IconButton testID="attach-camera" icon={Camera} label="Take a photo" size={44} onPress={() => startPhoto('camera')} />
-            <IconButton testID="attach-photo" icon={ImagePlus} label="Choose a photo" size={44} onPress={() => startPhoto('library')} />
-            <IconButton testID="attach-video" icon={Video} label="Send a video" size={44} onPress={() => open({ kind: 'video-source' })} />
-            <IconButton testID="attach-voice" icon={Mic} label="Record a voice note" size={44} onPress={() => open({ kind: 'voice', hug: false })} />
+          {attachOpen ? (
+            <Row gap={space.lg} style={{ width: '100%', maxWidth: 560, alignSelf: 'center', justifyContent: 'space-around', paddingBottom: space.xs }}>
+              <IconButton testID="attach-camera" icon={Camera} label="Camera" showLabel size={48} onPress={() => { setAttachOpen(false); startPhoto('camera'); }} />
+              <IconButton testID="attach-photo" icon={ImagePlus} label="Photo" showLabel size={48} onPress={() => { setAttachOpen(false); startPhoto('library'); }} />
+              <IconButton testID="attach-video" icon={Video} label="Video" showLabel size={48} onPress={() => { setAttachOpen(false); open({ kind: 'video-source' }); }} />
+              <IconButton testID="attach-voice" icon={Mic} label="Voice" showLabel size={48} onPress={() => { setAttachOpen(false); open({ kind: 'voice', hug: false }); }} />
+            </Row>
+          ) : null}
+          {/* Like the phone's own Messages: one + for attachments, a wide box that grows, then send. */}
+          <Row gap={space.sm} style={{ width: '100%', maxWidth: 560, alignSelf: 'center', alignItems: 'flex-end' }}>
+            <IconButton
+              testID="attach-toggle"
+              icon={attachOpen ? X : Plus}
+              label={attachOpen ? 'Close attachments' : 'Add a photo, video or voice note'}
+              active={attachOpen}
+              size={COMPOSER_MIN}
+              onPress={() => setAttachOpen((v) => !v)}
+            />
             <TextInput
               testID="note-input"
               value={text}
               onChangeText={setText}
+              onFocus={() => setAttachOpen(false)}
               placeholder={`Write to ${partnerName}…`}
               placeholderTextColor={c.textMuted}
               multiline
               maxLength={2000}
-              style={[input, { flex: 1, minHeight: 48, maxHeight: 120, paddingVertical: 12, paddingHorizontal: space.md, borderRadius: radius.lg }]}
+              scrollEnabled={inputH >= COMPOSER_MAX}
+              onContentSizeChange={(e) => {
+                // Web reports the full box height; phones report the text only.
+                const h = e.nativeEvent.contentSize.height + (Platform.OS === 'web' ? 0 : 20);
+                setInputH(Math.min(COMPOSER_MAX, Math.max(COMPOSER_MIN, Math.ceil(h))));
+              }}
+              style={[
+                input,
+                {
+                  flex: 1,
+                  minHeight: COMPOSER_MIN,
+                  height: inputH,
+                  maxHeight: COMPOSER_MAX,
+                  paddingTop: 10,
+                  paddingBottom: 10,
+                  paddingHorizontal: space.lg,
+                  borderRadius: 22,
+                  backgroundColor: c.surfaceAlt,
+                  borderWidth: 1,
+                  borderColor: c.border,
+                  fontSize: 16,
+                },
+              ]}
             />
-            <IconButton testID="send-note" icon={Send} label="Send note" tone="primary" size={48} onPress={sendTyped} />
+            {text.trim() ? (
+              <IconButton testID="send-note" icon={Send} label="Send note" tone="primary" size={COMPOSER_MIN} onPress={sendTyped} />
+            ) : (
+              <IconButton testID="quick-voice" icon={Mic} label="Record a voice note" size={COMPOSER_MIN} onPress={() => open({ kind: 'voice', hug: false })} />
+            )}
           </Row>
         </View>
       </KeyboardAvoidingView>
