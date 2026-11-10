@@ -24,6 +24,9 @@ const small = { viewport: { width: 360, height: 760 }, deviceScaleFactor: 2 };
 const tid = (id) => `[data-testid="${id}"]`;
 
 let step = 0;
+/** Every open page and every page error, so any failure leaves evidence. */
+const pages = {};
+const errors = [];
 const log = (msg) => console.log(`${String(++step).padStart(2, '0')}. ${msg}`);
 
 async function shot(page, name, full = false) {
@@ -90,7 +93,6 @@ async function signUp(page, name) {
 
 async function main() {
   const browser = await chromium.launch();
-  const errors = [];
   const mk = async (who, opts = phone, scheme = 'light', geo = { latitude: 3.0657, longitude: 101.4846 }) => {
     const ctx = await browser.newContext({ ...opts, colorScheme: scheme, permissions: ['geolocation'], geolocation: { ...geo, accuracy: 25 } });
     mockWeather(ctx);
@@ -100,7 +102,9 @@ async function main() {
     });
     ctx.route('https://www.openstreetmap.org/**', (r) => r.fulfill({ contentType: 'text/html', body: '<body style="margin:0;background:#dfe8d8;font:14px sans-serif;display:grid;place-items:center;height:100vh">map</body>' }));
     const page = await ctx.newPage();
+    pages[who] = page;
     page.on('pageerror', (e) => errors.push(`${who}: ${e.message}`));
+    page.on('console', (m) => m.type() === 'error' && errors.push(`${who} console: ${m.text().slice(0, 300)}`));
     return page;
   };
   const afiq = await mk('afiq', small);
@@ -272,14 +276,22 @@ async function main() {
   log('Each style and colour rendered; choice follows to a second phone');
 
   await browser.close();
-  if (errors.length) {
-    console.log('\nPage errors:\n' + errors.join('\n'));
+  const crashes = errors.filter((e) => !e.includes(' console: ')); // console messages are evidence, not failures
+  if (crashes.length) {
+    console.log('\nPage errors:\n' + crashes.join('\n'));
     process.exit(1);
   }
   console.log('\nAll look-and-feel checks passed.');
 }
 
-main().catch((e) => {
+main().catch(async (e) => {
   console.error(e);
+  for (const [who, page] of Object.entries(pages)) {
+    try {
+      await page.screenshot({ path: path.join(OUT, `fail-${who}.png`) });
+      console.log(`FAIL ${who} at ${page.url()}: ${(await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 300)}`);
+    } catch {}
+  }
+  console.log('FAIL page errors:\n' + (errors.join('\n') || 'none'));
   process.exit(1);
 });
