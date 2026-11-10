@@ -504,8 +504,8 @@ export default function StressSmash() {
               testID="smash-word"
               style={{
                 position: 'absolute',
-                left: 150,
-                top: 2,
+                left: 8,
+                top: 8,
                 width: 176,
                 height: 94,
                 alignItems: 'center',
@@ -628,7 +628,7 @@ function BigButton({
             marginTop: down ? depth - 2 : 0,
             opacity: disabled ? 0.75 : 1,
           },
-          focusRing(focused, c.primary),
+          focusRing(focused && !disabled, c.primary),
         ];
       }}>
       <Row gap={10}>
