@@ -67,10 +67,12 @@ export const QUESTIONS: readonly string[] = [
 ];
 
 /** Same question for both partners on the same day; couples get different orders. */
-export function questionFor(date: string, cid: string): { id: number; text: string } {
+export function questionFor(date: string, cid: string | null | undefined): { id: number; text: string } {
   const day = Math.floor(Date.parse(`${date}T00:00:00Z`) / 86_400_000);
+  // The couple's id can be briefly missing while the app is still loading; any value works then.
+  const key = cid ?? '';
   let h = 0;
-  for (let i = 0; i < cid.length; i++) h = (h * 31 + cid.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
   const id = (((day + h) % QUESTIONS.length) + QUESTIONS.length) % QUESTIONS.length;
   return { id, text: QUESTIONS[id] };
 }
