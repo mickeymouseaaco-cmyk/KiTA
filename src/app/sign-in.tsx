@@ -50,7 +50,7 @@ export default function SignIn() {
         <View style={{ alignItems: 'center', gap: space.md }}>
           <CoupleArt size={180} />
           <T variant="display" center accessibilityRole="header">
-            Together
+            KiTA
           </T>
           <T muted center style={{ maxWidth: 320 }}>
             A gentle place to look after yourselves, and each other.

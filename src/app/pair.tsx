@@ -188,7 +188,7 @@ function InvitePanel() {
           icon={Share2}
           style={{ flex: 1 }}
           onPress={() =>
-            Share.share({ message: `Join me on Together ♥ Open ${link} or enter the code ${open.code}` }).catch(() => {})
+            Share.share({ message: `Join me on KiTA ♥ Open ${link} or enter the code ${open.code}` }).catch(() => {})
           }
         />
       </Row>

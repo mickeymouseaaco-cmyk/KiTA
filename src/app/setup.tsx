@@ -6,7 +6,7 @@ import { Card, EmptyState, Screen, T } from '@/components/ui';
 export default function Setup() {
   return (
     <Screen>
-      <EmptyState icon={Settings} line="Together needs a Firebase project before it can connect you two." />
+      <EmptyState icon={Settings} line="KiTA needs a Firebase project before it can connect you two." />
       <Card tone="lavender">
         <T variant="bodyStrong">Developer setup</T>
         <T muted>

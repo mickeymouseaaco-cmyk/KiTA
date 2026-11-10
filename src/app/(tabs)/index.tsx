@@ -1,11 +1,12 @@
 import { router } from 'expo-router';
-import { CalendarHeart, ChevronRight, CloudSun, Droplets, Eye, Footprints, Heart, Lock, Mail, Moon, Pencil, Smile, Smartphone, Wind, type LucideIcon } from 'lucide-react-native';
+import { CalendarHeart, ChevronRight, CloudSun, Droplets, MessageCircleHeart, Eye, Footprints, Heart, Lock, Mail, Moon, Pencil, Smile, Smartphone, Wind, type LucideIcon } from 'lucide-react-native';
 import { useEffect, useMemo } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { CoupleArt } from '@/components/art';
 import { ProgressRing, WeekBars } from '@/components/charts';
 import { useFeedback } from '@/components/feedback';
+import { InstallBanner } from '@/components/install-banner';
 import { FoodCardBody } from '@/components/food-card';
 import { StoredPrivateImage, StoredPrivateVoice } from '@/components/media-view';
 import { TodoRow } from '@/components/todo-row';
@@ -16,6 +17,7 @@ import { dayKey, lastNDays, timeOfDay } from '@/lib/dates';
 import { PHASE_LABEL, cycleToday, predictionLine } from '@/lib/cycle';
 import { changeWater, syncCycleDay, useCycleSettings, useMyDays, usePartnerDays, useShareSettings } from '@/lib/logs';
 import { haptic } from '@/lib/haptics';
+import { questionFor, questionStatus, useAnswer, useQuestionDay } from '@/lib/questions';
 import { sendHug } from '@/lib/messages';
 import { usePaired } from '@/lib/session';
 import { todayList, useTodos } from '@/lib/todos';
@@ -141,6 +143,10 @@ export default function Today() {
   const todayRain = flood.data?.forecast[floodArea.id]?.[0];
   const partner = usePartnerDays(cid, partnerId, today).days[today];
   const evening = new Date().getHours() >= 18;
+  const question = questionFor(today, cid);
+  const qDay = useQuestionDay(cid, today);
+  const myAnswer = useAnswer(cid, today, uid);
+  const qStatus = questionStatus(!!myAnswer, !!qDay?.answered?.includes(partnerId));
   const answered = !!(day?.checkIn && (day.checkIn.text || day.checkIn.voicePath || day.checkIn.memoryId));
   const partnerLine = partner
     ? [
@@ -164,6 +170,7 @@ export default function Today() {
         title={greeting(myName, timeOfDay()) + (look.emoji ? ` ${{ morning: '☀️', afternoon: '🌤️', evening: '🌙' }[timeOfDay()]}` : '')}
       />
       <DaySwitch value="mine" />
+      <InstallBanner />
 
       {/* A warm hello: how today is going, and a word from your partner. */}
       <Card tone="peach">
@@ -218,6 +225,33 @@ export default function Today() {
         />
       </Row>
       <Gap h={space.lg} />
+
+      {/* Question of the day: answer to see your partner's. */}
+      <Pressable testID="open-question" accessibilityRole="button" onPress={() => router.push('/question')}>
+        <Card tone="butter">
+          <Row gap={space.sm}>
+            <MessageCircleHeart color={c.onButter} size={20} />
+            <T variant="label" color={c.onButter} style={{ flex: 1 }}>
+              QUESTION OF THE DAY
+            </T>
+            <ChevronRight color={c.onButter} size={18} />
+          </Row>
+          <Gap h={space.xs} />
+          <T variant="heading" color={c.onButter}>
+            {question.text}
+          </T>
+          <T testID="question-status" variant="small" color={c.onButter} style={{ marginTop: space.xs, fontFamily: 'Raleway_600SemiBold' }}>
+            {qStatus === 'both'
+              ? 'You both answered. Tap to see.'
+              : qStatus === 'partner-waiting'
+                ? `${partnerName} answered. Your turn!`
+                : qStatus === 'waiting-for-partner'
+                  ? `Waiting for ${partnerName}…`
+                  : 'Tap to answer'}
+          </T>
+        </Card>
+      </Pressable>
+      <Gap />
 
       <Card>
         <SectionTitle right={<ShareNote shared={!!share?.steps} partnerName={partnerName} />}>Steps</SectionTitle>

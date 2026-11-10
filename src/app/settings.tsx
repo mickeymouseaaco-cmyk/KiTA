@@ -8,6 +8,7 @@ import { Platform, Pressable, TextInput, View } from 'react-native';
 import { Avatar } from '@/components/avatar';
 import { Sheet, useFeedback } from '@/components/feedback';
 import { PinSetup } from '@/components/overlays';
+import { WebPushRow } from '@/components/web-push-row';
 import { Button, Card, Chip, Field, Gap, Row, Screen, SectionTitle, T, ToggleRow, useInputStyle } from '@/components/ui';
 import { deleteMyAccount } from '@/lib/account';
 import { pickAvatar, removeMyAvatar, setMyAvatar } from '@/lib/avatar';
@@ -196,7 +197,7 @@ export default function Settings() {
           value={!!profile?.notificationsPaused}
           onChange={(v) => uid && setNotificationsPaused(uid, v).catch(() => toast(gentleError.save))}
         />
-        {Platform.OS !== 'web' ? <Button small kind="soft" label="Turn on hug & love note alerts" onPress={enablePush} style={{ marginTop: space.sm }} /> : null}
+        {Platform.OS !== 'web' ? <Button small kind="soft" label="Turn on hug & love note alerts" onPress={enablePush} style={{ marginTop: space.sm }} /> : <WebPushRow />}
       </Card>
 
       <Gap />
@@ -228,14 +229,14 @@ export default function Settings() {
             onDone={async (pin) => {
               await lock.enable(pin, lock.biometricsAvailable);
               setSettingPin(false);
-              toast('Together is now locked with your PIN.');
+              toast('KiTA is now locked with your PIN.');
             }}
           />
         ) : (
           <>
             <ToggleRow
               title="Lock with a PIN"
-              detail="Asks for your PIN when you open Together, and after 30 seconds away."
+              detail="Asks for your PIN when you open KiTA, and after 30 seconds away."
               value={lock.settings.enabled}
               onChange={(v) => (v ? setSettingPin(true) : lock.disable())}
             />

@@ -283,6 +283,19 @@ describe('Together on Firebase, end to end', () => {
     await afiq.call('startStepsSync');
   });
 
+  test('Question of the day: answer, then see each other’s', async () => {
+    const date = '2026-11-10';
+    const mine = doc(afiq.db, `couples/${cid}/questions/${date}/answers/${afiq.uid}`);
+    await setDoc(mine, { text: 'Your laugh at dinner', qid: 7, at: serverTimestamp() });
+    await eventually(async () => ((await adminGet(`couples/${cid}/questions/${date}`))?.answered as string[] | undefined)?.includes(afiq.uid) ?? false, 'day records Afiq answered');
+    await denied(getDoc(doc(aina.db, `couples/${cid}/questions/${date}/answers/${afiq.uid}`)));
+    assert.deepEqual((await getDoc(doc(aina.db, `couples/${cid}/questions/${date}`))).data()?.answered, [afiq.uid], 'Aina can see that Afiq answered');
+    await setDoc(doc(aina.db, `couples/${cid}/questions/${date}/answers/${aina.uid}`), { text: 'Morning coffee together', qid: 7, at: serverTimestamp() });
+    assert.equal((await getDoc(doc(aina.db, `couples/${cid}/questions/${date}/answers/${afiq.uid}`))).data()?.text, 'Your laugh at dinner');
+    await eventually(async () => !!(await adminGet(`couples/${cid}/questions/${date}`))?.revealedAt, 'both answered is recorded');
+    await denied(getDoc(doc(casey.db, `couples/${cid}/questions/${date}`)));
+  });
+
   test('Unlink stops access at once; reconnect needs both people', async () => {
     await afiq.call('unlinkCouple');
     assert.equal((await getDoc(doc(afiq.db, 'couples', cid))).data()?.status, 'ended');

@@ -162,6 +162,34 @@ async function main() {
   await aina.getByText(/8,412/).first().waitFor({ timeout: 10000 });
   log('A Shortcut call with “8,412” lands in Afiq’s day and Aina sees it');
 
+  // 4b. Question of the day: Afiq answers, Aina is told, answers, and both appear.
+  await afiq.goto(BASE + '/question');
+  await afiq.locator(tid('question-text')).waitFor({ timeout: 15000 });
+  await afiq.locator(tid('answer-input')).fill('Your laugh at dinner last night');
+  await afiq.locator(tid('answer-send')).click();
+  await afiq.locator(tid('answer-waiting')).waitFor({ timeout: 10000 });
+  await shot(afiq, '07a-question-waiting');
+  await aina.goto(BASE + '/');
+  await aina.locator(tid('question-status')).filter({ hasText: 'Your turn' }).waitFor({ timeout: 20000 });
+  await shot(aina, '07b-home-question-your-turn');
+  await aina.goto(BASE + '/question');
+  assert.equal(await aina.getByText('Your laugh at dinner last night').count(), 0, 'no peeking before answering');
+  await aina.locator(tid('answer-input')).fill('Our slow breakfast on Saturday');
+  await aina.locator(tid('answer-send')).click();
+  await aina.getByText('Your laugh at dinner last night').waitFor({ timeout: 10000 });
+  await shot(aina, '07c-question-both');
+  await afiq.getByText('Our slow breakfast on Saturday').waitFor({ timeout: 10000 });
+  log('Question of the day: hidden until both answer, then both see both answers');
+
+  // 4c. Installable: manifest, icons and the service worker are served.
+  const manifest = await (await fetch(BASE + '/manifest.json')).json();
+  assert.equal(manifest.name, 'KiTA');
+  assert.equal((await fetch(BASE + '/icons/icon-512.png')).status, 200);
+  assert.match(await (await fetch(BASE + '/sw.js')).text(), /showNotification/);
+  const swReady = await afiq.evaluate(() => navigator.serviceWorker.ready.then((r) => !!r.active).catch(() => false));
+  assert.ok(swReady, 'service worker is running');
+  log('Installable: manifest, icons and service worker are in place');
+
   // 5. Look & feel: every style, a few colours, light and dark.
   await afiq.goto(BASE + '/appearance');
   await afiq.locator(tid('look-soft')).waitFor();

@@ -474,3 +474,39 @@ describe('weather at a glance', () => {
     assert.equal(b('Something new').label, 'Bad weather');
   });
 });
+
+describe('question of the day', () => {
+  test('both partners get the same question on the same day', async () => {
+    const { questionFor } = await import('../src/lib/questions-pure');
+    assert.deepEqual(questionFor('2026-11-10', 'coupleA'), questionFor('2026-11-10', 'coupleA'));
+  });
+  test('a new question each day, and it cycles through the whole list', async () => {
+    const { QUESTIONS, questionFor } = await import('../src/lib/questions-pure');
+    const seen = new Set<number>();
+    const start = Date.parse('2026-01-01T00:00:00Z');
+    for (let i = 0; i < QUESTIONS.length; i++) {
+      const d = new Date(start + i * 86_400_000).toISOString().slice(0, 10);
+      const q = questionFor(d, 'coupleA');
+      assert.equal(q.text, QUESTIONS[q.id]);
+      seen.add(q.id);
+    }
+    assert.equal(seen.size, QUESTIONS.length, 'no repeats until every question has been asked');
+    assert.notEqual(questionFor('2026-11-10', 'coupleA').id, questionFor('2026-11-11', 'coupleA').id);
+  });
+  test('questions are unique, short and friendly', async () => {
+    const { QUESTIONS } = await import('../src/lib/questions-pure');
+    assert.ok(QUESTIONS.length >= 50);
+    assert.equal(new Set(QUESTIONS).size, QUESTIONS.length);
+    for (const q of QUESTIONS) {
+      assert.ok(q.endsWith('?'), q);
+      assert.ok(q.length <= 90, q);
+    }
+  });
+  test('status: answer first, then reveal', async () => {
+    const { questionStatus } = await import('../src/lib/questions-pure');
+    assert.equal(questionStatus(false, false), 'answer-first');
+    assert.equal(questionStatus(false, true), 'partner-waiting');
+    assert.equal(questionStatus(true, false), 'waiting-for-partner');
+    assert.equal(questionStatus(true, true), 'both');
+  });
+});

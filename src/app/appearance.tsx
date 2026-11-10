@@ -18,7 +18,7 @@ import {
 } from '@/theme';
 
 const LOOK_LINE: Record<LookName, string> = {
-  soft: 'Rounded and calm. The original Together.',
+  soft: 'Rounded and calm. The original KiTA.',
   professional: 'Clean lines, plain type, no frills.',
   playful: 'Bold outlines and cartoon fun.',
 };
@@ -127,7 +127,7 @@ export default function AppearanceScreen() {
 
   return (
     <Screen edges={['bottom']}>
-      <T muted>Make Together feel like yours. Only you see your choice; your partner picks their own.</T>
+      <T muted>Make KiTA feel like yours. Only you see your choice; your partner picks their own.</T>
       <Gap />
 
       {/* Live preview: this is what the app looks like right now. */}

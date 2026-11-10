@@ -16,6 +16,7 @@
 import { initializeApp } from 'firebase-admin/app';
 import { v2 as speech } from '@google-cloud/speech';
 import { getAuth } from 'firebase-admin/auth';
+import { getMessaging } from 'firebase-admin/messaging';
 import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { logger } from 'firebase-functions';
@@ -81,27 +82,16 @@ export const onMessageCreated = onDocumentCreated('couples/{cid}/messages/{messa
   ]);
   const recipient = recipientSnap.data();
   if (!recipient || recipient.notificationsPaused) return; // one-tap pause wins, always
-  const tokens: string[] = Array.isArray(recipient.pushTokens) ? recipient.pushTokens : [];
-  if (tokens.length === 0) return;
 
   const fromName: string = coupleSnap.data()?.names?.[msg.fromUid] ?? 'Your partner';
   const { title, body } = notificationFor(msg, fromName);
-
-  const payload = tokens.map((to) => ({
-    to,
+  await sendPush(msg.toUid, recipient, {
     title,
     body,
-    sound: 'default',
+    url: msg.kind === 'hug' ? '/' : '/notes',
     channelId: msg.kind === 'hug' ? 'hugs' : 'love-notes',
-    data: { url: msg.kind === 'hug' ? '/' : '/notes', messageId: event.params.messageId },
-  }));
-
-  const res = await fetch('https://exp.host/--/api/v2/push/send', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(payload),
+    tag: msg.kind === 'hug' ? 'hug' : `note-${event.params.messageId}`,
   });
-  if (!res.ok) logger.warn('Expo push failed', { status: res.status });
 });
 
 export const onCoupleDeleted = onDocumentDeleted('couples/{cid}', async (event) => {
@@ -215,14 +205,52 @@ export const transcribeVoiceNote = onDocumentCreated(
 async function pushTo(uid: string, title: string, body: string, url: string, channelId = 'love-notes') {
   const user = (await db.doc(`users/${uid}`).get()).data();
   if (!user || user.notificationsPaused) return;
-  const tokens: string[] = Array.isArray(user.pushTokens) ? user.pushTokens : [];
-  if (!tokens.length) return;
-  const res = await fetch('https://exp.host/--/api/v2/push/send', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(tokens.map((to) => ({ to, title, body, sound: 'default', channelId, data: { url } }))),
-  });
-  if (!res.ok) logger.warn('Expo push failed', { status: res.status });
+  await sendPush(uid, user, { title, body, url, channelId });
+}
+
+type PushMessage = { title: string; body: string; url: string; channelId?: string; tag?: string };
+
+/**
+ * One notification to every device this person has turned notifications on for:
+ * the phone apps (Expo push tokens) and the web app (FCM web push tokens).
+ * Web tokens that no longer work (app removed, permission revoked) are tidied away.
+ */
+async function sendPush(uid: string, user: Record<string, unknown>, m: PushMessage) {
+  const expo: string[] = Array.isArray(user.pushTokens) ? (user.pushTokens as string[]) : [];
+  const web: string[] = Array.isArray(user.webPushTokens) ? (user.webPushTokens as string[]) : [];
+  const jobs: Promise<unknown>[] = [];
+  if (expo.length) {
+    jobs.push(
+      fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(expo.map((to) => ({ to, title: m.title, body: m.body, sound: 'default', channelId: m.channelId ?? 'love-notes', data: { url: m.url } }))),
+      }).then((res) => {
+        if (!res.ok) logger.warn('Expo push failed', { status: res.status });
+      }),
+    );
+  }
+  if (web.length) {
+    jobs.push(
+      getMessaging()
+        .sendEachForMulticast({
+          tokens: web,
+          // Data only: the app's service worker (public/sw.js) shows it, the same way on every browser.
+          webpush: {
+            headers: { Urgency: 'high', TTL: String(24 * 3600) },
+            data: { title: m.title, body: m.body, url: m.url, tag: m.tag ?? '' },
+            fcmOptions: { link: m.url },
+          },
+        })
+        .then(async (r) => {
+          const dead = r.responses
+            .map((x, i) => (!x.success && /registration-token-not-registered|invalid-registration-token|invalid-argument/.test(x.error?.code ?? '') ? web[i] : null))
+            .filter((x): x is string => !!x);
+          if (dead.length) await db.doc(`users/${uid}`).update({ webPushTokens: FieldValue.arrayRemove(...dead) });
+        }),
+    );
+  }
+  await Promise.all(jobs.map((j) => j.catch((e) => logger.warn('Push failed', { error: String(e) }))));
 }
 
 /** A gentle reset was started: invite the other partner, softly. */
@@ -472,7 +500,7 @@ export const requestReconnect = onCall(async (req) => {
 
   const name = (await db.doc(`couples/${cid}`).get()).data()?.names?.[uid] ?? 'Your partner';
   if (result.state === 'waiting') {
-    await pushTo(result.partner, `${name} would like to reconnect`, 'If you’d like that too, open Together and tap Reconnect.', '/pair').catch(() => {});
+    await pushTo(result.partner, `${name} would like to reconnect`, 'If you’d like that too, open KiTA and tap Reconnect.', '/pair').catch(() => {});
   } else {
     await pushTo(result.partner, `You and ${name} are together again`, 'Everything you shared is back.', '/').catch(() => {});
   }
@@ -615,18 +643,18 @@ export const syncSteps = onRequest({ cors: false }, async (req, res) => {
   const q = { ...(typeof req.body === 'object' && req.body ? req.body : {}), ...req.query } as Record<string, unknown>;
   const token = typeof q.t === 'string' ? q.t : '';
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(token)) {
-    res.status(401).send('This sync link isn’t right. Copy it again from Together → Settings → Steps from iPhone.');
+    res.status(401).send('This sync link isn’t right. Copy it again from KiTA → Settings → Steps from iPhone.');
     return;
   }
   const owner = await db.doc(`stepTokens/${hashStepsToken(token)}`).get();
   const uid = owner.data()?.uid as string | undefined;
   if (!uid) {
-    res.status(401).send('This sync link was turned off or replaced. Copy the new one from Together → Settings → Steps from iPhone.');
+    res.status(401).send('This sync link was turned off or replaced. Copy the new one from KiTA → Settings → Steps from iPhone.');
     return;
   }
   const steps = parseSteps(q.steps);
   if (steps === null) {
-    res.status(400).send('Together didn’t get a step count. Check the Shortcut sends “Statistics” (the sum of today’s steps).');
+    res.status(400).send('KiTA didn’t get a step count. Check the Shortcut sends “Statistics” (the sum of today’s steps).');
     return;
   }
   const date = syncDay(q.date, STEPS_TIME_ZONE);
@@ -648,5 +676,53 @@ export const syncSteps = onRequest({ cors: false }, async (req, res) => {
     }
   }
   await db.doc(`users/${uid}/settings/stepsSync`).set({ lastSyncAt: FieldValue.serverTimestamp(), lastSteps: steps, lastDate: date }, { merge: true });
-  res.status(200).send(`Synced ${steps.toLocaleString('en-US')} steps to Together ♡`);
+  res.status(200).send(`Synced ${steps.toLocaleString('en-US')} steps to KiTA ♡`);
+});
+
+// ------------------------------------------------------------ question of the day
+//
+// couples/{cid}/questions/{date}/answers/{uid}: one answer each (rules hide the
+// partner's answer until you've answered). This keeps the day document
+// (who has answered, when both had) up to date, and tells the partner.
+
+export const onQuestionAnswered = onDocumentWritten('couples/{cid}/questions/{date}/answers/{uid}', async (event) => {
+  const { cid, date, uid } = event.params;
+  const before = event.data?.before.exists ?? false;
+  const after = event.data?.after.exists ?? false;
+  if (before === after) return; // an edit: nothing to announce
+  const dayRef = db.doc(`couples/${cid}/questions/${date}`);
+  const couple = (await db.doc(`couples/${cid}`).get()).data();
+  if (!couple || couple.status === 'ended') return;
+  const members = (couple.members as string[]) ?? [];
+  if (!members.includes(uid)) return;
+
+  if (!after) {
+    await dayRef.set({ answered: FieldValue.arrayRemove(uid), revealedAt: FieldValue.delete() }, { merge: true });
+    return;
+  }
+  const qid = event.data?.after.data()?.qid ?? null;
+  const answered = await db.runTransaction(async (tx) => {
+    const day = await tx.get(dayRef);
+    const list = new Set<string>((day.data()?.answered as string[]) ?? []);
+    list.add(uid);
+    const both = members.every((m) => list.has(m));
+    tx.set(
+      dayRef,
+      { date, qid, answered: [...list], ...(both && !day.data()?.revealedAt ? { revealedAt: FieldValue.serverTimestamp() } : null) },
+      { merge: true },
+    );
+    return list;
+  });
+
+  const partner = members.find((m) => m !== uid);
+  if (!partner) return;
+  const name: string = couple.names?.[uid] ?? 'Your partner';
+  const both = answered.has(partner);
+  await pushTo(
+    partner,
+    both ? `${name} answered too` : `${name} answered today’s question`,
+    both ? 'Open KiTA to see both answers.' : 'Answer yours to see theirs.',
+    '/question',
+    'love-notes',
+  ).catch(() => {});
 });

@@ -86,7 +86,7 @@ export function LockProvider({ children }: { children: ReactNode }) {
     },
     unlockWithBiometrics: async () => {
       const res = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Unlock Together',
+        promptMessage: 'Unlock KiTA',
         cancelLabel: 'Use PIN',
         disableDeviceFallback: true,
       });

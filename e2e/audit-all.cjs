@@ -44,6 +44,7 @@ const ROUTES = [
   ['/privacy', 'privacy'],
   ['/settings', 'settings'],
   ['/appearance', 'appearance'],
+  ['/question', 'question'],
   ['/steps-sync', 'steps-sync'],
   ['/storage', 'storage'],
   ['/vault', 'vault'],
