@@ -39,7 +39,7 @@ function Swatch({ name, selected, onPress }: { name: ColorName; selected: boolea
       accessibilityLabel={`${accents[name].label} colours`}
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={{ alignItems: 'center', gap: space.xs, width: 58 }}>
+      style={{ alignItems: 'center', gap: space.xs, width: '33.33%', paddingVertical: space.xs }}>
       <View
         style={{
           width: 48,
@@ -153,7 +153,7 @@ export default function AppearanceScreen() {
       <Gap />
 
       <SectionTitle>Colours</SectionTitle>
-      <Row accessibilityRole="radiogroup" gap={0} style={{ justifyContent: 'space-between' }}>
+      <Row accessibilityRole="radiogroup" gap={0} style={{ flexWrap: 'wrap' }}>
         {(Object.keys(accents) as ColorName[]).map((n) => (
           <Swatch key={n} name={n} selected={appearance.color === n} onPress={() => choose({ color: n })} />
         ))}

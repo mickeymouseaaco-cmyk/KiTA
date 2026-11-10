@@ -2,7 +2,7 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfi
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
 
-import { CoupleArt } from '@/components/art';
+import { KitaLogo } from '@/components/logo';
 import { Button, Field, Gap, Screen, Segmented, T, useInputStyle } from '@/components/ui';
 import { gentleError } from '@/lib/copy';
 import { auth } from '@/lib/firebase';
@@ -10,7 +10,7 @@ import { createProfile } from '@/lib/session';
 import { space, useTheme } from '@/theme';
 
 export default function SignIn() {
-  const { c } = useTheme();
+  const { c, dark } = useTheme();
   const input = useInputStyle();
   const [mode, setMode] = useState<'new' | 'returning'>('new');
   const [name, setName] = useState('');
@@ -48,10 +48,9 @@ export default function SignIn() {
       <Screen edges={['top', 'bottom']}>
         <Gap h={space.xl} />
         <View style={{ alignItems: 'center', gap: space.md }}>
-          <CoupleArt size={180} />
-          <T variant="display" center accessibilityRole="header">
-            KiTA
-          </T>
+          <View accessibilityRole="header" accessibilityLabel="KiTA">
+            <KitaLogo height={72} onDark={dark} />
+          </View>
           <T muted center style={{ maxWidth: 320 }}>
             A gentle place to look after yourselves, and each other.
           </T>
