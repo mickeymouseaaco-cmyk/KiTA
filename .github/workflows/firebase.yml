@@ -83,7 +83,7 @@ jobs:
           NODE_PATH: /tmp/pw/node_modules
         run: |
           npx --prefix firebase/tests firebase emulators:exec --only auth,firestore,storage,functions --project demo-together \
-            "node e2e/serve.cjs dist 8099 & sleep 1 && node e2e/look-and-feel.cjs"
+            "node e2e/serve.cjs dist 8099 & sleep 1 && node e2e/look-and-feel.cjs && node e2e/audit-all.cjs"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -159,7 +159,7 @@ jobs:
         # each one checks the caller's Firebase sign-in itself (functions/src/index.ts).
         # firebase deploy tries to set this but skips unchanged functions, so it's set here every time.
         run: |
-          for svc in acceptinvite unlinkcouple requestreconnect deleteaccount startstepssync stopstepssync syncsteps; do
+          for svc in acceptinvite unlinkcouple requestreconnect deleteaccount startstepssync stopstepssync syncsteps synclocation; do
             gcloud run services add-iam-policy-binding "$svc" \
               --project "$PROJECT_ID" --region asia-southeast1 \
               --member=allUsers --role=roles/run.invoker --quiet >/dev/null

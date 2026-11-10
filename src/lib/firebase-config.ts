@@ -15,3 +15,11 @@ export const FIREBASE_WEB_CONFIG = {
   messagingSenderId: '210014850282',
   appId: '1:210014850282:web:3e0c953d4b05238aa41b93',
 } as const;
+
+/**
+ * Web Push certificate (public key) for notifications in the web app:
+ * Firebase console → Project settings → Cloud Messaging → Web configuration →
+ * Web Push certificates. Public by design, like the values above.
+ * EXPO_PUBLIC_FIREBASE_VAPID_KEY overrides it.
+ */
+export const WEB_PUSH_KEY = 'BPdXJiVsItfYze3QeYbFGa1p64je6nlJIHcp5Tk0VY9ebSQrSgHfkCFI_j-zXKsntYxcdOARPQwh8dQl4R56vUk';

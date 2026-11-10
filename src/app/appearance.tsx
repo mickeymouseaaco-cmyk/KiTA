@@ -15,10 +15,11 @@ import {
   type LookName,
   type ModeName,
   type MotionLevel,
+  type TextSize,
 } from '@/theme';
 
 const LOOK_LINE: Record<LookName, string> = {
-  soft: 'Rounded and calm. The original Together.',
+  soft: 'Rounded and calm. The original KiTA.',
   professional: 'Clean lines, plain type, no frills.',
   playful: 'Bold outlines and cartoon fun.',
 };
@@ -39,7 +40,7 @@ function Swatch({ name, selected, onPress }: { name: ColorName; selected: boolea
       accessibilityLabel={`${accents[name].label} colours`}
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={{ alignItems: 'center', gap: space.xs, width: 58 }}>
+      style={{ alignItems: 'center', gap: space.xs, width: '33.33%', paddingVertical: space.xs }}>
       <View
         style={{
           width: 48,
@@ -127,7 +128,7 @@ export default function AppearanceScreen() {
 
   return (
     <Screen edges={['bottom']}>
-      <T muted>Make Together feel like yours. Only you see your choice; your partner picks their own.</T>
+      <T muted>Make KiTA feel like yours. Only you see your choice; your partner picks their own.</T>
       <Gap />
 
       {/* Live preview: this is what the app looks like right now. */}
@@ -153,7 +154,7 @@ export default function AppearanceScreen() {
       <Gap />
 
       <SectionTitle>Colours</SectionTitle>
-      <Row accessibilityRole="radiogroup" gap={0} style={{ justifyContent: 'space-between' }}>
+      <Row accessibilityRole="radiogroup" gap={0} style={{ flexWrap: 'wrap' }}>
         {(Object.keys(accents) as ColorName[]).map((n) => (
           <Swatch key={n} name={n} selected={appearance.color === n} onPress={() => choose({ color: n })} />
         ))}
@@ -183,6 +184,24 @@ export default function AppearanceScreen() {
         {motion === 'off' && appearance.motion !== 'off'
           ? 'Your phone’s “Reduce motion” setting is on, so animations stay off.'
           : MOTION_LINE[appearance.motion]}
+      </T>
+      <Gap />
+
+      <SectionTitle>Text size</SectionTitle>
+      <Segmented<TextSize>
+        value={appearance.text}
+        onChange={(v) => choose({ text: v })}
+        options={[
+          { value: 'small', label: 'A-' },
+          { value: 'default', label: 'A' },
+          { value: 'large', label: 'A+' },
+          { value: 'xlarge', label: 'A++' },
+        ]}
+      />
+      <Gap h={space.sm} />
+      <T variant="small" muted>
+        {{ small: 'Smaller text, more on screen.', default: 'The standard size.', large: 'Larger, easier to read.', xlarge: 'Largest, for easy reading.' }[appearance.text]}
+        {' '}Your phone&apos;s own text size still applies on top.
       </T>
       <Gap />
 

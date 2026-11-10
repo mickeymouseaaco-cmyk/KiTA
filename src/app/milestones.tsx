@@ -128,7 +128,7 @@ export default function Milestones() {
           </Field>
           <ToggleRow title="Every year" value={yearly} onChange={setYearly} />
           <Gap h={space.sm} />
-          <Button testID="ms-save" label="Save" onPress={save} disabled={!validDate} />
+          <Button testID="ms-save" label="Save" onPress={save} disabled={!validDate} hint="Choose a real date first." />
           <Gap h={space.sm} />
           <Button label="Cancel" kind="ghost" small onPress={() => setAdding(false)} />
         </Card>

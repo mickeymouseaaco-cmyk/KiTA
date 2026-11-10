@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
-import { CalendarClock, Camera, Check, Clock, Gift, Heart, ImagePlus, ListTodo, Mail, Mic, Plus, Send, Star, Trash, Video, X } from 'lucide-react-native';
+import * as Clipboard from 'expo-clipboard';
+import { CalendarClock, Camera, Check, Clock, Copy, Gift, Heart, ImagePlus, Images, ListTodo, Mail, Mic, Plus, Send, Star, Trash, Video, X, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -56,6 +57,25 @@ function PrivacyOptions({ value, onChange, partnerName }: { value: NoteOptions; 
   );
 }
 
+/** One choice in the long-press sheet. */
+function OptionRow({ icon: Icon, label, onPress, testID, quiet }: { icon: LucideIcon; label: string; onPress: () => void; testID?: string; quiet?: boolean }) {
+  const { c } = useTheme();
+  return (
+    <Pressable
+      testID={testID}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => ({ minHeight: 52, borderRadius: radius.md, paddingHorizontal: space.md, justifyContent: 'center', backgroundColor: pressed ? c.surfaceAlt : 'transparent' })}>
+      <Row gap={space.md}>
+        <Icon color={quiet ? c.textMuted : c.primary} size={22} />
+        <T variant="bodyStrong" color={quiet ? c.textMuted : c.text}>
+          {label}
+        </T>
+      </Row>
+    </Pressable>
+  );
+}
+
 /** The note box starts one line tall and grows to about six lines. */
 const COMPOSER_MIN = 44;
 const COMPOSER_MAX = 160;
@@ -86,6 +106,7 @@ export default function LoveNotes() {
   const [caption, setCaption] = useState('');
   const [opts, setOpts] = useState<NoteOptions>(NO_OPTIONS);
   const [confirmDelete, setConfirmDelete] = useState<Message | null>(null);
+  const [optionsFor, setOptionsFor] = useState<Message | null>(null);
 
   // Quietly mark incoming notes as read while this screen is open.
   useFocusEffect(
@@ -193,7 +214,10 @@ export default function LoveNotes() {
             <T variant="display" accessibilityRole="header">
               Love Notes
             </T>
-            <IconButton testID="open-schedule" icon={CalendarClock} label="Schedule a note or hide a surprise" onPress={() => router.push('/schedule-note')} />
+            <Row gap={space.sm}>
+              <IconButton testID="open-media" icon={Images} label="Photos, videos and voice notes" onPress={() => router.push('/notes-media')} />
+              <IconButton testID="open-schedule" icon={CalendarClock} label="Schedule a note or hide a surprise" onPress={() => router.push('/schedule-note')} />
+            </Row>
           </Row>
           {waiting.length ? (
             <Pressable testID="waiting-toggle" accessibilityRole="button" onPress={() => setShowWaiting((v) => !v)}>
@@ -293,16 +317,10 @@ export default function LoveNotes() {
                 uid={uid}
                 cid={cid}
                 partnerName={partnerName}
-                onHeart={() => toggleFavorite(cid, uid, item.m!).catch(() => toast(gentleError.save))}
-                onStar={() => {
-                  const m = item.m!;
-                  toggleImportant(cid, uid, m)
-                    .then(() => toast(m.important ? 'Unstarred.' : 'Starred. It stays pinned so you both remember.'))
-                    .catch(() => toast(gentleError.save));
+                onOptions={() => {
+                  haptic.tap();
+                  setOptionsFor(item.m!);
                 }}
-                inTodos={todoFrom.has(item.m.id)}
-                onTodo={() => noteToTodo(item.m!)}
-                onTakeBack={() => setConfirmDelete(item.m!)}
               />
             ) : (
               <ScheduledBubble n={item.s!} uid={uid} cid={cid} partnerName={partnerName} />
@@ -467,6 +485,99 @@ export default function LoveNotes() {
         ) : null}
       </Sheet>
 
+      {/* Long-press a note for its options (like Messages and WhatsApp). */}
+      <Sheet visible={!!optionsFor} onClose={() => setOptionsFor(null)}>
+        {optionsFor ? (
+          <View style={{ gap: space.xs }}>
+            <T variant="small" muted center numberOfLines={2} style={{ marginBottom: space.sm }}>
+              {optionsFor.text ||
+                (optionsFor.kind === 'photo' ? 'A photo' : optionsFor.kind === 'video' ? 'A video' : optionsFor.kind === 'voice' ? 'A voice note' : 'A hug')}
+            </T>
+            {!optionsFor.viewOnce ? (
+              <OptionRow
+                testID="opt-love"
+                icon={Heart}
+                label={optionsFor.favoriteBy?.includes(uid) ? 'Remove from Saved' : 'Love it (save to Saved)'}
+                onPress={() => {
+                  const m = optionsFor;
+                  setOptionsFor(null);
+                  toggleFavorite(cid, uid, m).catch(() => toast(gentleError.save));
+                }}
+              />
+            ) : null}
+            {!optionsFor.viewOnce ? (
+              <OptionRow
+                testID="opt-star"
+                icon={Star}
+                label={optionsFor.important ? 'Unstar' : 'Star it, so you both remember'}
+                onPress={() => {
+                  const m = optionsFor;
+                  setOptionsFor(null);
+                  toggleImportant(cid, uid, m)
+                    .then(() => toast(m.important ? 'Unstarred.' : 'Starred. It stays pinned so you both remember.'))
+                    .catch(() => toast(gentleError.save));
+                }}
+              />
+            ) : null}
+            {optionsFor.text && !optionsFor.viewOnce && optionsFor.kind !== 'hug' ? (
+              <OptionRow
+                testID="opt-todo"
+                icon={todoFrom.has(optionsFor.id) ? Check : ListTodo}
+                label={todoFrom.has(optionsFor.id) ? 'Already in to-dos. Open the list' : 'Add to our to-dos'}
+                onPress={() => {
+                  const m = optionsFor;
+                  setOptionsFor(null);
+                  noteToTodo(m);
+                }}
+              />
+            ) : null}
+            {optionsFor.text && !optionsFor.viewOnce ? (
+              <OptionRow
+                testID="opt-copy"
+                icon={Copy}
+                label="Copy text"
+                onPress={() => {
+                  const text = optionsFor.text ?? '';
+                  setOptionsFor(null);
+                  Clipboard.setStringAsync(text)
+                    .then(() => toast('Copied.'))
+                    .catch(() => toast('Couldn’t copy just now.'));
+                }}
+              />
+            ) : null}
+            {optionsFor.mediaId && !optionsFor.viewOnce ? (
+              <OptionRow
+                testID="opt-media"
+                icon={Images}
+                label="See all photos, videos and voice notes"
+                onPress={() => {
+                  setOptionsFor(null);
+                  router.push('/notes-media');
+                }}
+              />
+            ) : null}
+            {optionsFor.fromUid === uid ? (
+              <>
+                <View style={{ height: 1, backgroundColor: c.border, marginVertical: space.sm }} />
+                <OptionRow
+                  testID="opt-take-back"
+                  icon={Trash}
+                  label="Take it back"
+                  quiet
+                  onPress={() => {
+                    const m = optionsFor;
+                    setOptionsFor(null);
+                    setConfirmDelete(m);
+                  }}
+                />
+              </>
+            ) : null}
+            <Gap h={space.sm} />
+            <Button label="Close" kind="ghost" small onPress={() => setOptionsFor(null)} />
+          </View>
+        ) : null}
+      </Sheet>
+
       <Sheet visible={!!confirmDelete} onClose={() => setConfirmDelete(null)}>
         <T variant="title" center>
           Take this note back?
@@ -577,22 +688,15 @@ function Bubble({
   uid,
   cid,
   partnerName,
-  onHeart,
-  onStar,
-  onTodo,
-  inTodos,
-  onTakeBack,
+  onOptions,
 }: {
   m: Message;
   mine: boolean;
   uid: string;
   cid: string;
   partnerName: string;
-  onHeart: () => void;
-  onStar: () => void;
-  onTodo: () => void;
-  inTodos: boolean;
-  onTakeBack: () => void;
+  /** Long-press (or the screen reader's "More options") opens the note's options. */
+  onOptions: () => void;
 }) {
   const { c } = useTheme();
   const fav = m.favoriteBy?.includes(uid);
@@ -600,7 +704,6 @@ function Bubble({
   const when = relativeTime(m.createdAt?.toDate?.() ?? null);
   const fade = fadesIn(m);
   const canStar = !m.viewOnce;
-  const canTodo = !!m.text && !m.viewOnce && m.kind !== 'hug';
 
   let body: React.ReactNode;
   if (m.kind === 'hug') {
@@ -632,9 +735,12 @@ function Bubble({
   return (
     <View style={{ alignItems: mine ? 'flex-end' : 'flex-start' }}>
       <Pressable
-        accessibilityHint={mine ? 'Long press to take this note back' : undefined}
-        onLongPress={mine ? onTakeBack : undefined}
-        delayLongPress={450}
+        testID={`note-${m.id}`}
+        accessibilityHint="Long press for options: love, star, add to to-dos, copy"
+        accessibilityActions={[{ name: 'longpress', label: 'More options' }]}
+        onAccessibilityAction={(e) => e.nativeEvent.actionName === 'longpress' && onOptions()}
+        onLongPress={onOptions}
+        delayLongPress={400}
         style={{
           maxWidth: '86%',
           backgroundColor: mine ? c.primary : c.surface,
@@ -662,52 +768,7 @@ function Bubble({
           {fade ? ` · ${fade}` : ''}
           {mine && m.readAt ? ' · seen' : ''}
         </T>
-        {!m.viewOnce ? (
-          <Pressable
-            testID={`heart-${m.id}`}
-            accessibilityRole="button"
-            accessibilityLabel={fav ? 'Remove from saved' : 'Save this note'}
-            accessibilityState={{ selected: !!fav }}
-            onPress={() => {
-              haptic.tap();
-              onHeart();
-            }}
-            hitSlop={10}
-            style={{ padding: 8 }}>
-            <Heart color={fav ? c.heart : c.textMuted} fill={fav ? c.heart : 'transparent'} size={18} />
-          </Pressable>
-        ) : null}
-        {canStar ? (
-          <Pressable
-            testID={`star-${m.id}`}
-            accessibilityRole="button"
-            accessibilityLabel={m.important ? 'Unstar this note' : 'Star this note to remember it'}
-            accessibilityState={{ selected: !!m.important }}
-            onPress={() => {
-              haptic.tap();
-              onStar();
-            }}
-            hitSlop={10}
-            style={{ padding: 8 }}>
-            <Star color={m.important ? c.onButter : c.textMuted} fill={m.important ? c.onButter : 'transparent'} size={18} />
-          </Pressable>
-        ) : null}
-        {canTodo ? (
-          <Pressable
-            testID={`todo-${m.id}`}
-            accessibilityRole="button"
-            accessibilityLabel={inTodos ? 'Already in your to-dos. Open the list' : 'Add this to your shared to-dos'}
-            onPress={onTodo}
-            hitSlop={10}
-            style={{ padding: 8 }}>
-            {inTodos ? <Check color={c.textMuted} size={18} /> : <ListTodo color={c.textMuted} size={18} />}
-          </Pressable>
-        ) : null}
-        {mine ? (
-          <Pressable testID={`take-back-${m.id}`} accessibilityRole="button" accessibilityLabel="Take this note back" onPress={onTakeBack} hitSlop={10} style={{ padding: 8 }}>
-            <Trash color={c.textMuted} size={16} />
-          </Pressable>
-        ) : null}
+        {fav ? <Heart color={c.heart} fill={c.heart} size={13} accessibilityLabel="Saved" /> : null}
       </Row>
     </View>
   );

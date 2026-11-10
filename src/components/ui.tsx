@@ -1,7 +1,8 @@
 import type { LucideIcon } from 'lucide-react-native';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Platform,
   Pressable,
   ScrollView,
@@ -19,6 +20,8 @@ import {
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { haptic } from '@/lib/haptics';
+
+import { Blob, PageWash } from './art';
 import { radius, space, touch, type as typeScale, useTheme } from '@/theme';
 
 // ------------------------------------------------------------------ text
@@ -33,14 +36,16 @@ export function T({
   style,
   ...rest
 }: TextProps & { variant?: Variant; muted?: boolean; color?: string; center?: boolean }) {
-  const { c, look } = useTheme();
+  const { c, look, textScale } = useTheme();
   const heading = variant === 'display' || variant === 'title' || variant === 'heading';
+  const base = typeScale[variant];
   return (
     <Text
       maxFontSizeMultiplier={1.6}
       {...rest}
       style={[
-        typeScale[variant],
+        base,
+        textScale !== 1 && { fontSize: Math.round(base.fontSize * textScale), lineHeight: Math.round(base.lineHeight * textScale) },
         heading && { fontFamily: look.headingFont },
         heading && look.name === 'professional' && { letterSpacing: -0.2 },
         { color: color ?? (muted ? c.textMuted : c.text) },
@@ -70,6 +75,7 @@ export function Screen({
   const inner = [styles.screenContent, contentStyle];
   return (
     <SafeAreaView edges={edges} style={{ flex: 1, backgroundColor: c.bg }}>
+      <PageWash />
       {scroll ? (
         <ScrollView contentContainerStyle={inner} keyboardShouldPersistTaps="handled">
           <View style={styles.maxWidth}>{children}</View>
@@ -103,9 +109,11 @@ export function Card({
     rose: c.heartSoft,
     butter: c.butter,
   }[tone];
+  const appear = useAppear();
   return (
-    <View
+    <Animated.View
       style={[
+        appear,
         styles.card,
         { backgroundColor: bg, borderColor: c.border, borderRadius: look.cardRadius },
         look.outlined
@@ -116,8 +124,27 @@ export function Card({
         style,
       ]}>
       {children}
-    </View>
+    </Animated.View>
   );
+}
+
+/** Content settles in softly when it appears (skipped when animations are off). */
+export function useAppear() {
+  const { motion } = useTheme();
+  const [v] = useState(() => new Animated.Value(motion === 'off' ? 1 : 0));
+  useEffect(() => {
+    if (motion === 'off') return;
+    Animated.timing(v, { toValue: 1, duration: motion === 'lively' ? 320 : 260, useNativeDriver: Platform.OS !== 'web' }).start();
+  }, [motion, v]);
+  return {
+    opacity: v,
+    transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [motion === 'lively' ? 12 : 6, 0] }) }],
+  };
+}
+
+/** A visible keyboard focus ring (web), so it's always clear where you are. */
+export function focusRing(focused: boolean | undefined, color: string): ViewStyle | null {
+  return focused && Platform.OS === 'web' ? { outlineWidth: 3, outlineStyle: 'solid', outlineColor: color, outlineOffset: 2 } : null;
 }
 
 export function Row({ children, gap = space.md, style, ...rest }: ViewProps & { gap?: number }) {
@@ -147,10 +174,13 @@ export function Button({
   style,
   accessibilityHint,
   testID,
+  hint,
 }: {
   label: string;
   onPress?: () => void;
   kind?: ButtonKind;
+  /** Shown under the button while it's disabled, e.g. "Write something first". */
+  hint?: string;
   icon?: LucideIcon;
   loading?: boolean;
   disabled?: boolean;
@@ -160,25 +190,33 @@ export function Button({
   testID?: string;
 }) {
   const { c, look, motion } = useTheme();
-  const bg = { primary: c.primary, soft: c.primarySoft, ghost: 'transparent', quiet: c.surfaceAlt }[kind];
-  const fg = { primary: c.onPrimary, soft: c.primary, ghost: c.primary, quiet: c.text }[kind];
+  const waiting = disabled && !loading;
+  const bg = waiting && kind === 'primary' ? c.surfaceAlt : { primary: c.primary, soft: c.primarySoft, ghost: 'transparent', quiet: c.surfaceAlt }[kind];
+  const fg = waiting && kind === 'primary' ? c.textMuted : { primary: c.onPrimary, soft: c.primary, ghost: c.primary, quiet: c.text }[kind];
   const off = disabled || loading;
   const pop = look.outlined && kind !== 'ghost' && !off;
-  return (
+  const button = (
     <Pressable
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityHint={accessibilityHint}
+      accessibilityHint={waiting && hint ? hint : accessibilityHint}
       accessibilityState={{ disabled: !!off, busy: !!loading }}
       disabled={off}
       onPress={() => {
         haptic.tap();
         onPress?.();
       }}
-      style={({ pressed }) => [
+      style={({ pressed, focused }: { pressed: boolean; focused?: boolean }) => [
         styles.button,
-        { backgroundColor: bg, borderRadius: look.controlRadius, minHeight: small ? touch.min : touch.comfy, opacity: off ? 0.55 : pressed ? 0.85 : 1 },
+        {
+          backgroundColor: bg,
+          borderRadius: look.controlRadius,
+          minHeight: small ? touch.min : touch.comfy,
+          opacity: waiting ? (kind === 'primary' ? 1 : 0.5) : loading ? 0.8 : pressed ? 0.85 : 1,
+        },
+        waiting && kind === 'primary' && { borderWidth: 1.5, borderColor: c.border, borderStyle: 'dashed' },
+        focusRing(focused, c.primary),
         kind === 'ghost' && { borderWidth: 1.5, borderColor: look.outlined ? c.text : c.border },
         pop && { borderWidth: 2, borderColor: c.text, boxShadow: pressed ? `1px 1px 0px ${c.text}` : `3px 3px 0px ${c.text}` },
         pressed && motion !== 'off' && { transform: pop ? [{ translateX: 2 }, { translateY: 2 }] : [{ scale: motion === 'lively' ? 0.95 : 0.98 }] },
@@ -195,6 +233,15 @@ export function Button({
         </Row>
       )}
     </Pressable>
+  );
+  if (!(waiting && hint)) return button;
+  return (
+    <View style={{ gap: 6 }}>
+      {button}
+      <T variant="small" muted center>
+        {hint}
+      </T>
+    </View>
   );
 }
 
@@ -233,7 +280,10 @@ export function IconButton({
         haptic.tap();
         onPress?.();
       }}
-      style={({ pressed }) => ({ alignItems: 'center', gap: 4, opacity: pressed ? 0.75 : 1 })}
+      style={({ pressed, focused }: { pressed: boolean; focused?: boolean }) => [
+        { alignItems: 'center', gap: 4, opacity: pressed ? 0.75 : 1, borderRadius: size },
+        focusRing(focused, c.primary),
+      ]}
       {...rest}>
       <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
         <Icon color={fg} size={Math.round(size * 0.44)} strokeWidth={2.2} fill={active && tone === 'heart' ? c.heart : 'transparent'} />
@@ -268,10 +318,13 @@ export function Chip({
         haptic.tap();
         onPress?.();
       }}
-      style={({ pressed }) => [
+      style={({ pressed, focused }: { pressed: boolean; focused?: boolean }) => [
+        focusRing(focused, c.primary),
         styles.chip,
         {
-          backgroundColor: selected ? c.primary : c.surfaceAlt,
+          backgroundColor: selected ? c.primary : c.surface,
+          borderWidth: 1,
+          borderColor: selected ? c.primary : c.border,
           borderRadius: look.name === 'professional' ? 8 : radius.pill,
           opacity: pressed ? 0.8 : 1,
         },
@@ -347,9 +400,9 @@ export function EmptyState({
   const { c } = useTheme();
   return (
     <View style={styles.empty}>
-      <View style={[styles.emptyIcon, { backgroundColor: c.surfaceAlt }]}>
-        <Icon color={c.primary} size={28} strokeWidth={1.8} />
-      </View>
+      <Blob size={104}>
+        <Icon color={c.primary} size={36} strokeWidth={1.7} />
+      </Blob>
       <T muted center style={{ maxWidth: 300 }}>
         {line}
       </T>
@@ -417,8 +470,8 @@ export function Field({
 }) {
   return (
     <View style={{ gap: space.xs }}>
-      <T variant="label" muted>
-        {label.toUpperCase()}
+      <T variant="bodyStrong" style={{ fontSize: 15 }}>
+        {label}
       </T>
       {children}
       {helper ? (
@@ -431,9 +484,11 @@ export function Field({
 }
 
 export function useInputStyle(): TextStyle {
-  const { c, look } = useTheme();
+  const { c, look, textScale } = useTheme();
   return {
     ...typeScale.body,
+    fontSize: Math.round(typeScale.body.fontSize * textScale),
+    lineHeight: Math.round(typeScale.body.lineHeight * textScale),
     color: c.text,
     backgroundColor: c.surface,
     borderColor: look.outlined ? c.text : c.border,
@@ -454,7 +509,6 @@ const styles = StyleSheet.create({
   chip: { minHeight: 40, paddingHorizontal: space.lg, borderRadius: radius.pill, justifyContent: 'center' },
   toggleRow: { flexDirection: 'row', alignItems: 'center', minHeight: touch.comfy, paddingVertical: space.sm },
   empty: { alignItems: 'center', gap: space.md, paddingVertical: space.xxl },
-  emptyIcon: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
   segment: { flexDirection: 'row', borderRadius: radius.pill, padding: 4 },
   segmentItem: { flex: 1, minHeight: 44, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
 });

@@ -90,12 +90,17 @@ export const motion = { quick: 180, base: 260, gentle: 420 } as const;
 // Everything below is chosen by each person in Settings → Look & feel.
 
 /** Colour themes. Each changes the accent family; mood tones stay the same so meaning never changes. */
-export type ColorName = 'lavender' | 'ocean' | 'blossom' | 'forest' | 'sunset';
+export type ColorName = 'lavender' | 'kita' | 'ocean' | 'blossom' | 'forest' | 'sunset';
 type Accent = Pick<Colors, 'bg' | 'surface' | 'surfaceAlt' | 'border' | 'primary' | 'onPrimary' | 'primarySoft' | 'ring' | 'ringTrack'>;
 
 /** Accent text colours keep at least 4.5:1 contrast on white (light) and on the dark surface (dark). */
 export const accents: Record<ColorName, { label: string; light: Partial<Accent>; dark: Partial<Accent> }> = {
   lavender: { label: 'Lavender', light: {}, dark: {} },
+  kita: {
+    label: 'KiTA',
+    light: { bg: '#F7F7FA', surfaceAlt: '#EEF0F6', border: '#E2E5EE', primary: '#18213D', primarySoft: '#F8E4E8', ring: '#E5899B', ringTrack: '#E8EAF1' },
+    dark: { bg: '#10152A', surface: '#18213D', surfaceAlt: '#212B4C', border: '#2C3760', primary: '#F0A9B6', onPrimary: '#2A1220', primarySoft: '#3A2740', ring: '#E5899B', ringTrack: '#2C3760' },
+  },
   ocean: {
     label: 'Ocean',
     light: { bg: '#F5F9FC', surfaceAlt: '#E8F2F9', border: '#DCE8F1', primary: '#1F5F8B', primarySoft: '#E1EEF8', ring: '#5FA8D3', ringTrack: '#E1E9F0' },
@@ -180,9 +185,13 @@ export const looks: Record<LookName, Look> = {
 
 export type MotionLevel = 'off' | 'gentle' | 'lively';
 export type ModeName = 'auto' | 'light' | 'dark';
+export type TextSize = 'small' | 'default' | 'large' | 'xlarge';
 
-export type Appearance = { color: ColorName; look: LookName; motion: MotionLevel; mode: ModeName };
-export const DEFAULT_APPEARANCE: Appearance = { color: 'lavender', look: 'soft', motion: 'gentle', mode: 'auto' };
+/** How much bigger (or smaller) all text is, on top of the phone's own text size. */
+export const TEXT_SCALE: Record<TextSize, number> = { small: 0.9, default: 1, large: 1.15, xlarge: 1.3 };
+
+export type Appearance = { color: ColorName; look: LookName; motion: MotionLevel; mode: ModeName; text: TextSize };
+export const DEFAULT_APPEARANCE: Appearance = { color: 'lavender', look: 'soft', motion: 'gentle', mode: 'auto', text: 'default' };
 
 /** Anything unknown (an older or newer app version wrote it) falls back to the default. */
 export function cleanAppearance(raw: unknown): Appearance {
@@ -193,5 +202,6 @@ export function cleanAppearance(raw: unknown): Appearance {
     look: pick(r.look, Object.keys(looks) as LookName[], DEFAULT_APPEARANCE.look),
     motion: pick(r.motion, ['off', 'gentle', 'lively'] as const, DEFAULT_APPEARANCE.motion),
     mode: pick(r.mode, ['auto', 'light', 'dark'] as const, DEFAULT_APPEARANCE.mode),
+    text: pick(r.text, ['small', 'default', 'large', 'xlarge'] as const, DEFAULT_APPEARANCE.text),
   };
 }

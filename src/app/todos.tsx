@@ -96,7 +96,7 @@ export default function Todos() {
         </Row>
         <ToggleRow testID="todo-important" title="Important" detail="Starred to-dos stay at the top for both of you." value={important} onChange={setImportant} />
         <Gap h={space.sm} />
-        <Button testID="todo-add" label="Add to our list" icon={Plus} loading={busy} disabled={!text.trim()} onPress={add} />
+        <Button testID="todo-add" label="Add to our list" icon={Plus} loading={busy} disabled={!text.trim()} hint="Type something to do first." onPress={add} />
       </Card>
       <Gap />
 

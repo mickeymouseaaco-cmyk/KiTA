@@ -123,7 +123,7 @@ export default function NewTrip() {
         <T variant="small">We&apos;ll start your shared checklist with passports, insurance and bookings. Both of you can tick things off.</T>
       </Card>
       <Gap />
-      <Button testID="save-trip" label="Start planning" onPress={save} loading={busy} disabled={!title.trim() && !destination.trim()} />
+      <Button testID="save-trip" label="Start planning" onPress={save} loading={busy} disabled={!title.trim() && !destination.trim()} hint="Give the trip a name or a place first." />
     </Screen>
   );
 }

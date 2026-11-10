@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { CalendarDays, CalendarHeart, CalendarRange, CloudRain, Dices, Gift, HandHeart, Heart, HeartHandshake, ListTodo, Mic, Plus, Sparkles } from 'lucide-react-native';
+import { CalendarDays, CalendarHeart, CalendarRange, CloudRain, Dices, Gift, HandHeart, Heart, HeartHandshake, ListTodo, MapPin, Mic, Plus, Sparkles, Wind } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
 
 import { MediaById } from '@/components/media-view';
@@ -15,16 +15,41 @@ import { useMilestones, type Milestone } from '@/lib/together-data';
 import type { Memory } from '@/lib/types';
 import { space, useTheme } from '@/theme';
 
-const RITUALS = [
-  { route: '/todos' as const, testID: 'open-todos-tile', icon: ListTodo, title: 'To-dos', detail: 'A shared, gentle list', tone: 'lavender' as const },
-  { route: '/weather' as const, testID: 'open-weather-tile', icon: CloudRain, title: 'Weather & floods', detail: 'Shah Alam and Klang', tone: 'sky' as const },
-  { route: '/weekend' as const, testID: 'open-weekend', icon: CalendarRange, title: 'This weekend', detail: 'A simple plan for two', tone: 'peach' as const },
-  { route: '/gratitude' as const, testID: 'open-gratitude', icon: HandHeart, title: 'Gratitude Wall', detail: 'One thank-you a day', tone: 'butter' as const },
-  { route: '/mood-calendar' as const, testID: 'open-mood-calendar', icon: CalendarDays, title: 'Our moods', detail: 'A month, side by side', tone: 'lavender' as const },
-  { route: '/date-night' as const, testID: 'open-date-night', icon: Dices, title: 'Date night', detail: 'Ideas for any budget', tone: 'rose' as const },
-  { route: '/milestones' as const, testID: 'open-milestones', icon: Heart, title: 'Milestones', detail: 'Our special days', tone: 'peach' as const },
-  { route: '/reset' as const, testID: 'open-reset-tile', icon: HeartHandshake, title: 'Gentle reset', detail: 'After a tense day', tone: 'sage' as const },
-  { route: '/schedule-note' as const, testID: 'open-surprise', icon: Gift, title: 'Surprise note', detail: 'Hide one for later', tone: 'sky' as const },
+type Tile = {
+  route: '/todos' | '/find' | '/weather' | '/weekend' | '/gratitude' | '/mood-calendar' | '/date-night' | '/milestones' | '/reset' | '/schedule-note' | '/bucket-list' | '/calm';
+  testID: string;
+  icon: typeof ListTodo;
+  title: string;
+  detail: string;
+  tone: 'lavender' | 'sky' | 'peach' | 'butter' | 'rose' | 'sage';
+};
+
+/** Grouped by what you're doing: making plans, or looking after each other. */
+const GROUPS: { title: string; line: string; tiles: Tile[] }[] = [
+  {
+    title: 'Plan',
+    line: 'Things to do and look forward to',
+    tiles: [
+      { route: '/todos', testID: 'open-todos-tile', icon: ListTodo, title: 'To-dos', detail: 'A shared, gentle list', tone: 'lavender' },
+      { route: '/weekend', testID: 'open-weekend', icon: CalendarRange, title: 'This weekend', detail: 'A simple plan for two', tone: 'peach' },
+      { route: '/date-night', testID: 'open-date-night', icon: Dices, title: 'Date night', detail: 'Ideas for any budget', tone: 'rose' },
+      { route: '/milestones', testID: 'open-milestones', icon: Heart, title: 'Special days', detail: 'With a nudge before each', tone: 'butter' },
+      { route: '/bucket-list', testID: 'open-bucket-tile', icon: MapPin, title: 'Bucket list', detail: 'Places to go one day', tone: 'sky' },
+      { route: '/schedule-note', testID: 'open-surprise', icon: Gift, title: 'Surprise note', detail: 'Hide one for later', tone: 'sage' },
+    ],
+  },
+  {
+    title: 'Care',
+    line: 'Looking after each other',
+    tiles: [
+      { route: '/gratitude', testID: 'open-gratitude', icon: HandHeart, title: 'Gratitude', detail: 'One thank-you a day', tone: 'butter' },
+      { route: '/mood-calendar', testID: 'open-mood-calendar', icon: CalendarDays, title: 'Our moods', detail: 'A month, side by side', tone: 'lavender' },
+      { route: '/calm', testID: 'open-calm-tile', icon: Wind, title: 'Calm Corner', detail: 'Breathe, sounds, vent', tone: 'sage' },
+      { route: '/reset', testID: 'open-reset-tile', icon: HeartHandshake, title: 'Gentle reset', detail: 'After a tense day', tone: 'peach' },
+      { route: '/find', testID: 'open-find-tile', icon: MapPin, title: 'Find each other', detail: 'Where you both are', tone: 'lavender' },
+      { route: '/weather', testID: 'open-weather-tile', icon: CloudRain, title: 'Weather & floods', detail: 'Shah Alam and Klang', tone: 'sky' },
+    ],
+  },
 ];
 
 /** "Remember this day?": a memory from this day in an earlier month or year. */
@@ -84,21 +109,36 @@ export default function Together() {
         </>
       ) : null}
 
-      <SectionTitle>Little rituals</SectionTitle>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md }}>
-        {RITUALS.map((r) => (
-          <Pressable key={r.route} testID={r.testID} accessibilityRole="button" style={{ width: '47%', flexGrow: 1 }} onPress={() => router.push(r.route)}>
-            <Card tone={r.tone} style={{ flex: 1, minHeight: 112 }}>
-              <r.icon color={c.primary} size={24} />
-              <Gap h={space.sm} />
-              <T variant="heading">{r.title}</T>
-              <T variant="small" muted>
-                {r.detail}
-              </T>
-            </Card>
-          </Pressable>
-        ))}
-      </View>
+      {GROUPS.map((g) => (
+        <View key={g.title} style={{ marginBottom: space.lg }}>
+          <T variant="title" accessibilityRole="header">
+            {g.title}
+          </T>
+          <T variant="small" muted style={{ marginBottom: space.md }}>
+            {g.line}
+          </T>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+            {g.tiles.map((r) => (
+              <Pressable
+                key={r.route}
+                testID={r.testID}
+                accessibilityRole="button"
+                accessibilityLabel={`${r.title}. ${r.detail}`}
+                style={{ width: '48%', flexGrow: 1 }}
+                onPress={() => router.push(r.route)}>
+                <Card tone={r.tone} style={{ flex: 1, minHeight: 100, padding: space.lg }}>
+                  <r.icon color={c.primary} size={24} />
+                  <Gap h={space.sm} />
+                  <T variant="bodyStrong">{r.title}</T>
+                  <T variant="small" muted>
+                    {r.detail}
+                  </T>
+                </Card>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      ))}
 
       <Gap h={space.xl} />
       <Row style={{ justifyContent: 'space-between', marginBottom: space.md }}>

@@ -134,7 +134,7 @@ function MoodForm({ initial }: { initial?: MoodEntry }) {
         />
       ) : null}
       <Gap h={space.xl} />
-      <Button testID="save-mood" label="Save check-in" onPress={save} loading={busy} disabled={!mood} />
+      <Button testID="save-mood" label="Save check-in" onPress={save} loading={busy} disabled={!mood} hint="Tap how you feel first." />
     </Screen>
   );
 }

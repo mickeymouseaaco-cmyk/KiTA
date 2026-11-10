@@ -3,7 +3,7 @@
  * Set EXPO_PUBLIC_USE_EMULATORS=1 to run fully locally against the Firebase emulators.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getApp, getApps, initializeApp, type FirebaseOptions } from 'firebase/app';
+import { getApp, getApps, initializeApp, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
 import {
   browserLocalPersistence,
   connectAuthEmulator,
@@ -60,10 +60,11 @@ let auth: Auth;
 let db: Firestore;
 let storage: FirebaseStorage;
 let functions: Functions;
+let app: FirebaseApp;
 
 if (isFirebaseConfigured) {
   const firstInit = getApps().length === 0;
-  const app = firstInit ? initializeApp(config) : getApp();
+  app = firstInit ? initializeApp(config) : getApp();
 
   if (firstInit) {
     auth = initializeAuth(app, {
@@ -109,4 +110,4 @@ if (isFirebaseConfigured) {
   }
 }
 
-export { auth, db, functions, storage };
+export { app, auth, db, functions, storage };

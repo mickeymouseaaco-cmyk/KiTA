@@ -43,7 +43,7 @@ async function signUp(page, name) {
   await page.locator(tid('submit')).click();
 }
 
-const TAB_PATHS = { Today: '/', 'Their Day': '/their-day', 'Love Notes': '/notes', Together: '/together', Trip: '/trip' };
+const TAB_PATHS = { Today: '/', Home: '/', 'Their Day': '/their-day', 'Love Notes': '/notes', Notes: '/notes', Together: '/together', Trip: '/trip', Trips: '/trip' };
 
 /** Switch tabs; if a stack screen is covering the tab bar, navigate directly instead. */
 async function tab(page, label) {
@@ -242,12 +242,14 @@ async function main() {
 
   // ------------------------------------------------------------- vent
   await tab(alex, 'Today');
+  await alex.locator(tid('open-calm')).click();
   await alex.locator(tid('open-vent')).click();
   await alex.locator(tid('vent-text')).fill('Everything at work today, ugh.');
   await shot(alex, '14-vent');
   await alex.locator(tid('vent-let-go')).click();
   await alex.locator(tid('vent-released')).waitFor();
   log('Alex vents privately and lets it go (nothing written to the server)');
+  await alex.goBack();
   await alex.goBack();
 
   // ============================================================ Phase 2
@@ -281,7 +283,8 @@ async function main() {
   await alex.goBack();
 
   // ------------------------------------------------------------- evening check-in
-  await alex.locator(tid('open-checkin')).click();
+  // Home shows the check-in card from 6 pm; open it directly so the test runs any time.
+  await alex.goto(BASE + '/check-in');
   await alex.locator(tid('checkin-input')).fill('Blair made me laugh at dinner');
   await shot(alex, '19-check-in');
   await alex.locator(tid('save-checkin')).click();

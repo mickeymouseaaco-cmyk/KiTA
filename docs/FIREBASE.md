@@ -37,6 +37,15 @@ Without the secret, the workflow still runs step 1 and skips the rest.
 
 The sections below are the same steps by hand, for running them on your own computer.
 
+## Notifications in the web app (one key, once)
+
+KiTA's web app shows notifications through Firebase Cloud Messaging.
+Firebase console → ⚙️ Project settings → **Cloud Messaging** → *Web configuration* →
+**Web Push certificates** → **Generate key pair**. Copy the long key that appears
+(it's public) into `WEB_PUSH_KEY` in `src/lib/firebase-config.ts` (or the
+`EXPO_PUBLIC_FIREBASE_VAPID_KEY` variable). The key for kita-4a2e1 is already set. On iPhone they work once KiTA is added to the
+Home Screen (iOS 16.4 or later).
+
 ## 1. Settings (environment variables)
 
 ### The app: built in, or `.env` to override

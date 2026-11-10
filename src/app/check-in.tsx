@@ -153,7 +153,7 @@ function Form() {
         </Row>
       ) : null}
       <Gap h={space.xl} />
-      <Button testID="save-checkin" label="Keep this moment" onPress={save} loading={busy} disabled={!hasAnswer} />
+      <Button testID="save-checkin" label="Keep this moment" onPress={save} loading={busy} disabled={!hasAnswer} hint="Write or say one good moment first." />
     </Screen>
   );
 }

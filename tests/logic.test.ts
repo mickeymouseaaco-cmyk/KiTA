@@ -474,3 +474,76 @@ describe('weather at a glance', () => {
     assert.equal(b('Something new').label, 'Bad weather');
   });
 });
+
+describe('question of the day', () => {
+  test('both partners get the same question on the same day', async () => {
+    const { questionFor } = await import('../src/lib/questions-pure');
+    assert.deepEqual(questionFor('2026-11-10', 'coupleA'), questionFor('2026-11-10', 'coupleA'));
+  });
+  test('a new question each day, and it cycles through the whole list', async () => {
+    const { QUESTIONS, questionFor } = await import('../src/lib/questions-pure');
+    const seen = new Set<number>();
+    const start = Date.parse('2026-01-01T00:00:00Z');
+    for (let i = 0; i < QUESTIONS.length; i++) {
+      const d = new Date(start + i * 86_400_000).toISOString().slice(0, 10);
+      const q = questionFor(d, 'coupleA');
+      assert.equal(q.text, QUESTIONS[q.id]);
+      seen.add(q.id);
+    }
+    assert.equal(seen.size, QUESTIONS.length, 'no repeats until every question has been asked');
+    assert.notEqual(questionFor('2026-11-10', 'coupleA').id, questionFor('2026-11-11', 'coupleA').id);
+  });
+  test('questions are unique, short and friendly', async () => {
+    const { QUESTIONS } = await import('../src/lib/questions-pure');
+    assert.ok(QUESTIONS.length >= 50);
+    assert.equal(new Set(QUESTIONS).size, QUESTIONS.length);
+    for (const q of QUESTIONS) {
+      assert.ok(q.endsWith('?'), q);
+      assert.ok(q.length <= 90, q);
+    }
+  });
+  test('status: answer first, then reveal', async () => {
+    const { questionStatus } = await import('../src/lib/questions-pure');
+    assert.equal(questionStatus(false, false), 'answer-first');
+    assert.equal(questionStatus(false, true), 'partner-waiting');
+    assert.equal(questionStatus(true, false), 'waiting-for-partner');
+    assert.equal(questionStatus(true, true), 'both');
+  });
+});
+
+describe('find my partner', () => {
+  test('distance in plain words', async () => {
+    const { distanceM, distanceWords } = await import('../src/lib/location-pure');
+    const icity = { lat: 3.0657, lng: 101.4846 };
+    const klang = { lat: 3.0449, lng: 101.4456 };
+    const d = distanceM(icity, klang);
+    assert.ok(d > 4000 && d < 5000, `i-City to Klang is about 4.9 km (got ${Math.round(d)})`);
+    assert.equal(distanceWords(80), 'right next to each other');
+    assert.equal(distanceWords(640), '640 m apart');
+    assert.equal(distanceWords(4900), '4.9 km apart');
+    assert.equal(distanceWords(32000), '32 km apart');
+  });
+  test('only sends when it matters (moved, or a few minutes passed)', async () => {
+    const { worthSending } = await import('../src/lib/location-pure');
+    const here = { lat: 3.0657, lng: 101.4846, accuracy: 20 };
+    assert.equal(worthSending(null, here, 0), true);
+    assert.equal(worthSending({ fix: here, at: 0 }, { ...here, lat: 3.06571 }, 60_000), false, 'a metre, a minute later');
+    assert.equal(worthSending({ fix: here, at: 0 }, { ...here, lat: 3.0667 }, 60_000), true, '110 m away');
+    assert.equal(worthSending({ fix: here, at: 0 }, here, 4 * 60_000), true, 'four minutes later');
+  });
+  test('coordinates from an iPhone Shortcut', async () => {
+    const { parseCoord } = await import('../functions/src/steps-pure');
+    assert.equal(parseCoord('3.065712', 90), 3.065712);
+    assert.equal(parseCoord('3,065712', 90), 3.065712);
+    assert.equal(parseCoord('-33.8688', 90), -33.8688);
+    assert.equal(parseCoord(101.4846, 180), 101.4846);
+    for (const bad of ['', 'abc', '91', '200.1', '1e3', '3.1.2', undefined, null]) assert.equal(parseCoord(bad, 90), null, String(bad));
+  });
+  test('map links point at the right place', async () => {
+    const { mapLinks, osmEmbed } = await import('../src/lib/location-pure');
+    const l = mapLinks(3.0657, 101.4846);
+    assert.match(l.waze, /ll=3.0657,101.4846/);
+    assert.match(l.google, /destination=3.0657,101.4846/);
+    assert.match(osmEmbed(3.0657, 101.4846), /marker=3.0657,101.4846/);
+  });
+});

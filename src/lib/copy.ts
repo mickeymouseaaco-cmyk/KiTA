@@ -78,15 +78,15 @@ export function streakLine(days: number): string | null {
 export const permissionCopy = {
   camera: {
     title: 'Share a moment?',
-    body: 'Together uses your camera only when you choose to take a photo. Nothing is sent until you tap send.',
+    body: 'KiTA uses your camera only when you choose to take a photo. Nothing is sent until you tap send.',
   },
   photos: {
     title: 'Pick a photo?',
-    body: 'Together only sees the photos you choose. Nothing is shared until you send it or add it to a shared space.',
+    body: 'KiTA only sees the photos you choose. Nothing is shared until you send it or add it to a shared space.',
   },
   microphone: {
     title: 'Record your voice?',
-    body: 'Together uses your microphone only while you hold to record. Vent recordings never leave this phone.',
+    body: 'KiTA uses your microphone only while you hold to record. Vent recordings never leave this phone.',
   },
   notifications: {
     title: 'Hear from each other?',

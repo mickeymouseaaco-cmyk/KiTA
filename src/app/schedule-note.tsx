@@ -51,7 +51,7 @@ export default function ScheduleNote() {
   const tooSoon = mode !== 'surprise-open' && when.getTime() < openedAt + 60_000;
   const whenLabel =
     mode === 'surprise-open'
-      ? `The next time ${partnerName} opens Together`
+      ? `The next time ${partnerName} opens KiTA`
       : when.toLocaleString(undefined, { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
   async function send() {
@@ -175,7 +175,7 @@ export default function ScheduleNote() {
         ) : null}
       </Card>
       <Gap />
-      <Button testID="sched-send" label={mode === 'later' ? 'Schedule it' : 'Hide the surprise'} loading={busy} onPress={send} disabled={tooSoon || (!text.trim() && !photo && !voice)} />
+      <Button testID="sched-send" label={mode === 'later' ? 'Schedule it' : 'Hide the surprise'} loading={busy} onPress={send} disabled={tooSoon || (!text.trim() && !photo && !voice)} hint={tooSoon ? 'Pick a time a little later.' : 'Write a note or add a photo or voice first.'} />
     </Screen>
   );
 }

@@ -11,12 +11,14 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { CelebrateProvider } from '@/components/celebrate';
 import { FeedbackProvider } from '@/components/feedback';
 import { IncomingLove, LockScreen, SurpriseWatcher } from '@/components/overlays';
+import { LocationSync } from '@/components/location-sync';
+import { WebPushSync } from '@/components/web-push-row';
 import { AppearanceSync } from '@/lib/appearance';
 import { LockProvider } from '@/lib/lock';
 import { configureNotifications } from '@/lib/notifications';
 import { outbox } from '@/lib/outbox';
 import { SessionProvider, useSession } from '@/lib/session';
-import { TogetherThemeProvider, fonts, useTheme } from '@/theme';
+import { TogetherThemeProvider, useTheme } from '@/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -47,7 +49,8 @@ function Gate() {
 }
 
 function Navigator() {
-  const { c, dark } = useTheme();
+  const { c, dark, look } = useTheme();
+  const headerBg = look.name === 'professional' ? c.bg : c.primarySoft;
   const navTheme = {
     ...(dark ? DarkTheme : DefaultTheme),
     colors: {
@@ -66,8 +69,9 @@ function Navigator() {
       <Stack
         screenOptions={{
           headerShadowVisible: false,
-          headerStyle: { backgroundColor: c.bg },
-          headerTitleStyle: { fontFamily: fonts.heading, color: c.text },
+          headerStyle: { backgroundColor: headerBg },
+          headerTitleStyle: { fontFamily: look.headingFont, fontSize: 20, color: c.text },
+          headerTitleAlign: 'left',
           headerTintColor: c.primary,
           contentStyle: { backgroundColor: c.bg },
           headerBackButtonDisplayMode: 'minimal',
@@ -79,6 +83,9 @@ function Navigator() {
         <Stack.Screen name="log-steps" options={{ title: 'Steps', presentation: 'modal' }} />
         <Stack.Screen name="steps-sync" options={{ title: 'Steps from iPhone' }} />
         <Stack.Screen name="appearance" options={{ title: 'Look & feel' }} />
+        <Stack.Screen name="question" options={{ title: 'Question of the day' }} />
+        <Stack.Screen name="notes-media" options={{ title: 'Photos, videos & voice' }} />
+        <Stack.Screen name="find" options={{ title: 'Find my partner' }} />
         <Stack.Screen name="log-mood" options={{ title: 'How are you?', presentation: 'modal' }} />
         <Stack.Screen name="vent" options={{ title: 'Vent', presentation: 'modal' }} />
         <Stack.Screen name="calm" options={{ title: 'Calm Corner' }} />
@@ -106,6 +113,8 @@ function Navigator() {
       </Stack>
       <Gate />
       <AppearanceSync />
+      <WebPushSync />
+      <LocationSync />
       <IncomingLove />
       <SurpriseWatcher />
       <LockScreen />

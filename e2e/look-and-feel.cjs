@@ -24,6 +24,9 @@ const small = { viewport: { width: 360, height: 760 }, deviceScaleFactor: 2 };
 const tid = (id) => `[data-testid="${id}"]`;
 
 let step = 0;
+/** Every open page and every page error, so any failure leaves evidence. */
+const pages = {};
+const errors = [];
 const log = (msg) => console.log(`${String(++step).padStart(2, '0')}. ${msg}`);
 
 async function shot(page, name, full = false) {
@@ -90,16 +93,22 @@ async function signUp(page, name) {
 
 async function main() {
   const browser = await chromium.launch();
-  const errors = [];
-  const mk = async (who, opts = phone, scheme = 'light') => {
-    const ctx = await browser.newContext({ ...opts, colorScheme: scheme });
+  const mk = async (who, opts = phone, scheme = 'light', geo = { latitude: 3.0657, longitude: 101.4846 }) => {
+    const ctx = await browser.newContext({ ...opts, colorScheme: scheme, timezoneId: 'Asia/Kuala_Lumpur', locale: 'en-MY', permissions: ['geolocation'], geolocation: { ...geo, accuracy: 25 } });
     mockWeather(ctx);
+    ctx.route('https://nominatim.openstreetmap.org/**', (r) => {
+      const lat = Number(new URL(r.request().url()).searchParams.get('lat'));
+      r.fulfill({ json: lat > 3.055 ? { name: 'i-City', address: { suburb: 'Seksyen 7', city: 'Shah Alam' } } : { address: { road: 'Jalan Meru', city: 'Klang' } } });
+    });
+    ctx.route('https://www.openstreetmap.org/**', (r) => r.fulfill({ contentType: 'text/html', body: '<body style="margin:0;background:#dfe8d8;font:14px sans-serif;display:grid;place-items:center;height:100vh">map</body>' }));
     const page = await ctx.newPage();
+    pages[who] = page;
     page.on('pageerror', (e) => errors.push(`${who}: ${e.message}`));
+    page.on('console', (m) => m.type() === 'error' && errors.push(`${who} console: ${m.text().slice(0, 300)}`));
     return page;
   };
   const afiq = await mk('afiq', small);
-  const aina = await mk('aina');
+  const aina = await mk('aina', phone, 'light', { latitude: 3.0449, longitude: 101.4456 });
 
   await signUp(afiq, 'Afiq Hakimi');
   await afiq.locator(tid('create-invite')).click();
@@ -138,6 +147,17 @@ async function main() {
   await afiq.locator(tid('send-note')).click();
   await aina.goto(BASE + '/notes');
   await aina.getByText('Don’t forget your umbrella').first().waitFor({ timeout: 10000 });
+  // Long-press a note for its options (no more buttons under every note).
+  assert.equal(await afiq.locator('[data-testid^="heart-"], [data-testid^="star-"], [data-testid^="take-back-"]').count(), 0, 'no buttons under notes');
+  await afiq.getByText('Don’t forget your umbrella').first().hover();
+  await afiq.mouse.down();
+  await afiq.waitForTimeout(800);
+  await afiq.mouse.up();
+  await afiq.locator(tid('opt-star')).waitFor({ timeout: 5000 });
+  await shot(afiq, '04b-notes-long-press');
+  await afiq.locator(tid('opt-star')).click();
+  await afiq.locator(tid('pinned-notes')).waitFor({ timeout: 10000 });
+  log('Long-press opens note options; starring pins it for both');
   log(`Love-note box is ${Math.round(w)}px wide, grows to ${Math.round(grown)}px, and sends`);
 
   // 3. Weather at a glance.
@@ -159,8 +179,59 @@ async function main() {
   await afiq.getByText(/Last sync .* 8,412 steps/).waitFor({ timeout: 10000 });
   await shot(afiq, '07-steps-sync', true);
   await aina.goto(BASE + '/their-day');
-  await aina.getByText(/8,412/).first().waitFor({ timeout: 10000 });
+  try {
+    await aina.getByText(/8,412/).first().waitFor({ timeout: 10000 });
+  } catch (e) {
+    await shot(aina, 'dbg-aina-their-day');
+    console.log('DEBUG url', aina.url());
+    console.log('DEBUG text', (await aina.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 600));
+    console.log('DEBUG page errors', errors.join(' | ') || 'none');
+    throw e;
+  }
+  await shot(aina, '07-their-day-steps');
   log('A Shortcut call with “8,412” lands in Afiq’s day and Aina sees it');
+
+  // 4b. Question of the day: Afiq answers, Aina is told, answers, and both appear.
+  await afiq.goto(BASE + '/question');
+  await afiq.locator(tid('question-text')).waitFor({ timeout: 15000 });
+  await afiq.locator(tid('answer-input')).fill('Your laugh at dinner last night');
+  await afiq.locator(tid('answer-send')).click();
+  await afiq.locator(tid('answer-waiting')).waitFor({ timeout: 10000 });
+  await shot(afiq, '07a-question-waiting');
+  await aina.goto(BASE + '/');
+  await aina.locator(tid('question-status')).filter({ hasText: 'Your turn' }).waitFor({ timeout: 20000 });
+  await shot(aina, '07b-home-question-your-turn');
+  await aina.goto(BASE + '/question');
+  assert.equal(await aina.getByText('Your laugh at dinner last night').count(), 0, 'no peeking before answering');
+  await aina.locator(tid('answer-input')).fill('Our slow breakfast on Saturday');
+  await aina.locator(tid('answer-send')).click();
+  await aina.getByText('Your laugh at dinner last night').waitFor({ timeout: 10000 });
+  await shot(aina, '07c-question-both');
+  await afiq.getByText('Our slow breakfast on Saturday').waitFor({ timeout: 10000 });
+  log('Question of the day: hidden until both answer, then both see both answers');
+
+  // 4b2. Find my partner: both choose to share, then see each other.
+  await afiq.goto(BASE + '/find');
+  await afiq.locator(tid('partner-not-sharing')).waitFor({ timeout: 15000 });
+  await afiq.locator(tid('share-location')).click();
+  await aina.goto(BASE + '/find');
+  await aina.getByText('i-City, Seksyen 7, Shah Alam').waitFor({ timeout: 15000 });
+  await aina.locator(tid('share-location')).click();
+  await afiq.getByText('Jalan Meru, Klang').waitFor({ timeout: 15000 });
+  await afiq.getByText(/km apart/).first().waitFor({ timeout: 15000 });
+  await shot(afiq, '07d-find', true);
+  await aina.locator(tid('share-location')).click(); // Aina stops: her location disappears for Afiq
+  await afiq.locator(tid('partner-not-sharing')).waitFor({ timeout: 15000 });
+  log('Find my partner: both opt in and see each other; stopping removes it at once');
+
+  // 4c. Installable: manifest, icons and the service worker are served.
+  const manifest = await (await fetch(BASE + '/manifest.json')).json();
+  assert.equal(manifest.name, 'KiTA');
+  assert.equal((await fetch(BASE + '/icons/icon-512.png')).status, 200);
+  assert.match(await (await fetch(BASE + '/sw.js')).text(), /showNotification/);
+  const swReady = await afiq.evaluate(() => navigator.serviceWorker.ready.then((r) => !!r.active).catch(() => false));
+  assert.ok(swReady, 'service worker is running');
+  log('Installable: manifest, icons and service worker are in place');
 
   // 5. Look & feel: every style, a few colours, light and dark.
   await afiq.goto(BASE + '/appearance');
@@ -205,14 +276,22 @@ async function main() {
   log('Each style and colour rendered; choice follows to a second phone');
 
   await browser.close();
-  if (errors.length) {
-    console.log('\nPage errors:\n' + errors.join('\n'));
+  const crashes = errors.filter((e) => !e.includes(' console: ')); // console messages are evidence, not failures
+  if (crashes.length) {
+    console.log('\nPage errors:\n' + crashes.join('\n'));
     process.exit(1);
   }
   console.log('\nAll look-and-feel checks passed.');
 }
 
-main().catch((e) => {
+main().catch(async (e) => {
   console.error(e);
+  for (const [who, page] of Object.entries(pages)) {
+    try {
+      await page.screenshot({ path: path.join(OUT, `fail-${who}.png`) });
+      console.log(`FAIL ${who} at ${page.url()}: ${(await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 300)}`);
+    } catch {}
+  }
+  console.log('FAIL page errors:\n' + (errors.join('\n') || 'none'));
   process.exit(1);
 });

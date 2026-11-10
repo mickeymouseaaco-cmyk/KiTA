@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- viewport-fit=cover: use the whole screen on iPhone; the app adds safe-area padding itself. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
+    <title>KiTA</title>
+    <meta name="description" content="KiTA: a gentle place for the two of you to look after yourselves, and each other." />
+
+    <!-- Install as an app (KiTA on the home screen). -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#F4EFFB" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#16141B" media="(prefers-color-scheme: dark)" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="KiTA" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="application-name" content="KiTA" />
+
+    <!-- react-native-web's recommended reset: full height, the app scrolls, not the page. -->
+    <style id="expo-reset">
+      html,
+      body {
+        height: 100%;
+        background-color: #fbf7f4;
+      }
+      @media (prefers-color-scheme: dark) {
+        html,
+        body {
+          background-color: #16141b;
+        }
+      }
+      body {
+        overflow: hidden;
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+
+    <!-- Offline start-up and notifications (public/sw.js). -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('/sw.js').catch(function () {});
+        });
+      }
+      // Remember Chrome/Android's install offer so KiTA can show its own friendly button.
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__kitaInstallPrompt = e;
+        window.dispatchEvent(new Event('kita-installable'));
+      });
+    </script>
+  </head>
+
+  <body>
+    <noscript>KiTA needs JavaScript turned on.</noscript>
+    <div id="root"></div>
+  </body>
+</html>
