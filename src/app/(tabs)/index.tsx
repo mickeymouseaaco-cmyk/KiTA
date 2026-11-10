@@ -15,6 +15,7 @@ import { PHASE_LABEL, cycleToday, predictionLine } from '@/lib/cycle';
 import { syncCycleDay, useCycleSettings, useMyDays, useShareSettings } from '@/lib/logs';
 import { usePaired } from '@/lib/session';
 import { todayList, useTodos } from '@/lib/todos';
+import { AREAS, LEVEL_LABEL, rainRisk, useFloodWatch, worst } from '@/lib/flood';
 import { space, useTheme } from '@/theme';
 
 /** Consecutive days (ending today or yesterday) with any check-in. Celebration only. */
@@ -64,6 +65,10 @@ export default function Today() {
   const cycle = day?.cycle ?? (cycleSettings ? cycleToday(cycleSettings, today) : null);
   const { todos, ready: todosReady } = useTodos(cid);
   const myToday = todayList(todos, uid, today);
+  const flood = useFloodWatch();
+  const floodLevel = worst(AREAS.map((a) => flood.status[a.id]?.level ?? 'calm'));
+  const floodArea = AREAS.find((a) => flood.status[a.id]?.level === floodLevel) ?? AREAS[0];
+  const todayRain = flood.data?.forecast[floodArea.id]?.[0];
 
   // Keep today's cycle day fresh (it changes at midnight, not when you log).
   const needsCycleSync = ready && !!cycleSettings?.enabled && !day?.cycle;
@@ -150,6 +155,28 @@ export default function Today() {
           </View>
         )}
       </Card>
+      <Gap />
+
+      <Pressable
+        testID="open-weather"
+        accessibilityRole="button"
+        accessibilityLabel={`Weather and floods near home: ${LEVEL_LABEL[floodLevel]}. Open for details`}
+        onPress={() => router.push('/weather')}>
+        <Card tone={floodLevel === 'warning' ? 'peach' : floodLevel === 'watch' ? 'butter' : 'sky'}>
+          <T variant="label" color={floodLevel === 'warning' ? c.onPeach : floodLevel === 'watch' ? c.onButter : c.text}>
+            {`WEATHER & FLOODS · ${LEVEL_LABEL[floodLevel].toUpperCase()}`}
+          </T>
+          <Gap h={space.xs} />
+          <T color={floodLevel === 'warning' ? c.onPeach : floodLevel === 'watch' ? c.onButter : c.text}>
+            {flood.status[floodArea.id]?.headline ?? (flood.loading ? 'Checking the sky over Shah Alam and Klang…' : 'Tap to see the weather near home.')}
+          </T>
+          {todayRain && floodLevel === 'calm' ? (
+            <T variant="small" muted style={{ marginTop: space.xs }}>
+              Today in {floodArea.name}: {todayRain.minC}–{todayRain.maxC}°, {['dry', 'some rain', 'heavy showers', 'very heavy rain'][rainRisk(todayRain)]}
+            </T>
+          ) : null}
+        </Card>
+      </Pressable>
       <Gap />
 
       <Card>

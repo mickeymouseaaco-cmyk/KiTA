@@ -333,3 +333,71 @@ describe('weekend planner', () => {
     for (const l of lines) assert.doesNotMatch(l, /overdue|late|failed|missed|must/i);
   });
 });
+
+import { AREAS, floodStatus, isActive, isFresh, myTime, parseForecast, parseStations, rainRisk, riverLevel, warningsFor, weatherWords, worst, SAFETY_TIPS, LEVEL_LABEL, type Warning } from '../src/lib/flood-pure';
+
+describe('weather & flood watch (Shah Alam, Klang)', () => {
+  const shahAlam = AREAS[0];
+  const klang = AREAS[1];
+  const now = Date.parse('2026-11-10T12:00:00+08:00');
+  const day = (over: object = {}) => ({ date: '2026-11-10', minC: 24, maxC: 32, rainMm: 0, rainChance: 10, maxHourlyMm: 0, code: 1, ...over });
+  const warn = (over: Partial<Warning> = {}): Warning => ({ title: 'Thunderstorm warning', heading: '', text: '', instruction: '', validFrom: '2026-11-10 10:00:00', validTo: '2026-11-10 18:00:00', issued: '2026-11-10 09:50:00', ...over });
+
+  test('parses the Open-Meteo forecast, including the heaviest hour of rain', () => {
+    const days = parseForecast({
+      daily: { time: ['2026-11-10', '2026-11-11'], temperature_2m_max: [32.4, 31], temperature_2m_min: [24.2, 24], precipitation_sum: [41.27, 2], precipitation_probability_max: [90, 30], weather_code: [95, 3] },
+      hourly: { time: ['2026-11-10T15:00', '2026-11-10T16:00', '2026-11-11T09:00'], precipitation: [12.5, 33.1, 1] },
+    });
+    assert.equal(days.length, 2);
+    assert.equal(days[0].maxHourlyMm, 33.1);
+    assert.equal(days[0].rainMm, 41.3);
+    assert.equal(rainRisk(days[0]), 3);
+    assert.equal(rainRisk(days[1]), 0);
+    assert.equal(weatherWords(95), 'Thunderstorms');
+  });
+
+  test('MET times are Malaysia time; expired warnings are ignored', () => {
+    assert.equal(myTime('2026-11-10 12:00:00'), now);
+    assert.equal(isActive(warn(), now), true);
+    assert.equal(isActive(warn({ validTo: '2026-11-10 11:00:00' }), now), false);
+  });
+
+  test('warnings that name the area are local; Selangor-wide ones are kept separately', () => {
+    const all = [
+      warn({ text: 'Thunderstorms and heavy rain over Selangor (Petaling, Klang, Hulu Langat)' }),
+      warn({ title: 'Strong winds', text: 'Selangor coast' }),
+      warn({ text: 'Johor (Kluang)' }),
+    ];
+    assert.equal(warningsFor(shahAlam, all, now).local.length, 1);
+    assert.equal(warningsFor(shahAlam, all, now).state.length, 1);
+    assert.equal(warningsFor(klang, all, now).local.length, 1);
+  });
+
+  test('river readings: thresholds decide the level, and stale readings are never shown as live', () => {
+    const [s] = parseStations([
+      { station_name: 'Sg. Klang di Jambatan Petaling', district: 'Petaling', state: 'Selangor', water_level_current: '6.2', water_level_normal_level: 4, water_level_alert_level: 5.5, water_level_warning_level: 6, water_level_danger_level: 7, water_level_update_datetime: '2026-11-10 11:30:00' },
+    ]);
+    assert.equal(riverLevel(s), 'warning');
+    assert.equal(isFresh(s, now), true);
+    assert.equal(isFresh({ updated: '2024-02-23 10:00:00' }, now), false);
+    assert.equal(isFresh({ updated: null }, now), false);
+  });
+
+  test('status: a calm day, a heavy-rain watch, and a real warning', () => {
+    assert.equal(floodStatus(shahAlam, { days: [day()], warnings: [], stations: [] }, now).level, 'calm');
+    const watch = floodStatus(shahAlam, { days: [day({ maxHourlyMm: 35, rainMm: 50 })], warnings: [], stations: [] }, now);
+    assert.equal(watch.level, 'watch');
+    assert.match(watch.reasons.join(' '), /Very heavy rain possible today/);
+    const stale = parseStations([{ station_name: 'Old', district: 'Klang', state: 'Selangor', water_level_current: 9, water_level_danger_level: 7, water_level_update_datetime: '2024-02-23 10:00:00' }]);
+    assert.equal(floodStatus(klang, { days: [day()], warnings: [], stations: stale }, now).level, 'calm');
+    const real = floodStatus(klang, { days: [day()], warnings: [warn({ text: 'Continuous rain: Selangor (Klang, Kuala Langat)' })], stations: [] }, now);
+    assert.equal(real.level, 'warning');
+    assert.equal(worst(['calm', 'watch']), 'watch');
+  });
+
+  test('flood copy is calm and clear, never shaming', () => {
+    const lines = [...Object.values(LEVEL_LABEL), ...SAFETY_TIPS.calm, ...SAFETY_TIPS.watch];
+    for (const l of lines) assert.doesNotMatch(l, /failed|you should have|panic/i);
+    assert.match(SAFETY_TIPS.warning.join(' '), /999/);
+  });
+});

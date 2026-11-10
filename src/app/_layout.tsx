@@ -94,6 +94,7 @@ function Navigator() {
         <Stack.Screen name="milestones" options={{ title: 'Milestones' }} />
         <Stack.Screen name="todos" options={{ title: 'Our to-dos' }} />
         <Stack.Screen name="weekend" options={{ title: 'This weekend' }} />
+        <Stack.Screen name="weather" options={{ title: 'Weather & floods' }} />
         <Stack.Screen name="schedule-note" options={{ title: 'Schedule a note', presentation: 'modal' }} />
         <Stack.Screen name="memory-new" options={{ title: 'New memory', presentation: 'modal' }} />
         <Stack.Screen name="memory/[id]" options={{ title: 'Memory' }} />

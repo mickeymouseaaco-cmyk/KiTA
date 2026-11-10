@@ -83,6 +83,7 @@ Nothing is shared until the invited partner taps **Accept**.
 | Private media vault | `/vault` | P2 ✓ |
 | Shared to-dos (who, when, starred; never overdue) | `/todos` | ✓ |
 | Weekend planner (Sat/Sun × morning/afternoon/evening) | `/weekend` | ✓ |
+| Weather & flood watch (Shah Alam, Klang; Open-Meteo + MET + JPS) | `/weather` | ✓ |
 
 ---
 
