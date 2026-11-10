@@ -6,6 +6,7 @@ import { Copy, HeartHandshake, Link2, RefreshCw, Share2, ShieldCheck } from 'luc
 import { useEffect, useState } from 'react';
 import { Share, TextInput, View } from 'react-native';
 
+import { CoupleArt } from '@/components/art';
 import { useFeedback } from '@/components/feedback';
 import { Button, Card, Field, Gap, Row, Screen, Segmented, T, useInputStyle } from '@/components/ui';
 import { gentleError } from '@/lib/copy';
@@ -21,7 +22,11 @@ export default function Pair() {
 
   return (
     <Screen edges={['top', 'bottom']}>
-      <Gap h={space.xl} />
+      <Gap h={space.lg} />
+      <View style={{ alignItems: 'center' }}>
+        <CoupleArt size={160} />
+      </View>
+      <Gap h={space.md} />
       <T variant="display" accessibilityRole="header">
         Connect with your partner
       </T>
@@ -290,7 +295,7 @@ function JoinPanel({ initialCode }: { initialCode?: string }) {
           {message}
         </T>
       ) : null}
-      <Button testID="find-invite" label="Find invite" onPress={look} loading={busy} disabled={code.length !== 6} />
+      <Button testID="find-invite" label="Find invite" onPress={look} loading={busy} disabled={code.length !== 6} hint="Codes have 6 letters and numbers." />
     </View>
   );
 }

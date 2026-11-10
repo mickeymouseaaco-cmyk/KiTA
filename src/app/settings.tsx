@@ -289,7 +289,7 @@ export default function Settings() {
           />
         </Field>
         <Gap h={space.lg} />
-        <Button testID="confirm-delete-account" label="Delete everything" loading={deleting} disabled={!password} onPress={deleteAccount} />
+        <Button testID="confirm-delete-account" label="Delete everything" loading={deleting} disabled={!password} hint="Type your password to confirm." onPress={deleteAccount} />
         <Gap h={space.sm} />
         <Button
           label="Keep my account"

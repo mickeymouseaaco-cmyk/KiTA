@@ -113,7 +113,7 @@ export default function Vent() {
             )}
           </Animated.View>
           <Gap h={space.xl} />
-          <Button testID="vent-let-go" label="Let it go" icon={Feather} onPress={letGo} disabled={!hasSomething} />
+          <Button testID="vent-let-go" label="Let it go" icon={Feather} onPress={letGo} disabled={!hasSomething} hint="Write or record something first." />
         </>
       )}
     </Screen>

@@ -16,7 +16,7 @@ import { LockProvider } from '@/lib/lock';
 import { configureNotifications } from '@/lib/notifications';
 import { outbox } from '@/lib/outbox';
 import { SessionProvider, useSession } from '@/lib/session';
-import { TogetherThemeProvider, fonts, useTheme } from '@/theme';
+import { TogetherThemeProvider, useTheme } from '@/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -47,7 +47,8 @@ function Gate() {
 }
 
 function Navigator() {
-  const { c, dark } = useTheme();
+  const { c, dark, look } = useTheme();
+  const headerBg = look.name === 'professional' ? c.bg : c.primarySoft;
   const navTheme = {
     ...(dark ? DarkTheme : DefaultTheme),
     colors: {
@@ -66,8 +67,9 @@ function Navigator() {
       <Stack
         screenOptions={{
           headerShadowVisible: false,
-          headerStyle: { backgroundColor: c.bg },
-          headerTitleStyle: { fontFamily: fonts.heading, color: c.text },
+          headerStyle: { backgroundColor: headerBg },
+          headerTitleStyle: { fontFamily: look.headingFont, fontSize: 20, color: c.text },
+          headerTitleAlign: 'left',
           headerTintColor: c.primary,
           contentStyle: { backgroundColor: c.bg },
           headerBackButtonDisplayMode: 'minimal',

@@ -1,8 +1,8 @@
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { HeartHandshake } from 'lucide-react-native';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
 
+import { CoupleArt } from '@/components/art';
 import { Button, Field, Gap, Screen, Segmented, T, useInputStyle } from '@/components/ui';
 import { gentleError } from '@/lib/copy';
 import { auth } from '@/lib/firebase';
@@ -46,11 +46,9 @@ export default function SignIn() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Screen edges={['top', 'bottom']}>
-        <Gap h={space.xxl} />
+        <Gap h={space.xl} />
         <View style={{ alignItems: 'center', gap: space.md }}>
-          <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: c.heartSoft, alignItems: 'center', justifyContent: 'center' }}>
-            <HeartHandshake color={c.heart} size={40} strokeWidth={1.8} />
-          </View>
+          <CoupleArt size={180} />
           <T variant="display" center accessibilityRole="header">
             Together
           </T>
@@ -114,7 +112,7 @@ export default function SignIn() {
               {error}
             </T>
           ) : null}
-          <Button testID="submit" label={mode === 'new' ? 'Create my space' : 'Welcome back'} onPress={submit} loading={busy} disabled={!canSubmit} />
+          <Button testID="submit" label={mode === 'new' ? 'Create my space' : 'Welcome back'} onPress={submit} loading={busy} disabled={!canSubmit} hint={mode === 'new' ? 'Add your name, email and a password of 6 or more characters.' : 'Add your email and password.'} />
         </View>
         <Gap h={space.xl} />
         <T variant="small" muted center>

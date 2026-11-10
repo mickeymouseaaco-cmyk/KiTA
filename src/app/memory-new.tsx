@@ -119,7 +119,7 @@ export default function NewMemory() {
         </View>
       </Field>
       <Gap h={space.xxl} />
-      <Button testID="save-memory" label="Add to our jar" onPress={save} loading={busy} disabled={!photo && !voice && !caption.trim()} />
+      <Button testID="save-memory" label="Add to our jar" onPress={save} loading={busy} disabled={!photo && !voice && !caption.trim()} hint="Add a photo, a voice clip or a few words first." />
     </Screen>
   );
 }

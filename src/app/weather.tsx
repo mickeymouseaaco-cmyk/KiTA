@@ -167,7 +167,7 @@ export default function Weather() {
               </T>
             </Row>
             <T variant="title" color={toneOn} testID="flood-today">
-              {today ? weatherWords(today.code) : loading ? 'Looking at the sky…' : 'Not loaded'}
+              {today ? weatherWords(today.code) : loading ? 'Looking at the sky…' : 'Forecast unavailable'}
             </T>
             {today ? (
               <Row gap={space.md} style={{ flexWrap: 'wrap' }}>

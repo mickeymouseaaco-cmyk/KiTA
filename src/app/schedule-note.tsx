@@ -175,7 +175,7 @@ export default function ScheduleNote() {
         ) : null}
       </Card>
       <Gap />
-      <Button testID="sched-send" label={mode === 'later' ? 'Schedule it' : 'Hide the surprise'} loading={busy} onPress={send} disabled={tooSoon || (!text.trim() && !photo && !voice)} />
+      <Button testID="sched-send" label={mode === 'later' ? 'Schedule it' : 'Hide the surprise'} loading={busy} onPress={send} disabled={tooSoon || (!text.trim() && !photo && !voice)} hint={tooSoon ? 'Pick a time a little later.' : 'Write a note or add a photo or voice first.'} />
     </Screen>
   );
 }
