@@ -59,7 +59,10 @@ service cloud.firestore {
       allow update: if signedIn() && me() == uid && !('coupleId' in changed());
       allow delete: if false; // the deleteAccount function only
 
-      match /{document=**} {
+      // Everything under the profile (days, settings, vault…). {sub} makes this
+      // need at least one more segment: a bare {document=**} would also match
+      // users/{uid} itself and override the rules above.
+      match /{sub}/{document=**} {
         allow read, write: if signedIn() && me() == uid;
       }
     }
