@@ -48,14 +48,25 @@ export function useQuestionDay(cid: string | null, date: string): QuestionDay | 
  */
 export function useAnswer(cid: string | null, date: string, uid: string | null, enabled = true): Answer | null | undefined {
   const [a, setA] = useState<Answer | null | undefined>(undefined);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (!cid || !uid || !enabled) return;
-    return onSnapshot(
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    const stop = onSnapshot(
       answerRef(cid, date, uid),
       (s) => setA(s.exists() ? (s.data() as Answer) : null),
-      () => setA(null),
+      () => {
+        // Usually "not yet": your own answer shows on this phone a moment before the
+        // server has it, and the rules only open your partner's once it does. Try again.
+        setA(null);
+        if (attempt < 20) retry = setTimeout(() => setAttempt((n) => n + 1), 1500);
+      },
     );
-  }, [cid, date, uid, enabled]);
+    return () => {
+      stop();
+      if (retry) clearTimeout(retry);
+    };
+  }, [cid, date, uid, enabled, attempt]);
   return enabled ? a : undefined;
 }
 
