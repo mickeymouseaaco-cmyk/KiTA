@@ -4,7 +4,7 @@
  * couples/{cid}/questions/{date}/answers/{uid} (each answer). Security rules only
  * let you open your partner's answer once yours is saved.
  */
-import { Timestamp, collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc } from 'firebase/firestore';
+import { Timestamp, collection, type DocumentData, deleteDoc, doc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 
 import { db } from './firebase';
@@ -14,6 +14,16 @@ export * from './questions-pure';
 
 export type Answer = { text: string; qid: number; at: Timestamp | null };
 export type QuestionDay = { date: string; qid: number | null; answered: string[]; revealedAt?: Timestamp };
+
+/** A day document as stored, with safe defaults for anything missing. */
+function toDay(d: DocumentData): QuestionDay {
+  return {
+    date: String(d.date ?? ''),
+    qid: typeof d.qid === 'number' ? d.qid : null,
+    answered: Array.isArray(d.answered) ? (d.answered as string[]) : [],
+    revealedAt: d.revealedAt,
+  };
+}
 
 const dayRef = (cid: string, date: string) => doc(db, 'couples', cid, 'questions', date);
 const answerRef = (cid: string, date: string, uid: string) => doc(db, 'couples', cid, 'questions', date, 'answers', uid);
@@ -25,7 +35,7 @@ export function useQuestionDay(cid: string | null, date: string): QuestionDay | 
     if (!cid) return;
     return onSnapshot(
       dayRef(cid, date),
-      (s) => setDay(s.exists() ? ({ answered: [], ...s.data() } as QuestionDay) : null),
+      (s) => setDay(s.exists() ? toDay(s.data()) : null),
       () => setDay(null),
     );
   }, [cid, date]);
@@ -66,7 +76,7 @@ export function useRecentQuestionDays(cid: string | null, max = 30): QuestionDay
     if (!cid) return;
     return onSnapshot(
       query(collection(db, 'couples', cid, 'questions'), orderBy('date', 'desc'), limit(max)),
-      (s) => setDays(s.docs.map((d) => ({ answered: [], ...d.data() }) as QuestionDay)),
+      (s) => setDays(s.docs.map((d) => toDay(d.data()))),
       () => setDays([]),
     );
   }, [cid, max]);
