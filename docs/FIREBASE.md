@@ -43,8 +43,7 @@ KiTA's web app shows notifications through Firebase Cloud Messaging.
 Firebase console → ⚙️ Project settings → **Cloud Messaging** → *Web configuration* →
 **Web Push certificates** → **Generate key pair**. Copy the long key that appears
 (it's public) into `WEB_PUSH_KEY` in `src/lib/firebase-config.ts` (or the
-`EXPO_PUBLIC_FIREBASE_VAPID_KEY` variable). Until then, Settings says web
-notifications are being set up. On iPhone they work once KiTA is added to the
+`EXPO_PUBLIC_FIREBASE_VAPID_KEY` variable). The key for kita-4a2e1 is already set. On iPhone they work once KiTA is added to the
 Home Screen (iOS 16.4 or later).
 
 ## 1. Settings (environment variables)

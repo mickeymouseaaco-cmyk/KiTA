@@ -22,4 +22,4 @@ export const FIREBASE_WEB_CONFIG = {
  * Web Push certificates. Public by design, like the values above.
  * EXPO_PUBLIC_FIREBASE_VAPID_KEY overrides it.
  */
-export const WEB_PUSH_KEY = '';
+export const WEB_PUSH_KEY = 'BPdXJiVsItfYze3QeYbFGa1p64je6nlJIHcp5Tk0VY9ebSQrSgHfkCFI_j-zXKsntYxcdOARPQwh8dQl4R56vUk';
