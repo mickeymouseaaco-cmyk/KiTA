@@ -19,6 +19,8 @@ import { connectStorageEmulator, getStorage, type FirebaseStorage } from 'fireba
 import { Platform } from 'react-native';
 
 const useEmulators = process.env.EXPO_PUBLIC_USE_EMULATORS === '1';
+/** Where the Cloud Functions run: Singapore, next to the database (functions/src/index.ts). */
+export const FUNCTIONS_REGION = process.env.EXPO_PUBLIC_FUNCTIONS_REGION || 'asia-southeast1';
 const emulatorHost = process.env.EXPO_PUBLIC_EMULATOR_HOST || '127.0.0.1';
 
 const config: FirebaseOptions = {
@@ -67,7 +69,7 @@ if (isFirebaseConfigured) {
         : { experimentalAutoDetectLongPolling: true, ignoreUndefinedProperties: true },
     );
     storage = getStorage(app);
-    functions = getFunctions(app);
+    functions = getFunctions(app, FUNCTIONS_REGION);
     // App Check (web): proves calls come from your real site. Native apps need a
     // native App Check provider; see docs/DEPLOY.md.
     const recaptchaKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY;
@@ -92,7 +94,7 @@ if (isFirebaseConfigured) {
     auth = getAuth(app);
     db = getFirestore(app);
     storage = getStorage(app);
-    functions = getFunctions(app);
+    functions = getFunctions(app, FUNCTIONS_REGION);
   }
 }
 

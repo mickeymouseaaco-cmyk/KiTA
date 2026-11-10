@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "firebase emulators:exec --config ../../firebase.json --only firestore,storage --project demo-together \"node --import tsx --test rules.test.ts\""
+    "test": "firebase emulators:exec --config ../../firebase.json --only firestore,storage --project demo-together \"node --import tsx --test rules.test.ts\"",
+    "test:integration": "firebase emulators:exec --config ../../firebase.json --only auth,firestore,storage,functions --project demo-together \"node --import tsx --test integration.test.ts\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",

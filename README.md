@@ -7,6 +7,7 @@ Built with **Expo SDK 58 (React Native 0.88, Expo Router)** and **Firebase** (Au
 - Screens and data model: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - Screenshots from the two-partner end-to-end run: [`docs/screens/`](docs/screens)
 - **Putting it on your phones and in the stores:** [`docs/DEPLOY.md`](docs/DEPLOY.md)
+- **Connecting, deploying and verifying Firebase (settings, Singapore region, checks):** [`docs/FIREBASE.md`](docs/FIREBASE.md)
 
 ## What's built (MVP + Phase 2 + Phase 3)
 

@@ -21,6 +21,7 @@
     "node_modules",
     "functions",
     "firebase/tests",
-    "e2e"
+    "e2e",
+    "scripts/verify-live.ts"
   ]
 }

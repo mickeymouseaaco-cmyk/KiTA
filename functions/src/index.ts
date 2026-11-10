@@ -20,9 +20,18 @@ import { logger } from 'firebase-functions';
 import { defineBoolean, defineString } from 'firebase-functions/params';
 import { onDocumentCreated, onDocumentDeleted, onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/https';
+import { setGlobalOptions } from 'firebase-functions/v2';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 // Auth deletion triggers only exist in the 1st-gen API.
-import { auth as authV1 } from 'firebase-functions/v1';
+import * as functionsV1 from 'firebase-functions/v1';
+
+/**
+ * Every function runs in Singapore, next to the Firestore database and Storage
+ * bucket (asia-southeast1). Firestore triggers must be in the database's region.
+ * The app calls the callable functions in this same region (src/lib/firebase.ts).
+ */
+const REGION = 'asia-southeast1';
+setGlobalOptions({ region: REGION, maxInstances: 10 });
 
 initializeApp();
 const db = getFirestore();
@@ -118,7 +127,7 @@ export const onCoupleDeleted = onDocumentDeleted('couples/{cid}', async (event) 
  * the Firebase console), remove everything that belonged to it. Same steps as
  * deleteAccount, and safe to run twice.
  */
-export const onAccountDeleted = authV1.user().onDelete(async (user) => {
+export const onAccountDeleted = functionsV1.region(REGION).auth.user().onDelete(async (user) => {
   await removeAllDataFor(user.uid);
   logger.info('Account data removed', { uid: user.uid });
 });

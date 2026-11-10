@@ -71,12 +71,10 @@ npm run test:rules     # needs Java for the Firebase emulator
 4. **Storage** → Get started, same region.
 5. Switch the project to the **Blaze** plan (needed for Cloud Functions), and set a budget alert (for example US$5).
 6. Project settings → **Your apps** → add a **Web app**. Keep its config values open; you need them in step 4.
-7. Deploy the security rules, indexes and functions:
-
-   ```bash
-   npx --prefix firebase/tests firebase login
-   npx --prefix firebase/tests firebase deploy --only firestore,storage,functions --project <your-project-id>
-   ```
+7. Connect this folder to the project, check it, deploy and verify, as in
+   **[docs/FIREBASE.md](FIREBASE.md)**: `firebase use --add`, `npm run verify`,
+   `firebase deploy --only firestore,storage,functions` (to Singapore), then
+   `npm run verify:live`.
 
 8. Optional: for voice-note transcripts, enable the **Cloud Speech-to-Text API** in Google Cloud for the same project.
 
