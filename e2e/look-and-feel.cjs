@@ -334,7 +334,19 @@ async function main() {
   await shot(afiq, '07n-itinerary-day');
   // Aina sees it, and moves breakfast to 10am; Afiq sees the change.
   const tripUrl = afiq.url();
+  const ainaConsole = [];
+  const onConsole = (m) => m.type() === 'error' && ainaConsole.push(m.text().slice(0, 300));
+  aina.on('console', onConsole);
   await aina.goto(tripUrl);
+  const deepOk = await aina.getByText('Itinerary', { exact: true }).waitFor({ timeout: 15000 }).then(() => true, () => false);
+  log(`Trip link ${tripUrl.replace(BASE, '')} opened directly: ${deepOk ? 'yes' : 'NO'}`);
+  if (!deepOk) {
+    log('console: ' + ainaConsole.slice(-6).join(' || '));
+    await aina.screenshot({ path: path.join(OUT, '07x-trip-deep-link.png') });
+    await aina.goto(BASE + '/trip');
+    await aina.locator(tid('next-trip')).click();
+  }
+  aina.off('console', onConsole);
   await aina.getByText('Itinerary', { exact: true }).click();
   await aina.locator(tid('stop-Breakfast at Toh Soon Cafe')).click();
   await aina.locator(tid('stop-time')).fill('10am');
