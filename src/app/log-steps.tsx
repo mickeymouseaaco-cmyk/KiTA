@@ -1,11 +1,11 @@
 import { router } from 'expo-router';
 import { Minus, Plus, Smartphone } from 'lucide-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, TextInput, View } from 'react-native';
+import { TextInput, View } from 'react-native';
 
 import { useCelebrate } from '@/components/celebrate';
 import { useFeedback } from '@/components/feedback';
-import { Button, Chip, Field, Gap, IconButton, Row, Screen, T, useInputStyle } from '@/components/ui';
+import { Button, Chip, Field, Gap, IconButton, Row, Screen, SkeletonPage, T, useInputStyle } from '@/components/ui';
 import { gentleError } from '@/lib/copy';
 import { dayKey } from '@/lib/dates';
 import { haptic } from '@/lib/haptics';
@@ -19,7 +19,7 @@ export default function LogSteps() {
   const { uid } = usePaired();
   const today = dayKey();
   const { days, ready } = useMyDays(uid, today);
-  if (!ready) return <ActivityIndicator style={{ marginTop: 48 }} />;
+  if (!ready) return <SkeletonPage />;
   return <StepsForm initialSteps={days[today]?.steps ?? 0} />;
 }
 

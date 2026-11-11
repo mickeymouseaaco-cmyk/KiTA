@@ -6,10 +6,10 @@
 import { router } from 'expo-router';
 import { CalendarHeart, Lock, Minus, Plus } from 'lucide-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 
 import { useFeedback } from '@/components/feedback';
-import { Button, Card, Chip, Field, Gap, IconButton, Row, Screen, SectionTitle, T, ToggleRow } from '@/components/ui';
+import { Button, Card, Chip, Field, Gap, IconButton, Row, Screen, SectionTitle, SkeletonPage, T, ToggleRow } from '@/components/ui';
 import { gentleError } from '@/lib/copy';
 import { PHASE_LABEL, PHASE_LINE, SYMPTOMS, cycleToday, predictionLine } from '@/lib/cycle';
 import { addDays, dayKey, friendlyDate } from '@/lib/dates';
@@ -24,7 +24,7 @@ export default function Cycle() {
   const settings = useCycleSettings(uid);
   const today = dayKey();
   const { days, ready } = useMyDays(uid, today);
-  if (!settings || !ready) return <ActivityIndicator style={{ marginTop: 48 }} />;
+  if (!settings || !ready) return <SkeletonPage />;
   return settings.enabled ? <CycleToday settings={settings} symptoms={days[today]?.cycle?.symptoms ?? []} /> : <CycleSetup initial={settings} />;
 }
 

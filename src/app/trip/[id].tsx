@@ -13,7 +13,7 @@ import { Itinerary } from '@/components/itinerary';
 import { MediaById } from '@/components/media-view';
 import { OutboxRow, useOutbox } from '@/components/outbox-row';
 import { VideoNote } from '@/components/rich-media';
-import { Button, Card, Chip, EmptyState, Gap, IconButton, Row, Screen, SectionTitle, Segmented, T, useInputStyle } from '@/components/ui';
+import { Button, Card, Chip, EmptyState, Gap, IconButton, Row, Screen, SectionTitle, Segmented, SkeletonPage, T, useInputStyle } from '@/components/ui';
 import { VoiceRecorder } from '@/components/voice';
 import { gentleError } from '@/lib/copy';
 import { pickPhoto, pickVideo, queueTripEntry } from '@/lib/compose';
@@ -67,7 +67,7 @@ export default function TripScreen() {
   const [touched, setTouched] = useState(false);
   const current = touched ? tab : phaseIsAfter ? 'journal' : tab;
 
-  if (trip === undefined) return <ActivityIndicator style={{ marginTop: 48 }} />;
+  if (trip === undefined) return <SkeletonPage />;
   if (trip === null) {
     return (
       <Screen edges={['bottom']}>

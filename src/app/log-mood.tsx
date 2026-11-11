@@ -2,11 +2,11 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Image } from 'expo-image';
 import { Camera, Mic } from 'lucide-react-native';
-import { ActivityIndicator, TextInput, View } from 'react-native';
+import { TextInput, View } from 'react-native';
 
 import { useFeedback } from '@/components/feedback';
 import { MoodPicker, StressPicker } from '@/components/mood';
-import { Button, Field, Gap, Row, Screen, T, ToggleRow, useInputStyle } from '@/components/ui';
+import { Button, Field, Gap, Row, Screen, SkeletonPage, T, ToggleRow, useInputStyle } from '@/components/ui';
 import { VoicePlayer, VoiceRecorder } from '@/components/voice';
 import { pickSelfie, queueMoodMedia, type MoodAttachment } from '@/lib/compose';
 import { LIMITS } from '@/lib/media';
@@ -22,7 +22,7 @@ export default function LogMood() {
   const { uid } = usePaired();
   const today = dayKey();
   const { days, ready } = useMyDays(uid, today);
-  if (!ready) return <ActivityIndicator style={{ marginTop: 48 }} />;
+  if (!ready) return <SkeletonPage />;
   return <MoodForm initial={days[today]?.mood} />;
 }
 

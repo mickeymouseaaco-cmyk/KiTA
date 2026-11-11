@@ -26,6 +26,7 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: c.primary,
         tabBarInactiveTintColor: c.textMuted,
+        animation: look.flat ? 'fade' : 'none',
         tabBarActiveBackgroundColor: sidebar ? c.primarySoft : undefined,
         tabBarLabelStyle: look.systemFont ? { fontFamily: 'System', fontWeight: '600', fontSize: sidebar ? 15 : 11 } : { fontFamily: fonts.bodySemi, fontSize: sidebar ? 15 : 12 },
         tabBarPosition: sidebar ? 'left' : 'bottom',
@@ -42,10 +43,10 @@ export default function TabsLayout() {
         tabBarItemStyle: sidebar ? { borderRadius: 14, marginHorizontal: 12, marginVertical: 2 } : undefined,
         sceneStyle: { backgroundColor: c.bg },
       }}>
-      <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color }) => <House color={color} size={24} /> }} />
-      <Tabs.Screen name="notes" options={{ title: 'Notes', tabBarIcon: ({ color }) => <Mail color={color} size={24} /> }} />
-      <Tabs.Screen name="together" options={{ title: 'Together', tabBarIcon: ({ color }) => <Users color={color} size={24} /> }} />
-      <Tabs.Screen name="trip" options={{ title: 'Trips', tabBarIcon: ({ color }) => <Plane color={color} size={24} /> }} />
+      <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color, focused }) => <House color={color} size={24} strokeWidth={look.flat ? (focused ? 2.4 : 1.7) : 2} /> }} />
+      <Tabs.Screen name="notes" options={{ title: 'Notes', tabBarIcon: ({ color, focused }) => <Mail color={color} size={24} strokeWidth={look.flat ? (focused ? 2.4 : 1.7) : 2} /> }} />
+      <Tabs.Screen name="together" options={{ title: 'Together', tabBarIcon: ({ color, focused }) => <Users color={color} size={24} strokeWidth={look.flat ? (focused ? 2.4 : 1.7) : 2} /> }} />
+      <Tabs.Screen name="trip" options={{ title: 'Trips', tabBarIcon: ({ color, focused }) => <Plane color={color} size={24} strokeWidth={look.flat ? (focused ? 2.4 : 1.7) : 2} /> }} />
       {/* Not in the bar (opened from the switch on Home), but still a normal page, so /their-day links work. */}
       <Tabs.Screen
         name="their-day"

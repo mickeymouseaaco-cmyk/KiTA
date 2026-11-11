@@ -4,10 +4,10 @@
 import { router } from 'expo-router';
 import { Droplet, HeartHandshake, Lock, Wind } from 'lucide-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, TextInput, View } from 'react-native';
+import { TextInput, View } from 'react-native';
 
 import { useFeedback } from '@/components/feedback';
-import { Button, Card, Gap, Row, Screen, T, useInputStyle } from '@/components/ui';
+import { Button, Card, Gap, Row, Screen, SkeletonPage, T, useInputStyle } from '@/components/ui';
 import { gentleError } from '@/lib/copy';
 import { dayKey } from '@/lib/dates';
 import { haptic } from '@/lib/haptics';
@@ -48,7 +48,7 @@ export default function ArgumentReset() {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
 
-  if (reset === undefined) return <ActivityIndicator style={{ marginTop: 48 }} />;
+  if (reset === undefined) return <SkeletonPage />;
 
   if (!reset) {
     return (

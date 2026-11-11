@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  Easing,
   Platform,
   Pressable,
   ScrollView,
@@ -81,7 +82,7 @@ export function Screen({
       <PageWash />
       {scroll ? (
         <ScrollView contentContainerStyle={inner} keyboardShouldPersistTaps="handled">
-          <View style={styles.maxWidth}>{children}</View>
+          <PageEnter style={styles.maxWidth}>{children}</PageEnter>
         </ScrollView>
       ) : (
         <View style={[{ flex: 1 }, inner]}>
@@ -120,7 +121,11 @@ export function Card({
         styles.card,
         { backgroundColor: bg, borderColor: c.border, borderRadius: look.cardRadius },
         look.flat
-          ? null
+          ? {
+              borderWidth: 1,
+              borderColor: dark ? 'rgba(255, 255, 255, 0.09)' : 'rgba(12, 14, 28, 0.07)',
+              boxShadow: dark ? 'inset 0px 1px 0px rgba(255, 255, 255, 0.05)' : '0px 1px 2px rgba(16, 18, 30, 0.04), 0px 10px 28px rgba(16, 18, 30, 0.06)',
+            }
           : look.outlined
           ? { borderWidth: look.cardBorder, borderColor: c.text, boxShadow: `4px 4px 0px ${c.primary}` }
           : look.softShadow && !dark
@@ -133,13 +138,55 @@ export function Card({
   );
 }
 
+/** Modern look: each page fades and rises a touch as it opens (still when animations are off). */
+function PageEnter({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+  const { look, motion } = useTheme();
+  const on = look.flat && motion !== 'off';
+  const [v] = useState(() => new Animated.Value(on ? 0 : 1));
+  useEffect(() => {
+    if (!on) return;
+    Animated.timing(v, { toValue: 1, duration: 280, easing: Easing.bezier(0.23, 1, 0.32, 1), useNativeDriver: Platform.OS !== 'web' }).start();
+  }, [on, v]);
+  return <Animated.View style={[style, { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }]}>{children}</Animated.View>;
+}
+
+/** A quiet placeholder with a slow shimmer, in the shape of what's loading. */
+export function Skeleton({ height = 16, width = '100%', radius: r = 10, style }: { height?: number; width?: number | `${number}%`; radius?: number; style?: StyleProp<ViewStyle> }) {
+  const { c, motion } = useTheme();
+  const [v] = useState(() => new Animated.Value(0.55));
+  useEffect(() => {
+    if (motion === 'off') return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(v, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(v, { toValue: 0.55, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [motion, v]);
+  return <Animated.View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[{ height, width, borderRadius: r, backgroundColor: c.surfaceAlt, opacity: v }, style]} />;
+}
+
+/** A page-shaped skeleton: a header line and a few cards. */
+export function SkeletonPage() {
+  return (
+    <View accessibilityLabel="Loading" style={{ gap: space.lg, padding: space.lg, width: '100%', maxWidth: 560, alignSelf: 'center' }}>
+      <Skeleton height={26} width="55%" />
+      <Skeleton height={120} radius={20} />
+      <Skeleton height={84} radius={20} />
+      <Skeleton height={84} radius={20} />
+    </View>
+  );
+}
+
 /** Content settles in softly when it appears (skipped when animations are off). */
 export function useAppear() {
   const { motion } = useTheme();
   const [v] = useState(() => new Animated.Value(motion === 'off' ? 1 : 0));
   useEffect(() => {
     if (motion === 'off') return;
-    Animated.timing(v, { toValue: 1, duration: motion === 'lively' ? 320 : 260, useNativeDriver: Platform.OS !== 'web' }).start();
+    Animated.timing(v, { toValue: 1, duration: motion === 'lively' ? 320 : 260, easing: Easing.bezier(0.23, 1, 0.32, 1), useNativeDriver: Platform.OS !== 'web' }).start();
   }, [motion, v]);
   return {
     opacity: v,
@@ -212,8 +259,10 @@ export function Button({
         haptic.tap();
         onPress?.();
       }}
-      style={({ pressed, focused }: { pressed: boolean; focused?: boolean }) => [
+      style={({ pressed, focused, hovered }: { pressed: boolean; focused?: boolean; hovered?: boolean }) => [
         styles.button,
+        look.flat && Platform.OS === 'web' && ({ transitionProperty: 'transform, opacity, box-shadow', transitionDuration: '140ms', transitionTimingFunction: 'cubic-bezier(0.23, 1, 0.32, 1)' } as object),
+        look.flat && kind === 'primary' && !off && { boxShadow: hovered && !pressed ? '0px 6px 18px rgba(16, 18, 30, 0.22)' : '0px 2px 8px rgba(16, 18, 30, 0.16)' },
         {
           backgroundColor: bg,
           borderRadius: look.controlRadius,
@@ -224,7 +273,7 @@ export function Button({
         focusRing(focused, c.primary),
         kind === 'ghost' && { borderWidth: 1.5, borderColor: look.outlined ? c.text : c.border },
         pop && { borderWidth: 2, borderColor: c.text, boxShadow: pressed ? `1px 1px 0px ${c.text}` : `3px 3px 0px ${c.text}` },
-        pressed && motion !== 'off' && { transform: pop ? [{ translateX: 2 }, { translateY: 2 }] : [{ scale: motion === 'lively' ? 0.95 : 0.98 }] },
+        pressed && motion !== 'off' && { transform: pop ? [{ translateX: 2 }, { translateY: 2 }] : [{ scale: motion === 'lively' ? 0.95 : look.flat ? 0.97 : 0.98 }] },
         style,
       ]}>
       {loading ? (
@@ -286,8 +335,10 @@ export function IconButton({
         haptic.tap();
         onPress?.();
       }}
-      style={({ pressed, focused }: { pressed: boolean; focused?: boolean }) => [
-        { alignItems: 'center', gap: 4, opacity: pressed ? 0.75 : 1, borderRadius: size },
+      style={({ pressed, focused, hovered }: { pressed: boolean; focused?: boolean; hovered?: boolean }) => [
+        { alignItems: 'center', gap: 4, opacity: pressed ? 0.6 : 1, borderRadius: size },
+        look.flat && hovered && !pressed && { backgroundColor: c.surfaceAlt },
+        look.flat && Platform.OS === 'web' && ({ transitionProperty: 'opacity, background-color', transitionDuration: '140ms' } as object),
         focusRing(focused, c.primary),
       ]}
       {...rest}>
@@ -329,7 +380,7 @@ export function Chip({
         styles.chip,
         {
           backgroundColor: selected ? c.primary : c.surface,
-          borderWidth: look.flat ? 0 : 1,
+          borderWidth: 1,
           borderColor: selected ? c.primary : c.border,
           borderRadius: look.name === 'professional' ? 8 : radius.pill,
           opacity: pressed ? 0.8 : 1,
@@ -407,8 +458,8 @@ export function EmptyState({
   return (
     <View style={styles.empty}>
       {look.flat ? (
-        <View style={{ width: 72, height: 72, borderRadius: 36, borderWidth: 1.5, borderColor: c.text, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon color={c.text} size={32} strokeWidth={1.5} />
+        <View style={{ width: 76, height: 76, borderRadius: 24, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center', boxShadow: '0px 10px 28px rgba(16, 18, 30, 0.07)' }}>
+          <Icon color={c.text} size={30} strokeWidth={1.6} />
         </View>
       ) : (
         <Blob size={104}>
@@ -511,7 +562,7 @@ export function useInputStyle(): TextStyle {
     color: c.text,
     backgroundColor: c.surface,
     borderColor: look.outlined ? c.text : c.border,
-    borderWidth: look.outlined ? 2 : look.flat ? 0 : 1.5,
+    borderWidth: look.outlined ? 2 : look.flat ? 1 : 1.5,
     borderRadius: look.name === 'professional' ? 8 : look.flat ? look.controlRadius : radius.md,
     paddingHorizontal: space.lg,
     paddingVertical: 14,

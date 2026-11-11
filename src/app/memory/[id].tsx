@@ -1,11 +1,11 @@
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { CalendarHeart } from 'lucide-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Sheet, useFeedback } from '@/components/feedback';
 import { MediaById } from '@/components/media-view';
-import { Button, EmptyState, Gap, Screen, T } from '@/components/ui';
+import { Button, EmptyState, Gap, Screen, SkeletonPage, T } from '@/components/ui';
 import { gentleError } from '@/lib/copy';
 import { friendlyDate } from '@/lib/dates';
 import { deleteMemory, useMemory } from '@/lib/memories';
@@ -19,7 +19,7 @@ export default function MemoryDetail() {
   const memory = useMemory(cid, id);
   const [confirm, setConfirm] = useState(false);
 
-  if (memory === undefined) return <ActivityIndicator style={{ marginTop: 48 }} />;
+  if (memory === undefined) return <SkeletonPage />;
   if (memory === null) {
     return (
       <Screen edges={['bottom']}>

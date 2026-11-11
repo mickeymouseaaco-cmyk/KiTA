@@ -95,20 +95,21 @@ type Accent = Colors;
 
 /** Accent text colours keep at least 4.5:1 contrast on white (light) and on the dark surface (dark). */
 export const accents: Record<ColorName, { label: string; light: Partial<Accent>; dark: Partial<Accent> }> = {
-  // Black, white and one grey family; rose is the single accent (hearts, progress).
+  // Ink on soft neutrals, white layered cards, and rose as the single accent (hearts, progress).
+  // Mood tints stay, but as whispers, so meaning never depends on colour alone.
   mono: {
     label: 'Mono',
     light: {
-      bg: '#FFFFFF', surface: '#F5F5F7', surfaceAlt: '#ECECEF', border: '#E2E2E6', text: '#0B0B0D', textMuted: '#6B6B73',
-      primary: '#0B0B0D', onPrimary: '#FFFFFF', primarySoft: '#ECECEF', heart: '#C4405F', heartSoft: '#FBECEF',
-      peach: '#F5F5F7', onPeach: '#0B0B0D', sage: '#F5F5F7', onSage: '#0B0B0D', sky: '#F5F5F7', onSky: '#0B0B0D', butter: '#F5F5F7', onButter: '#0B0B0D',
-      ring: '#D9607C', ringTrack: '#E6E6EA', shadow: 'rgba(0, 0, 0, 0)', overlay: 'rgba(0, 0, 0, 0.4)',
+      bg: '#F5F5F7', surface: '#FFFFFF', surfaceAlt: '#ECECF0', border: '#E3E3E8', text: '#0B0B0F', textMuted: '#686873',
+      primary: '#0B0B0F', onPrimary: '#FFFFFF', primarySoft: '#ECECF0', heart: '#C4405F', heartSoft: '#FBEDF0',
+      peach: '#FBF2EC', onPeach: '#0B0B0F', sage: '#EEF6F1', onSage: '#0B0B0F', sky: '#EEF3FB', onSky: '#0B0B0F', butter: '#FAF5E6', onButter: '#0B0B0F',
+      ring: '#D9607C', ringTrack: '#E6E6EB', shadow: 'rgba(16, 18, 30, 0.08)', overlay: 'rgba(10, 10, 16, 0.38)',
     },
     dark: {
-      bg: '#000000', surface: '#161618', surfaceAlt: '#222225', border: '#2C2C30', text: '#F5F5F7', textMuted: '#9A9AA2',
-      primary: '#F5F5F7', onPrimary: '#0B0B0D', primarySoft: '#222225', heart: '#F08BA3', heartSoft: '#2E1A20',
-      peach: '#161618', onPeach: '#F5F5F7', sage: '#161618', onSage: '#F5F5F7', sky: '#161618', onSky: '#F5F5F7', butter: '#161618', onButter: '#F5F5F7',
-      ring: '#F08BA3', ringTrack: '#2C2C30', overlay: 'rgba(0, 0, 0, 0.6)',
+      bg: '#08080A', surface: '#141417', surfaceAlt: '#1F1F24', border: '#2A2A30', text: '#F5F5F7', textMuted: '#9A9AA5',
+      primary: '#F5F5F7', onPrimary: '#0B0B0F', primarySoft: '#1F1F24', heart: '#F08BA3', heartSoft: '#2B1A20',
+      peach: '#1B1716', onPeach: '#F5F5F7', sage: '#141A17', onSage: '#F5F5F7', sky: '#14181F', onSky: '#F5F5F7', butter: '#1B1913', onButter: '#F5F5F7',
+      ring: '#F08BA3', ringTrack: '#2A2A30', overlay: 'rgba(0, 0, 0, 0.6)',
     },
   },
   lavender: { label: 'Lavender', light: {}, dark: {} },
@@ -163,18 +164,18 @@ export type Look = {
   emoji: boolean;
   /** The phone's own typeface (San Francisco on iPhone) instead of Lora and Raleway. */
   systemFont: boolean;
-  /** Flat surfaces: no page wash, no shadows, bare icon buttons, plain empty states. */
+  /** The modern surface language: ambient light instead of a colour wash, layered hairline cards, bare icon buttons, glass sheets. */
   flat: boolean;
 };
 
 export const looks: Record<LookName, Look> = {
-  // The shape rule: actions and inputs 12, cards 16, chips are pills.
+  // The shape rule: actions and inputs 14, cards 20, chips are pills.
   minimal: {
     name: 'minimal',
-    label: 'Minimal',
+    label: 'Modern',
     headingFont: 'System',
-    cardRadius: 16,
-    controlRadius: 12,
+    cardRadius: 20,
+    controlRadius: 14,
     cardBorder: 0,
     outlined: false,
     softShadow: false,

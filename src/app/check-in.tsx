@@ -5,11 +5,11 @@
 import { router } from 'expo-router';
 import { Lock, Moon, X } from 'lucide-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, TextInput, View } from 'react-native';
+import { Pressable, TextInput, View } from 'react-native';
 
 import { useFeedback } from '@/components/feedback';
 import { StoredPrivateVoice } from '@/components/media-view';
-import { Button, Card, Gap, Row, Screen, Segmented, T, ToggleRow, useInputStyle } from '@/components/ui';
+import { Button, Card, Gap, Row, Screen, Segmented, SkeletonPage, T, ToggleRow, useInputStyle } from '@/components/ui';
 import { VoicePlayer, VoiceRecorder, type Recording } from '@/components/voice';
 import { gentleError } from '@/lib/copy';
 import { queueCheckInVoice, queueMemory } from '@/lib/compose';
@@ -26,7 +26,7 @@ export default function CheckIn() {
   const { uid } = usePaired();
   const today = dayKey();
   const { days, ready } = useMyDays(uid, today);
-  if (!ready) return <ActivityIndicator style={{ marginTop: 48 }} />;
+  if (!ready) return <SkeletonPage />;
   const existing = days[today]?.checkIn;
   return existing && (existing.text || existing.voicePath || existing.memoryId) ? <Done checkIn={existing} /> : <Form />;
 }
