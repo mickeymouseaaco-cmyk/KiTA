@@ -41,8 +41,8 @@ export default function TabsLayout() {
           : {
               backgroundColor: look.flat ? c.bg : c.surface,
               borderTopColor: c.border,
-              height: 50 + Math.max(insets.bottom, 6),
-              paddingTop: 5,
+              height: 54 + Math.max(insets.bottom, 6),
+              paddingTop: 4,
               paddingBottom: Math.max(insets.bottom, 6),
             },
         tabBarItemStyle: sidebar ? { borderRadius: 14, marginHorizontal: 12, marginVertical: 2 } : undefined,
