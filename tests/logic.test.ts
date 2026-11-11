@@ -6,6 +6,15 @@ import { describe, test } from 'node:test';
 import { QUICK_MESSAGES, empty, summaryLine } from '../src/lib/copy';
 import { dayKey, lastNDays } from '../src/lib/dates';
 import { projectDay } from '../src/lib/projection';
+import { CHEERS, DEFAULT_TARGET, NAME_MAX, cheerFor, nameSize, stressAfter, targetName } from '../src/lib/smash-pure';
+import { normalizeFlight, pickAircraft, toPosition, toRoute } from '../functions/src/flight-pure';
+import { cleanFlightNo, compass, etaWords, fr24Url, mapSpan, phaseWord, prettyFlightNo, routeProgress } from '../src/lib/flight-pure';
+import { coupleTips, rangeBar, skyColors, skyLayers, skyLines, timeOfDay, hourInMalaysia } from '../src/lib/sky-pure';
+import { parseCurrent } from '../src/lib/flood-pure';
+import { cleanErrorReport, scrub } from '../src/lib/errors-pure';
+import { cleanPlace, defaultPlace, localHour, parseCities, placeForecastUrl, rainAmount, speed, temp, timeOfDayAt, todFor, unitsFor } from '../src/lib/place-pure';
+import { mapsUrl, parseTime, sortStops, stopsByDay, timeLabel } from '../src/lib/itinerary-pure';
+import { showTimeFlags } from '../src/lib/note-groups';
 import { gentleAlert, isHighSteps, suggestionsFor } from '../src/lib/suggestions';
 import { DEFAULT_SHARE, type DailyLog } from '../src/lib/types';
 import { dayKeyIn, hashStepsToken, newStepsToken, parseSteps, syncDay } from '../functions/src/steps-pure';
@@ -546,4 +555,271 @@ describe('find my partner', () => {
     assert.match(l.google, /destination=3.0657,101.4846/);
     assert.match(osmEmbed(3.0657, 101.4846), /marker=3.0657,101.4846/);
   });
+});
+
+// ------------------------------------------------------------ Stress Smash
+
+test('Stress Smash: the name is tidied, kept short, or defaults to Mr. Stress', () => {
+  assert.equal(targetName('  Boss   Man  '), 'Boss Man');
+  assert.equal(targetName('   '), DEFAULT_TARGET);
+  assert.equal(targetName('x'.repeat(40)).length, NAME_MAX);
+  assert.ok(nameSize('Ali') > nameSize('A very long name here'));
+});
+
+test('Stress Smash: the meter drops to zero over the bonks, and replays get a new message', () => {
+  assert.deepEqual([0, 1, 2, 3, 4, 5].map((h) => stressAfter(h, 5)), [100, 80, 60, 40, 20, 0]);
+  assert.equal(stressAfter(9, 5), 0);
+  assert.equal(cheerFor(0), 'There you go! Feeling better? 😂');
+  assert.notEqual(cheerFor(0), cheerFor(1));
+  assert.equal(cheerFor(CHEERS.length), cheerFor(0));
+  assert.equal(cheerFor(-1), CHEERS[CHEERS.length - 1]);
+});
+
+// ------------------------------------------------------------ Love Notes times
+test('Love Notes: one time per burst from the same person within an hour', () => {
+  const t = (h: number, m = 0) => new Date(2026, 10, 11, h, m).getTime();
+  // Newest first, as the list shows them.
+  const items = [
+    { from: 'a', at: t(10, 40) }, // newest of a burst → time
+    { from: 'a', at: t(10, 5) },
+    { from: 'a', at: t(9, 50) },
+    { from: 'b', at: t(9, 45) }, // other person → time
+    { from: 'b', at: t(8, 0) }, // more than an hour before → its own time
+  ];
+  assert.deepEqual(showTimeFlags(items), [true, false, false, true, true]);
+  // A new day always starts a new burst.
+  assert.deepEqual(showTimeFlags([{ from: 'a', at: t(0, 10) }, { from: 'a', at: new Date(2026, 10, 10, 23, 50).getTime() }]), [true, true]);
+  assert.deepEqual(showTimeFlags([]), []);
+});
+
+// ------------------------------------------------------------ Trip itinerary
+test('itinerary: friendly time typing', () => {
+  assert.equal(parseTime(''), null);
+  assert.equal(parseTime('9'), '09:00');
+  assert.equal(parseTime('930'), '09:30');
+  assert.equal(parseTime('9:30'), '09:30');
+  assert.equal(parseTime('9.30pm'), '21:30');
+  assert.equal(parseTime('2 PM'), '14:00');
+  assert.equal(parseTime('12am'), '00:00');
+  assert.equal(parseTime('12pm'), '12:00');
+  assert.equal(parseTime('1430'), '14:30');
+  assert.equal(parseTime('25:00'), 'invalid');
+  assert.equal(parseTime('9:75'), 'invalid');
+  assert.equal(parseTime('13pm'), 'invalid');
+  assert.equal(parseTime('lunch'), 'invalid');
+  assert.equal(timeLabel('14:30', 'en-US'), '2:30 PM');
+});
+
+test('itinerary: stops sorted by day and time, any-time ones last, others kept aside', () => {
+  const at = (n: number) => ({ toMillis: () => n });
+  const stops = [
+    { id: 'lunch', day: '2026-12-01', time: '13:00', createdAt: at(1) },
+    { id: 'anytime', day: '2026-12-01', time: null, createdAt: at(0) },
+    { id: 'breakfast', day: '2026-12-01', time: '08:30', createdAt: at(2) },
+    { id: 'day2', day: '2026-12-02', time: '10:00', createdAt: at(3) },
+    { id: 'old', day: '2026-11-20', time: null, createdAt: at(4) },
+  ];
+  assert.deepEqual(sortStops(stops).map((s) => s.id), ['old', 'breakfast', 'lunch', 'anytime', 'day2']);
+  const { byDay, other } = stopsByDay(stops, ['2026-12-01', '2026-12-02', '2026-12-03']);
+  assert.deepEqual(byDay.get('2026-12-01')!.map((s) => s.id), ['breakfast', 'lunch', 'anytime']);
+  assert.deepEqual(byDay.get('2026-12-03'), []);
+  assert.deepEqual(other.map((s) => s.id), ['old']);
+  assert.equal(mapsUrl('Time Out Market', 'Lisbon'), 'https://www.google.com/maps/search/?api=1&query=Time%20Out%20Market%2C%20Lisbon');
+  assert.equal(mapsUrl('Belém, Lisbon', 'Lisbon'), 'https://www.google.com/maps/search/?api=1&query=Bel%C3%A9m%2C%20Lisbon');
+});
+
+// ------------------------------------------------------------ Flight tracking
+test('flights: what you type becomes the callsign the plane broadcasts', () => {
+  assert.deepEqual(normalizeFlight('mh 2520'), { flight: 'MH2520', callsigns: ['MAS2520', 'MH2520'] });
+  assert.deepEqual(normalizeFlight('AK-6124')!.callsigns, ['AXM6124', 'AK6124']);
+  assert.deepEqual(normalizeFlight('D7 0237')!.callsigns, ['XAX237', 'D7237', 'D70237']);
+  assert.deepEqual(normalizeFlight('MAS2520')!.callsigns, ['MAS2520']);
+  assert.deepEqual(normalizeFlight('ZZ12')!.callsigns, ['ZZ12']); // unknown airline: try it as typed
+  assert.equal(normalizeFlight('hello'), null);
+  assert.equal(normalizeFlight(''), null);
+  assert.equal(normalizeFlight('MH 2520; DROP'), null);
+  assert.equal(cleanFlightNo(' mh 2520 '), 'MH2520');
+  assert.equal(cleanFlightNo('12345'), null);
+  assert.equal(cleanFlightNo('penang'), null);
+  assert.equal(prettyFlightNo('MH2520'), 'MH 2520');
+  assert.equal(prettyFlightNo('MAS2520'), 'MAS 2520');
+  assert.equal(prettyFlightNo('D7237'), 'D7 237');
+});
+
+test('flights: picks the right plane and tidies its position', () => {
+  const list = [
+    { flight: 'MAS2521 ', lat: 3, lon: 101 },
+    { flight: 'MAS2520 ', r: '9M-MXA', t: 'B738', desc: 'BOEING 737-800', lat: 4.123456, lon: 100.987654, alt_baro: 36000, gs: 455.4, track: 44.6, baro_rate: 0, seen_pos: 2.2 },
+    { flight: 'MAS2520 ' }, // no position: ignored
+  ];
+  const ac = pickAircraft(list, ['MAS2520', 'MH2520'])!;
+  assert.deepEqual(toPosition(ac), {
+    callsign: 'MAS2520', lat: 4.1235, lon: 100.9877, altFt: 36000, onGround: false, speedKts: 455, heading: 45, climbFpm: 0, seenSec: 2, reg: '9M-MXA', type: 'B738', typeName: 'BOEING 737-800',
+  });
+  assert.equal(pickAircraft(list, ['SIA1']), null);
+  const ground = toPosition({ flight: 'AXM1', lat: 5.3, lon: 100.27, alt_baro: 'ground', gs: 12 });
+  assert.equal(ground.onGround, true);
+  assert.equal(ground.altFt, 0);
+  assert.equal(phaseWord(ground), 'On the ground');
+  assert.equal(phaseWord({ onGround: false, climbFpm: 1800, altFt: 9000, speedKts: 280 }), 'Climbing');
+  assert.equal(phaseWord({ onGround: false, climbFpm: -1200, altFt: 9000, speedKts: 280 }), 'Descending');
+  assert.equal(phaseWord({ onGround: false, climbFpm: 0, altFt: 36000, speedKts: 450 }), 'Cruising');
+});
+
+test('flights: route, progress and a rough landing time', () => {
+  const route = toRoute({
+    response: {
+      flightroute: {
+        callsign: 'MAS2520', callsign_icao: 'MAS2520', airline: { name: 'Malaysia Airlines' },
+        origin: { iata_code: 'KUL', municipality: 'Kuala Lumpur', name: 'KLIA', latitude: 2.7456, longitude: 101.7099 },
+        destination: { iata_code: 'PEN', municipality: 'Penang', name: 'Penang Intl', latitude: 5.2971, longitude: 100.2769 },
+      },
+    },
+  })!;
+  assert.equal(route.airline, 'Malaysia Airlines');
+  assert.equal(route.from!.code, 'KUL');
+  assert.equal(route.to!.city, 'Penang');
+  assert.equal(toRoute({ response: 'unknown callsign' }), null);
+  assert.equal(toRoute(null), null);
+
+  const pos = { callsign: 'MAS2520', lat: 4.02, lon: 100.99, altFt: 30000, onGround: false, speedKts: 420, heading: 330, climbFpm: 0, seenSec: 1, reg: null, type: null, typeName: null };
+  const pr = routeProgress(route, pos)!;
+  assert.ok(pr.fraction > 0.4 && pr.fraction < 0.6, `about halfway (${pr.fraction})`);
+  assert.ok(pr.remainingKm > 130 && pr.remainingKm < 190, `km left (${pr.remainingKm})`);
+  assert.ok(pr.etaMin! >= 18 && pr.etaMin! <= 24, `eta (${pr.etaMin})`);
+  // Nowhere near the route: no progress shown.
+  assert.equal(routeProgress(route, { ...pos, lat: 35, lon: 139 }), null);
+  assert.equal(routeProgress(null, pos), null);
+
+  assert.equal(etaWords(25), 'about 25 min');
+  assert.equal(etaWords(135), 'about 2 h 15 min');
+  assert.equal(compass(0), 'north');
+  assert.equal(compass(225), 'south-west');
+  assert.equal(compass(359), 'north');
+  assert.equal(fr24Url('MH2520', 'MAS2520'), 'https://www.flightradar24.com/MAS2520');
+  assert.equal(fr24Url('MH2520'), 'https://www.flightradar24.com/data/flights/mh2520');
+  assert.ok(mapSpan({ altFt: 36000, onGround: false }) > mapSpan({ altFt: 2000, onGround: false }));
+});
+
+// ------------------------------------------------------------ The living sky
+test('sky: time of day near the equator, and the right sky for it', () => {
+  assert.equal(timeOfDay(7), 'dawn');
+  assert.equal(timeOfDay(12), 'day');
+  assert.equal(timeOfDay(19), 'dusk');
+  assert.equal(timeOfDay(22), 'night');
+  assert.equal(timeOfDay(3), 'night');
+  assert.equal(hourInMalaysia(Date.UTC(2026, 10, 11, 4, 30)), 12.5);
+  assert.notDeepEqual(skyColors('sun', 'day'), skyColors('sun', 'night'));
+  assert.deepEqual(skyColors('storm', 'day'), ['#2B3452', '#5D6886']);
+  const night = skyLayers('sun', 'night');
+  assert.equal(night.sun, false);
+  assert.equal(night.moon, true);
+  assert.ok(night.stars > 0);
+  const storm = skyLayers('storm', 'day');
+  assert.ok(storm.rain > 20 && storm.lightning && storm.darkClouds && !storm.sun);
+  assert.equal(skyLayers('fog', 'day').fog, true);
+  assert.ok(skyLines('rain', 'day', 30, 'Aina').length >= 3);
+  assert.match(skyLines('sun', 'night', 30, 'Aina')[0], /stars/);
+  assert.match(skyLines('sun', 'day', 35, 'Aina')[0], /Aina/);
+});
+
+test('sky: the weather right now is read safely', () => {
+  assert.deepEqual(
+    parseCurrent({
+      utc_offset_seconds: 28800,
+      daily: { sunrise: ['2026-11-11T07:06'], sunset: ['2026-11-11T19:03'] },
+      current: { temperature_2m: 29.6, apparent_temperature: 34.2, weather_code: 2, is_day: 1, relative_humidity_2m: 74, wind_speed_10m: 9.4 },
+    } as never),
+    { tempC: 30, feelsC: 34, code: 2, isDay: true, humidity: 74, windKmh: 9, sunrise: 7.1, sunset: 19.05, utcOffsetSec: 28800 },
+  );
+  assert.equal(parseCurrent({} as never), null);
+  assert.equal(parseCurrent({ current: { temperature_2m: null } } as never), null);
+  assert.equal(parseCurrent({ current: { temperature_2m: 25, is_day: 0 } } as never)!.isDay, false);
+});
+
+test('sky: ideas for the two of you from the week', () => {
+  const day = (date: string, o: Partial<{ minC: number; maxC: number; rainMm: number; rainChance: number; maxHourlyMm: number; code: number }> = {}) => ({
+    date, minC: 24, maxC: 31, rainMm: 0, rainChance: 10, maxHourlyMm: 0, code: 1, ...o,
+  });
+  // 2026-11-11 is a Wednesday.
+  const week = [
+    day('2026-11-11', { rainMm: 30, rainChance: 90, maxHourlyMm: 18, code: 95 }),
+    day('2026-11-12', { rainMm: 8, rainChance: 70 }),
+    day('2026-11-13', { rainMm: 0, rainChance: 5, maxC: 30 }),
+    day('2026-11-14', { rainMm: 12, rainChance: 80 }),
+    day('2026-11-15', { rainMm: 1, rainChance: 20 }),
+  ];
+  const tips = coupleTips(week, 'Aina');
+  assert.equal(tips[0].icon, 'home');
+  assert.match(tips[0].text, /Aina/);
+  assert.ok(tips.some((t) => t.icon === 'walk' && /Friday/.test(t.text)), JSON.stringify(tips));
+  assert.ok(tips.some((t) => t.icon === 'weekend' && /Sunday/.test(t.text)), JSON.stringify(tips));
+  assert.ok(tips.length <= 3);
+  assert.deepEqual(coupleTips([], 'Aina'), []);
+  const hot = coupleTips([day('2026-11-11', { maxC: 35 })], 'Aina');
+  assert.ok(hot.some((t) => t.icon === 'hot'));
+
+  assert.deepEqual(rangeBar({ minC: 24, maxC: 32 }, 24, 32), { from: 0, to: 1 });
+  const mid = rangeBar({ minC: 26, maxC: 26 }, 24, 32);
+  assert.ok(mid.to > mid.from, 'a single-temperature day still shows a sliver');
+});
+
+// ------------------------------------------------------------ Weather anywhere
+test('weather anywhere: places are checked, and Malaysia starts with the flood watch', () => {
+  assert.deepEqual(cleanPlace({ kind: 'area', id: 'klang' }), { kind: 'area', id: 'klang' });
+  assert.equal(cleanPlace({ kind: 'area', id: 'penang' }), null);
+  assert.deepEqual(cleanPlace({ kind: 'city', name: ' Tokyo ', country: 'Japan', lat: 35.68951, lon: 139.69171 }), { kind: 'city', name: 'Tokyo', country: 'Japan', lat: 35.69, lon: 139.692 });
+  assert.equal(cleanPlace({ kind: 'city', name: 'Nowhere', lat: 95, lon: 0 }), null);
+  assert.equal(cleanPlace('junk'), null);
+  assert.equal(cleanPlace({ kind: 'here', lat: 1, lon: 2 })!.kind, 'here');
+  assert.deepEqual(defaultPlace('Asia/Kuala_Lumpur'), { kind: 'area', id: 'shahalam' });
+  assert.deepEqual(defaultPlace('Asia/Kuching'), { kind: 'area', id: 'shahalam' });
+  assert.equal(defaultPlace('Europe/London'), null);
+  assert.match(placeForecastUrl(35.69, 139.69), /timezone=auto.*sunrise,sunset.*current=/);
+});
+
+test('weather anywhere: °C or °F by country, and the conversions', () => {
+  assert.equal(unitsFor('en-US'), 'F');
+  assert.equal(unitsFor('en-MY'), 'C');
+  assert.equal(unitsFor('en-GB'), 'C');
+  assert.equal(unitsFor(undefined), 'C');
+  assert.equal(temp(30, 'C'), '30°');
+  assert.equal(temp(30, 'F'), '86°');
+  assert.equal(temp(-40, 'F'), '-40°');
+  assert.equal(speed(16, 'C'), '16 km/h');
+  assert.equal(speed(16, 'F'), '10 mph');
+  assert.equal(rainAmount(25.4, 'F'), '1 in');
+  assert.equal(rainAmount(12.5, 'C'), '12.5 mm');
+});
+
+test('weather anywhere: dawn, day, dusk and night from the place’s own sunrise and sunset', () => {
+  // London in winter: sunrise ~7:40, sunset ~16:10.
+  assert.equal(timeOfDayAt(7.5, 7.67, 16.17), 'dawn');
+  assert.equal(timeOfDayAt(12, 7.67, 16.17), 'day');
+  assert.equal(timeOfDayAt(16, 7.67, 16.17), 'dusk');
+  assert.equal(timeOfDayAt(18, 7.67, 16.17), 'night');
+  assert.equal(localHour(Date.UTC(2026, 10, 11, 0, 30), 9 * 3600), 9.5);
+  assert.equal(localHour(Date.UTC(2026, 10, 11, 2, 0), -5 * 3600), 21);
+  const at = Date.UTC(2026, 10, 11, 3, 0); // 12:00 in Tokyo
+  const tokyo = { isDay: true, sunrise: 6.17, sunset: 16.58, utcOffsetSec: 9 * 3600 };
+  assert.equal(todFor(tokyo, 'night', at), 'day');
+  assert.equal(todFor({ ...tokyo, isDay: false }, 'day', at), 'night', 'the service saying night wins over the clock');
+  assert.equal(todFor(null, 'dusk', at), 'dusk');
+  assert.deepEqual(parseCities({ results: [{ name: 'Paris', country: 'France', admin1: 'Île-de-France', latitude: 48.85, longitude: 2.35 }, { name: 'bad' }] }), [
+    { name: 'Paris', country: 'France', region: 'Île-de-France', lat: 48.85, lon: 2.35 },
+  ]);
+  assert.deepEqual(parseCities(null), []);
+});
+
+// ------------------------------------------------------------ Error reports
+test('error reports are short and carry nothing personal', () => {
+  assert.equal(scrub('Failed for aina@example.com at https://x.app/a?t=secret123 id 12345678', 300), 'Failed for [email] at https://x.app/a id [number]');
+  const r = cleanErrorReport(new TypeError('Cannot read properties of null'), { kind: 'crash', route: '/trip/IZsPv9ex8fNebcdP89Qt', platform: 'web', agent: 'x'.repeat(300), version: '1.0.0' });
+  assert.equal(r.message, 'TypeError: Cannot read properties of null');
+  assert.equal(r.route, '/trip/[id]');
+  assert.equal(r.agent.length, 200);
+  assert.ok(r.stack.length <= 2000);
+  assert.equal(cleanErrorReport('plain text', { kind: 'promise', route: '', platform: 'ios', agent: '', version: '' }).message, 'plain text');
+  assert.equal(cleanErrorReport(null, { kind: 'error', route: '', platform: 'web', agent: '', version: '' }).message, 'Unknown error');
+  assert.equal(cleanErrorReport({ message: 'x'.repeat(500) }, { kind: 'error', route: '', platform: 'web', agent: '', version: '' }).message.length, 300);
 });

@@ -14,6 +14,13 @@ const run = Date.now().toString(36);
 fs.mkdirSync(OUT, { recursive: true });
 const tid = (id) => `[data-testid="${id}"]`;
 
+/** First-time welcome pages: skip them (or go to "I already have an account"). */
+async function pastWelcome(page, mode = 'new') {
+  await page.locator(`${tid('welcome-next')}, ${tid('name')}, ${tid('email')}`).first().waitFor({ timeout: 30000 });
+  if (await page.locator(tid('welcome-next')).count()) await page.locator(tid(mode === 'new' ? 'welcome-skip' : 'welcome-have-account')).click();
+  await page.locator(tid('email')).waitFor();
+}
+
 const tallPhone = { viewport: { width: 390, height: 1700 }, deviceScaleFactor: 1 };
 const desktop = { viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 };
 
@@ -28,6 +35,7 @@ const ROUTES = [
   ['/check-in', 'check-in'],
   ['/vent', 'vent'],
   ['/calm', 'calm'],
+  ['/stress-smash', 'stress-smash'],
   ['/cycle', 'cycle'],
   ['/mood-calendar', 'mood-calendar'],
   ['/gratitude', 'gratitude'],
@@ -59,6 +67,7 @@ async function shot(page, name) {
 
 async function signUp(page, name) {
   await page.goto(BASE);
+  await pastWelcome(page);
   await page.locator(tid('name')).waitFor();
   await page.locator(tid('name')).fill(name);
   await page.locator(tid('email')).fill(`${name.toLowerCase()}-a-${run}@example.com`);
@@ -82,8 +91,27 @@ async function main() {
 
   // Signed out, and before pairing.
   await a.goto(BASE);
+  await a.locator(tid('welcome-next')).waitFor({ timeout: 30000 });
+  await shot(a, '00a-welcome-1');
+  await a.locator(tid('welcome-next')).click();
+  await a.waitForTimeout(700);
+  await shot(a, '00b-welcome-2');
+  await a.locator(tid('welcome-next')).click();
+  await a.waitForTimeout(700);
+  await a.locator(tid('welcome-next')).click();
+  await a.locator(tid('welcome-start')).waitFor();
+  await a.waitForTimeout(700);
+  await shot(a, '00c-welcome-4');
+  await a.locator(tid('welcome-start')).click();
   await a.locator(tid('name')).waitFor();
   await shot(a, '00-sign-in');
+  // The policy pages open without signing in.
+  await a.goto(BASE + '/privacy-policy');
+  await a.locator(tid('privacy-policy')).waitFor({ timeout: 15000 });
+  await shot(a, '00d-privacy-policy');
+  await a.goto(BASE + '/terms');
+  await a.locator(tid('terms')).waitFor({ timeout: 15000 });
+  await shot(a, '00e-terms');
   await signUp(a, 'Afiq');
   await a.locator(tid('create-invite')).waitFor();
   await shot(a, '01-pair');
@@ -128,7 +156,7 @@ async function main() {
 
   const d = await mk('afiq-desktop', desktop);
   await d.goto(BASE);
-  await d.locator(tid('email')).waitFor();
+  await pastWelcome(d, 'returning');
   await d.getByText('I have an account').click();
   await d.locator(tid('email')).fill(`afiq-a-${run}@example.com`);
   await d.locator(tid('password')).fill('gentle-pass');

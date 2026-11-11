@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { CalendarDays, CalendarHeart, CalendarRange, CloudRain, Dices, Gift, HandHeart, Heart, HeartHandshake, ListTodo, MapPin, Mic, Plus, Sparkles, Wind } from 'lucide-react-native';
+import { CalendarDays, CalendarHeart, CalendarRange, CloudRain, Dices, Gift, HandHeart, Hammer, Heart, HeartHandshake, ListTodo, MapPin, Mic, Plus, Sparkles, Wind } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
 
 import { MediaById } from '@/components/media-view';
@@ -16,7 +16,7 @@ import type { Memory } from '@/lib/types';
 import { space, useTheme } from '@/theme';
 
 type Tile = {
-  route: '/todos' | '/find' | '/weather' | '/weekend' | '/gratitude' | '/mood-calendar' | '/date-night' | '/milestones' | '/reset' | '/schedule-note' | '/bucket-list' | '/calm';
+  route: '/todos' | '/find' | '/weather' | '/weekend' | '/gratitude' | '/mood-calendar' | '/date-night' | '/milestones' | '/reset' | '/schedule-note' | '/bucket-list' | '/calm' | '/stress-smash';
   testID: string;
   icon: typeof ListTodo;
   title: string;
@@ -45,9 +45,10 @@ const GROUPS: { title: string; line: string; tiles: Tile[] }[] = [
       { route: '/gratitude', testID: 'open-gratitude', icon: HandHeart, title: 'Gratitude', detail: 'One thank-you a day', tone: 'butter' },
       { route: '/mood-calendar', testID: 'open-mood-calendar', icon: CalendarDays, title: 'Our moods', detail: 'A month, side by side', tone: 'lavender' },
       { route: '/calm', testID: 'open-calm-tile', icon: Wind, title: 'Calm Corner', detail: 'Breathe, sounds, vent', tone: 'sage' },
+      { route: '/stress-smash', testID: 'open-stress-smash', icon: Hammer, title: 'Stress Smash', detail: 'Bonk the stress away', tone: 'rose' },
       { route: '/reset', testID: 'open-reset-tile', icon: HeartHandshake, title: 'Gentle reset', detail: 'After a tense day', tone: 'peach' },
       { route: '/find', testID: 'open-find-tile', icon: MapPin, title: 'Find each other', detail: 'Where you both are', tone: 'lavender' },
-      { route: '/weather', testID: 'open-weather-tile', icon: CloudRain, title: 'Weather & floods', detail: 'Shah Alam and Klang', tone: 'sky' },
+      { route: '/weather', testID: 'open-weather-tile', icon: CloudRain, title: 'Weather', detail: 'Anywhere, plus flood watch', tone: 'sky' },
     ],
   },
 ];

@@ -2,7 +2,10 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfi
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
 
+import { router } from 'expo-router';
+
 import { KitaLogo } from '@/components/logo';
+import { Welcome, useWelcomed } from '@/components/welcome';
 import { Button, Field, Gap, Screen, Segmented, T, useInputStyle } from '@/components/ui';
 import { gentleError } from '@/lib/copy';
 import { auth } from '@/lib/firebase';
@@ -18,6 +21,7 @@ export default function SignIn() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [welcomed, markWelcomed] = useWelcomed();
 
   const canSubmit = email.includes('@') && password.length >= 6 && (mode === 'returning' || name.trim().length > 0);
 
@@ -41,6 +45,18 @@ export default function SignIn() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (welcomed === undefined) return <View style={{ flex: 1, backgroundColor: c.bg }} />;
+  if (!welcomed) {
+    return (
+      <Welcome
+        onDone={(m) => {
+          markWelcomed();
+          setMode(m);
+        }}
+      />
+    );
   }
 
   return (
@@ -116,6 +132,16 @@ export default function SignIn() {
         <Gap h={space.xl} />
         <T variant="small" muted center>
           Your logs are private by default. You choose, one by one, what your partner can see.
+        </T>
+        <Gap h={space.md} />
+        <T variant="small" muted center>
+          <T variant="small" style={{ textDecorationLine: 'underline' }} onPress={() => router.push('/terms')} accessibilityRole="link">
+            Terms
+          </T>
+          {'  ·  '}
+          <T variant="small" style={{ textDecorationLine: 'underline' }} onPress={() => router.push('/privacy-policy')} accessibilityRole="link">
+            Privacy policy
+          </T>
         </T>
       </Screen>
     </KeyboardAvoidingView>

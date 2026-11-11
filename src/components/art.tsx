@@ -4,7 +4,7 @@
  */
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
-import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { useTheme } from '@/theme';
 
@@ -63,6 +63,7 @@ export function Blob({ size = 96, children }: { size?: number; children?: ReactN
 export function PageWash({ height = 320 }: { height?: number }) {
   const { c, look } = useTheme();
   if (look.name === 'professional') return null;
+  if (look.flat) return <Ambient />;
   return (
     <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height }}>
       <Svg width="100%" height={height} preserveAspectRatio="none">
@@ -74,6 +75,39 @@ export function PageWash({ height = 320 }: { height?: number }) {
           </LinearGradient>
         </Defs>
         <Rect x="0" y="0" width="100%" height={height} fill="url(#wash)" />
+      </Svg>
+    </View>
+  );
+}
+
+/**
+ * Modern look: soft ambient light behind the top of each page. Two faint
+ * glows (rose and a cool blue) that fade into the background. Still, quiet,
+ * and never behind text at full strength.
+ */
+function Ambient() {
+  const { c, dark } = useTheme();
+  const strength = dark ? 0.2 : 0.42;
+  return (
+    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 420, overflow: 'hidden', pointerEvents: 'none' }}>
+      <Svg width="100%" height={420} preserveAspectRatio="none" viewBox="0 0 100 100">
+        <Defs>
+          <RadialGradient id="glow-rose" cx="88" cy="-6" rx="70" ry="62" fx="88" fy="-6" gradientUnits="userSpaceOnUse">
+            <Stop offset="0" stopColor={c.ring} stopOpacity={strength} />
+            <Stop offset="1" stopColor={c.ring} stopOpacity="0" />
+          </RadialGradient>
+          <RadialGradient id="glow-cool" cx="6" cy="4" rx="64" ry="58" fx="6" fy="4" gradientUnits="userSpaceOnUse">
+            <Stop offset="0" stopColor={dark ? '#5B6CFF' : '#9DB4FF'} stopOpacity={strength * 0.85} />
+            <Stop offset="1" stopColor={dark ? '#5B6CFF' : '#9DB4FF'} stopOpacity="0" />
+          </RadialGradient>
+          <LinearGradient id="glow-fade" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0.55" stopColor={c.bg} stopOpacity="0" />
+            <Stop offset="1" stopColor={c.bg} stopOpacity="1" />
+          </LinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100" height="100" fill="url(#glow-cool)" />
+        <Rect x="0" y="0" width="100" height="100" fill="url(#glow-rose)" />
+        <Rect x="0" y="0" width="100" height="100" fill="url(#glow-fade)" />
       </Svg>
     </View>
   );

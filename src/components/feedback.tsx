@@ -182,15 +182,18 @@ export function useFeedback(): Feedback {
 
 /** A soft backdrop-dismissable bottom sheet. */
 export function Sheet({ visible, onClose, children }: { visible: boolean; onClose: () => void; children: ReactNode }) {
-  const { c } = useTheme();
+  const { c, look } = useTheme();
   const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={[styles.backdrop, { backgroundColor: c.overlay }]}>
+      <View style={[styles.backdrop, { backgroundColor: c.overlay }, look.flat && Platform.OS === 'web' && ({ backdropFilter: 'blur(10px) saturate(140%)', WebkitBackdropFilter: 'blur(10px) saturate(140%)' } as object)]}>
         {/* The backdrop is a sibling, not a wrapper, so gestures inside the sheet
             (like hold-to-record) are never intercepted by it. */}
         <Pressable accessibilityRole="button" accessibilityLabel="Close" style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={[styles.sheet, { backgroundColor: c.surface, paddingBottom: insets.bottom + space.xl }]}>{children}</View>
+        <View style={[styles.sheet, { backgroundColor: c.surface, paddingBottom: insets.bottom + space.xl }, look.flat && { boxShadow: '0px -12px 40px rgba(10, 10, 20, 0.18)' }]}>
+          {look.flat ? <View style={{ alignSelf: 'center', width: 36, height: 5, borderRadius: 3, backgroundColor: c.border, marginTop: -8, marginBottom: space.md }} /> : null}
+          {children}
+        </View>
       </View>
     </Modal>
   );

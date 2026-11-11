@@ -9,12 +9,15 @@ import {
   AREAS,
   floodStatus,
   forecastUrl,
+  parseCurrent,
   parseForecast,
   parseStations,
   parseWarnings,
   type AreaId,
   type FloodStatus,
+  type CurrentWeather,
   type ForecastDay,
+  type OpenMeteo,
   type RiverStation,
   type Warning,
 } from './flood-pure';
@@ -48,6 +51,8 @@ const rowsOf = <T,>(json: unknown): T[] => (Array.isArray(json) ? json : ((json 
 export type FloodData = {
   fetchedAt: number;
   forecast: Partial<Record<AreaId, ForecastDay[]>>;
+  /** The weather right now, per area (when the forecast service sent it). */
+  now?: Partial<Record<AreaId, CurrentWeather | null>>;
   warnings: Warning[];
   stations: RiverStation[];
   /** Which sources answered. */
@@ -62,13 +67,14 @@ export async function loadFloodData(force = false): Promise<FloodData> {
   if (inflight) return inflight;
   inflight = (async () => {
     const [fc, warn, rivers] = await Promise.allSettled([
-      Promise.all(AREAS.map(async (a) => [a.id, parseForecast(await getJson(forecastUrl(a)))] as const)),
+      Promise.all(AREAS.map(async (a) => [a.id, await getJson<OpenMeteo>(forecastUrl(a))] as const)),
       getJson(`${DATA_GOV}/weather/warning?limit=50&timestamp_start=${encodeURIComponent(sinceMY(3))}@warning_issue__issued`).then((j) => parseWarnings(rowsOf(j))),
       getJson(`${DATA_GOV}/flood-warning?filter=Selangor@state&limit=300`).then((j) => parseStations(rowsOf(j))),
     ]);
     const data: FloodData = {
       fetchedAt: Date.now(),
-      forecast: fc.status === 'fulfilled' ? Object.fromEntries(fc.value) : {},
+      forecast: fc.status === 'fulfilled' ? Object.fromEntries(fc.value.map(([id, j]) => [id, parseForecast(j)])) : {},
+      now: fc.status === 'fulfilled' ? Object.fromEntries(fc.value.map(([id, j]) => [id, parseCurrent(j)])) : {},
       warnings: warn.status === 'fulfilled' ? warn.value : [],
       stations: rivers.status === 'fulfilled' ? rivers.value : [],
       ok: { forecast: fc.status === 'fulfilled', warnings: warn.status === 'fulfilled', rivers: rivers.status === 'fulfilled' },

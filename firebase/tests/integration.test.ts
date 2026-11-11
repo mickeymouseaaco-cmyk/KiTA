@@ -297,6 +297,12 @@ describe('Together on Firebase, end to end', () => {
     await denied(getDoc(doc(casey.db, `couples/${cid}/questions/${date}`)));
   });
 
+  test('Track a flight: only real flight numbers are looked up', async () => {
+    // (A real lookup needs the internet, so here we only check what is turned away.)
+    await assert.rejects(afiq.call('trackFlight', { flight: 'hello there' }), /flight number/);
+    await assert.rejects(afiq.call('trackFlight', {}), /flight number/);
+  });
+
   test('Find my partner: share, see, iPhone Shortcut, stop', async () => {
     // Off by default: the Shortcut is refused until Aina turns sharing on.
     const { url } = await aina.call<{ url: string }>('startStepsSync');

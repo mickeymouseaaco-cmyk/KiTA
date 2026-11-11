@@ -23,6 +23,13 @@ const phone = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 };
 const small = { viewport: { width: 360, height: 760 }, deviceScaleFactor: 2 };
 const tid = (id) => `[data-testid="${id}"]`;
 
+/** First-time welcome pages: skip them (or go to "I already have an account"). */
+async function pastWelcome(page, mode = 'new') {
+  await page.locator(`${tid('welcome-next')}, ${tid('name')}, ${tid('email')}`).first().waitFor({ timeout: 30000 });
+  if (await page.locator(tid('welcome-next')).count()) await page.locator(tid(mode === 'new' ? 'welcome-skip' : 'welcome-have-account')).click();
+  await page.locator(tid('email')).waitFor();
+}
+
 let step = 0;
 /** Every open page and every page error, so any failure leaves evidence. */
 const pages = {};
@@ -50,6 +57,7 @@ function mockWeather(ctx) {
       weather_code: [95, 63, 80, 1, 2, 61, 65],
     },
     hourly: { time: days.map((d) => `${d}T16:00`), precipitation: [22, 9, 3, 0, 0, 6, 16] },
+    current: { temperature_2m: 29.6, apparent_temperature: 34.4, weather_code: 95, is_day: 1, relative_humidity_2m: 81, wind_speed_10m: 14.2 },
   };
   const until = new Date(Date.now() + 6 * 3600_000 + 8 * 3600_000).toISOString().slice(0, 19).replace('T', ' ');
   const warnings = [
@@ -70,7 +78,58 @@ function mockWeather(ctx) {
       instruction_en: '',
     },
   ];
-  ctx.route('https://api.open-meteo.com/**', (r) => r.fulfill({ json: forecast }));
+  ctx.route('https://api.open-meteo.com/**', (r) => {
+    // Any place in the world: same week, its own time zone and sunrise/sunset.
+    const u = new URL(r.request().url());
+    const anywhere = u.searchParams.get('timezone') === 'auto';
+    r.fulfill({
+      json: anywhere
+        ? {
+            ...forecast,
+            utc_offset_seconds: 32400,
+            daily: { ...forecast.daily, weather_code: [1, 2, 3, 61, 1, 0, 2], sunrise: days.map((d) => `${d}T06:10`), sunset: days.map((d) => `${d}T16:35`) },
+            current: { temperature_2m: 12.2, apparent_temperature: 10.1, weather_code: 1, is_day: 1, relative_humidity_2m: 55, wind_speed_10m: 18 },
+          }
+        : forecast,
+    });
+  });
+  ctx.route('https://geocoding-api.open-meteo.com/**', (r) => {
+    const name = (new URL(r.request().url()).searchParams.get('name') || '').toLowerCase();
+    const all = [
+      { name: 'Tokyo', country: 'Japan', admin1: 'Tokyo', latitude: 35.6895, longitude: 139.6917 },
+      { name: 'London', country: 'United Kingdom', admin1: 'England', latitude: 51.5085, longitude: -0.1257 },
+    ];
+    r.fulfill({ json: { results: all.filter((p) => p.name.toLowerCase().startsWith(name)) } });
+  });
+  // Flight tracking: the server asks live aircraft services; here we answer for it.
+  ctx.route('**/trackFlight', (r) => {
+    const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, OPTIONS' };
+    if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: cors });
+    const flight = String(JSON.parse(r.request().postData() || '{}').data?.flight || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const found = flight === 'MH2520';
+    r.fulfill({
+      headers: cors,
+      json: {
+        result: {
+          flight,
+          found,
+          position: found
+            ? { callsign: 'MAS2520', lat: 4.02, lon: 100.99, altFt: 30000, onGround: false, speedKts: 420, heading: 330, climbFpm: 0, seenSec: 2, reg: '9M-MXA', type: 'B738', typeName: 'BOEING 737-800' }
+            : null,
+          route: found
+            ? {
+                airline: 'Malaysia Airlines',
+                callsign: 'MAS2520',
+                from: { code: 'KUL', city: 'Kuala Lumpur', name: 'Kuala Lumpur International', lat: 2.7456, lon: 101.7099 },
+                to: { code: 'PEN', city: 'Penang', name: 'Penang International', lat: 5.2971, lon: 100.2769 },
+              }
+            : null,
+          source: 'airplanes.live',
+          at: Date.now(),
+        },
+      },
+    });
+  });
   ctx.route('https://api.data.gov.my/weather/warning**', (r) => r.fulfill({ json: warnings }));
   ctx.route('https://api.data.gov.my/flood-warning**', (r) =>
     r.fulfill({
@@ -84,6 +143,7 @@ function mockWeather(ctx) {
 
 async function signUp(page, name) {
   await page.goto(BASE);
+  await pastWelcome(page);
   await page.locator(tid('name')).waitFor();
   await page.locator(tid('name')).fill(name);
   await page.locator(tid('email')).fill(`${name.toLowerCase().replace(/\W/g, '')}-${run}@example.com`);
@@ -128,6 +188,33 @@ async function main() {
   assert.ok(box && box.height < 50, `greeting should be one line (height ${box && box.height})`);
   log(`Greeting is one line (${Math.round(box.height)}px tall)`);
 
+  // 1a. Bright shortcuts; Meal (not water) opens the meal sheet; the hug sends.
+  assert.equal(await afiq.locator(tid('qa-water')).count(), 0, 'no water shortcut');
+  await afiq.locator(tid('qa-meal')).click();
+  await afiq.locator(tid('meal-text')).waitFor();
+  await afiq.locator(tid('meal-kind-lunch')).click();
+  await afiq.locator(tid('meal-text')).fill('Nasi lemak with extra sambal');
+  await shot(afiq, '01a-meal-sheet');
+  await afiq.locator(tid('save-meal')).click();
+  await afiq.getByText('Nasi lemak with extra sambal').waitFor({ timeout: 10000 });
+  assert.equal(await afiq.getByText('Water', { exact: true }).count(), 0, 'no water counter');
+  await afiq.waitForTimeout(400);
+  await shot(afiq, '01a1-home-top');
+  await afiq.locator(tid('open-weather')).scrollIntoViewIfNeeded();
+  await shot(afiq, '01a2-home-meals-sky');
+  log('Home: bright shortcuts, Meal sheet instead of water, live sky card');
+
+  // 1b. The modern look in dark mode (it follows the phone).
+  await afiq.emulateMedia({ colorScheme: 'dark' });
+  await afiq.goto(BASE);
+  await afiq.locator(tid('qa-meal')).waitFor({ timeout: 15000 });
+  await afiq.waitForTimeout(1200);
+  await shot(afiq, '01b-home-dark', true);
+  await afiq.goto(BASE + '/together');
+  await afiq.waitForTimeout(1200);
+  await shot(afiq, '01c-together-dark');
+  await afiq.emulateMedia({ colorScheme: 'light' });
+
   // 2. Love-note box: wide, grows with the text, attachments behind +.
   await afiq.goto(BASE + '/notes');
   await afiq.locator(tid('note-input')).waitFor();
@@ -158,16 +245,67 @@ async function main() {
   await afiq.locator(tid('opt-star')).click();
   await afiq.locator(tid('pinned-notes')).waitFor({ timeout: 10000 });
   log('Long-press opens note options; starring pins it for both');
+  // One time per burst: three quick notes from the same person share one time.
+  for (const t of ['On my way 🚗', 'Bringing nasi lemak']) {
+    await afiq.locator(tid('note-input')).fill(t);
+    await afiq.locator(tid('send-note')).click();
+    await afiq.getByText(t).first().waitFor({ timeout: 10000 });
+  }
+  await afiq.waitForTimeout(500);
+  assert.equal(await afiq.locator(tid('note-text')).count(), 3, 'three notes');
+  assert.equal(await afiq.locator(tid('note-time')).count(), 1, 'one time for a burst of notes');
+  await shot(afiq, '04c-notes-one-time');
+  // No more All / Starred / Saved bar: it's behind the filter button now.
+  assert.equal(await afiq.getByText('All notes', { exact: true }).count(), 0, 'no filter tabs');
+  await afiq.locator(tid('open-filter')).click();
+  await afiq.locator(tid('filter-starred')).click();
+  await afiq.locator(tid('filter-clear')).waitFor();
+  await afiq.getByText('Bringing nasi lemak').waitFor({ state: 'detached', timeout: 5000 });
+  await afiq.getByText('Don’t forget your umbrella').first().waitFor();
+  await shot(afiq, '04d-notes-starred');
+  await afiq.locator(tid('filter-clear')).click();
+  await afiq.getByText('Bringing nasi lemak').waitFor();
+  log('Notes: one time per burst; starred/saved behind a filter button');
   log(`Love-note box is ${Math.round(w)}px wide, grows to ${Math.round(grown)}px, and sends`);
 
   // 3. Weather at a glance.
   await afiq.goto(BASE + '/weather');
   await afiq.locator(tid('flood-today')).waitFor({ timeout: 15000 });
   await afiq.getByText('Thunderstorms').first().waitFor();
+  await afiq.locator(tid('weather-sky')).waitFor();
+  assert.equal((await afiq.locator(tid('weather-temp')).innerText()).trim(), '30°');
+  const firstLine = await afiq.locator(tid('sky-line')).innerText();
+  await afiq.locator(tid('sky-next')).click();
+  await afiq.waitForTimeout(500);
+  assert.notEqual(await afiq.locator(tid('sky-line')).innerText(), firstLine, 'tapping gives another line');
+  assert.ok((await afiq.locator(tid('couple-tip')).count()) >= 1, 'ideas for the two of you');
+  assert.equal(await afiq.locator(tid('week-day')).count(), 7);
   await shot(afiq, '05-weather-top');
+  await shot(afiq, '05b-weather-full', true);
   await afiq.getByRole('button', { name: /Thunderstorms/ }).first().click();
   await shot(afiq, '06-weather-warning-open', true);
   log('Weather shows icons and short warnings; full MET text on tap');
+
+  // 3b. Weather for anywhere: search a city, °F, my location, then back to the flood watch.
+  await afiq.locator(tid('place-button')).click();
+  await afiq.locator(tid('place-search')).fill('Tok');
+  await afiq.locator(tid('place-result-Tokyo')).click();
+  await afiq.locator(tid('weather-temp')).filter({ hasText: '12°' }).waitFor({ timeout: 15000 });
+  assert.equal(await afiq.locator(tid('flood-safe')).count(), 0, 'no flood watch outside the Malaysian areas');
+  assert.equal(await afiq.locator(tid('call-999')).count(), 0);
+  await shot(afiq, '06b-weather-tokyo', true);
+  await afiq.locator(tid('place-button')).click();
+  await afiq.getByText('°F', { exact: true }).click();
+  await afiq.mouse.click(10, 10);
+  await afiq.locator(tid('weather-temp')).filter({ hasText: '54°' }).waitFor({ timeout: 5000 });
+  await afiq.locator(tid('place-button')).click();
+  await afiq.getByText('°C', { exact: true }).click();
+  await afiq.locator(tid('place-near-me')).click();
+  await afiq.locator(tid('place-button')).filter({ hasText: /Klang|Shah Alam|Near you|Kota|Selangor/ }).waitFor({ timeout: 15000 });
+  await afiq.locator(tid('place-button')).click();
+  await afiq.locator(tid('place-area-shahalam')).click();
+  await afiq.locator(tid('flood-safe')).waitFor({ timeout: 10000 });
+  log('Weather anywhere: city search, °F, my location, and back to the Shah Alam flood watch');
 
   // 4. Steps from iPhone.
   await afiq.goto(BASE + '/steps-sync');
@@ -224,6 +362,140 @@ async function main() {
   await afiq.locator(tid('partner-not-sharing')).waitFor({ timeout: 15000 });
   log('Find my partner: both opt in and see each other; stopping removes it at once');
 
+  // 4b3. Stress Smash: type a name, LET IT OUT, replay, bonus bonk, someone else, back.
+  //      The name must never leave the page: no request carries it, nothing stores it.
+  const leaks = [];
+  const watchLeak = (r) => {
+    const body = r.postData() ?? '';
+    if (r.url().includes('Boss Ahmad') || r.url().includes('Boss%20Ahmad') || body.includes('Boss Ahmad')) leaks.push(r.url());
+  };
+  afiq.on('request', watchLeak);
+  await afiq.goto(BASE + '/together');
+  await afiq.locator(tid('open-stress-smash')).click();
+  await afiq.locator(tid('smash-name')).waitFor({ timeout: 15000 });
+  assert.equal((await afiq.locator(tid('smash-target')).innerText()).trim(), 'Mr. Stress');
+  await afiq.locator(tid('smash-name')).fill('Boss Ahmad');
+  assert.equal((await afiq.locator(tid('smash-target')).innerText()).trim(), 'Boss Ahmad');
+  await shot(afiq, '07e-smash-ready');
+  await afiq.locator(tid('smash-go')).click();
+  await afiq.waitForTimeout(560);
+  await afiq.screenshot({ path: path.join(OUT, '07f-smash-bonk.png') });
+  await afiq.waitForTimeout(1500);
+  await afiq.screenshot({ path: path.join(OUT, '07g-smash-bonk-later.png') });
+  await afiq.locator(tid('smash-cheer')).waitFor({ timeout: 15000 });
+  assert.equal((await afiq.locator(tid('smash-cheer')).innerText()).trim(), 'There you go! Feeling better? 😂');
+  await shot(afiq, '07h-smash-done');
+  await afiq.locator(tid('smash-replay')).click();
+  await afiq.getByText('Stress level: hopefully reduced!').waitFor({ timeout: 15000 });
+  await afiq.locator(tid('smash-dummy')).click(); // bonus bonk
+  await afiq.waitForTimeout(800);
+  await afiq.locator(tid('smash-mute')).click();
+  assert.equal(await afiq.locator(tid('smash-mute')).getAttribute('aria-label'), 'Sound off. Tap to turn on');
+  // Desktop size.
+  await afiq.setViewportSize({ width: 1280, height: 800 });
+  await afiq.locator(tid('smash-replay')).click();
+  await afiq.waitForTimeout(560);
+  await afiq.screenshot({ path: path.join(OUT, '07i-smash-desktop-bonk.png') });
+  await afiq.getByText('Deep breath. You’ve got this! ❤️').waitFor({ timeout: 15000 });
+  await shot(afiq, '07j-smash-desktop-done');
+  await afiq.setViewportSize(small.viewport);
+  // Someone else clears the name.
+  await afiq.locator(tid('smash-someone-else')).click();
+  assert.equal(await afiq.locator(tid('smash-name')).inputValue(), '');
+  assert.equal((await afiq.locator(tid('smash-target')).innerText()).trim(), 'Mr. Stress');
+  // Reduce motion: a still version that still finishes.
+  await afiq.emulateMedia({ reducedMotion: 'reduce' });
+  await afiq.goto(BASE + '/stress-smash');
+  await afiq.locator(tid('smash-name')).fill('Boss Ahmad');
+  await afiq.locator(tid('smash-go')).click();
+  await afiq.waitForTimeout(400);
+  await afiq.screenshot({ path: path.join(OUT, '07k-smash-reduced-motion.png') });
+  await afiq.locator(tid('smash-cheer')).waitFor({ timeout: 15000 });
+  await afiq.emulateMedia({ reducedMotion: 'no-preference' });
+  // Back goes to Together even when the page was opened directly.
+  await afiq.locator(tid('smash-back')).click();
+  await afiq.locator(tid('open-stress-smash')).waitFor({ timeout: 15000 });
+  const stored = await afiq.evaluate(() => JSON.stringify({ ...localStorage }) + JSON.stringify({ ...sessionStorage }));
+  assert.ok(!stored.includes('Boss Ahmad'), 'the name is not stored');
+  afiq.off('request', watchLeak);
+  assert.deepEqual(leaks, [], 'the name is never sent anywhere');
+  log('Stress Smash: bonks, replays, bonus bonk, mute, desktop, reduced motion; the name never leaves the page');
+
+  // 4b4. Trip itinerary: both add and change plans for each day, live.
+  await afiq.goto(BASE + '/trip-new');
+  await afiq.locator(tid('trip-title')).fill('Penang getaway');
+  await afiq.locator(tid('save-trip')).click();
+  await afiq.getByText('Itinerary', { exact: true }).click();
+  const addFirst = afiq.locator('[data-testid^="add-stop-"]').first();
+  await addFirst.waitFor({ timeout: 15000 });
+  await shot(afiq, '07l-itinerary-empty');
+  await addFirst.click();
+  await afiq.locator(tid('stop-title')).fill('Breakfast at Toh Soon Cafe');
+  await afiq.locator(tid('stop-time')).fill('25:00');
+  assert.match(await afiq.locator(tid('stop-time-hint')).innerText(), /Try something like/);
+  await afiq.locator(tid('stop-time')).fill('9.30am');
+  assert.match(await afiq.locator(tid('stop-time-hint')).innerText(), /9:30/);
+  await afiq.locator(tid('stop-place')).fill('Toh Soon Cafe, George Town');
+  await afiq.locator(tid('stop-note')).fill('Get the kaya toast');
+  await shot(afiq, '07m-itinerary-add');
+  await afiq.locator(tid('stop-save')).click();
+  await afiq.locator(tid('stop-Breakfast at Toh Soon Cafe')).waitFor({ timeout: 10000 });
+  await addFirst.click();
+  await afiq.locator(tid('stop-title')).fill('Street art walk');
+  await afiq.locator(tid('stop-time')).fill('8');
+  await afiq.locator(tid('stop-save')).click();
+  await afiq.locator(tid('stop-Street art walk')).waitFor({ timeout: 10000 });
+  const yWalk = (await afiq.locator(tid('stop-Street art walk')).boundingBox()).y;
+  const yBreakfast = (await afiq.locator(tid('stop-Breakfast at Toh Soon Cafe')).boundingBox()).y;
+  assert.ok(yWalk < yBreakfast, '8:00 comes before 9:30');
+  await shot(afiq, '07n-itinerary-day');
+  // Aina sees it, and moves breakfast to 10am; Afiq sees the change.
+  const tripUrl = afiq.url();
+  // Opening a trip straight from its link (or refreshing on it) works.
+  await aina.goto(tripUrl);
+  await aina.getByText('Itinerary', { exact: true }).click();
+  await aina.locator(tid('stop-Breakfast at Toh Soon Cafe')).click();
+  await aina.locator(tid('stop-time')).fill('10am');
+  await aina.locator(tid('stop-save')).click();
+  await afiq.getByText('10:00', { exact: false }).first().waitFor({ timeout: 10000 });
+  await aina.getByText(/Added by/).first().waitFor();
+  // Afiq removes the walk.
+  await afiq.locator(tid('stop-Street art walk')).click();
+  await afiq.locator(tid('stop-remove')).click();
+  await afiq.locator(tid('stop-Street art walk')).waitFor({ state: 'detached', timeout: 10000 });
+  await shot(aina, '07o-itinerary-partner');
+  log('Itinerary: add with friendly times, sorted by time, partner edits live, remove');
+
+  // 4b5. Track a flight from the trip: saved for both, live map, route and landing guess.
+  await afiq.locator(tid('flight-input')).fill('mh 2520');
+  await afiq.locator(tid('flight-label')).fill('Aina to Penang');
+  await afiq.locator(tid('flight-track')).click();
+  await afiq.locator(tid('flight-status')).filter({ hasText: 'Cruising' }).waitFor({ timeout: 15000 });
+  assert.equal((await afiq.locator(tid('flight-no')).innerText()).trim(), 'MH 2520');
+  await afiq.locator(tid('flight-route')).waitFor();
+  assert.match(await afiq.locator(tid('flight-eta')).innerText(), /km to go · lands in about \d+ min/);
+  await afiq.locator(tid('flight-map')).waitFor();
+  await afiq.getByText('30,000 ft').waitFor();
+  await afiq.waitForTimeout(1500);
+  await shot(afiq, '07p-flight-live', true);
+  // Aina finds the saved flight on the trip and opens it too.
+  await aina.locator(tid('flight-row-MH2520')).waitFor({ timeout: 10000 });
+  await aina.getByText('Aina to Penang').waitFor();
+  await shot(aina, '07q-flight-saved');
+  await aina.locator(tid('flight-row-MH2520')).click();
+  await aina.locator(tid('flight-status')).filter({ hasText: 'Cruising' }).waitFor({ timeout: 15000 });
+  // A flight that isn't in the air says so kindly, and still offers Flightradar24.
+  await afiq.goto(BASE + '/flight?no=AK%206124');
+  await afiq.locator(tid('flight-missing')).waitFor({ timeout: 15000 });
+  await afiq.locator(tid('flight-fr24')).waitFor();
+  await shot(afiq, '07r-flight-not-flying');
+  // A quick one-off look from the Trips tab.
+  await afiq.goto(BASE + '/trip');
+  await afiq.locator(tid('flight-input')).fill('MH2520');
+  await afiq.locator(tid('flight-track')).click();
+  await afiq.locator(tid('flight-status')).filter({ hasText: 'Cruising' }).waitFor({ timeout: 15000 });
+  log('Flights: saved on the trip for both, live map with route and landing guess, kind when not flying');
+
   // 4c. Installable: manifest, icons and the service worker are served.
   const manifest = await (await fetch(BASE + '/manifest.json')).json();
   assert.equal(manifest.name, 'KiTA');
@@ -265,7 +537,7 @@ async function main() {
   // The choice follows Afiq to another phone.
   const afiq2 = await mk('afiq-2nd-phone');
   await afiq2.goto(BASE);
-  await afiq2.locator(tid('email')).waitFor();
+  await pastWelcome(afiq2, 'returning');
   await afiq2.getByText('I have an account').click();
   await afiq2.locator(tid('email')).fill(`afiqhakimi-${run}@example.com`);
   await afiq2.locator(tid('password')).fill('gentle-pass');

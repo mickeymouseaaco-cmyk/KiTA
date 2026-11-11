@@ -1,28 +1,32 @@
 import { router } from 'expo-router';
-import { CalendarHeart, ChevronRight, CloudSun, Droplets, MapPin, MessageCircleHeart, Eye, Footprints, Heart, Lock, Mail, Moon, Pencil, Smile, Smartphone, Wind, type LucideIcon } from 'lucide-react-native';
-import { useEffect, useMemo } from 'react';
+import { CalendarHeart, ChevronRight, MapPin, UtensilsCrossed, MessageCircleHeart, Eye, Footprints, Heart, Lock, Mail, Moon, Pencil, Smile, Smartphone, Wind, type LucideIcon } from 'lucide-react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { CoupleArt } from '@/components/art';
 import { ProgressRing, WeekBars } from '@/components/charts';
 import { useFeedback } from '@/components/feedback';
 import { InstallBanner } from '@/components/install-banner';
-import { FoodCardBody } from '@/components/food-card';
+import { FoodCardBody, MealSheet, mealNow } from '@/components/food-card';
+import { LiveSky } from '@/components/live-sky';
+import { VividAction, type BurstHandle } from '@/components/vivid';
 import { StoredPrivateImage, StoredPrivateVoice } from '@/components/media-view';
 import { TodoRow } from '@/components/todo-row';
 import { DaySwitch, TopBar } from '@/components/headers';
-import { Button, Card, Gap, Row, Screen, SectionTitle, T, focusRing } from '@/components/ui';
+import { Button, Card, Gap, Row, Screen, SectionTitle, T } from '@/components/ui';
 import { STRESS_LABELS, empty, gentleError, greeting, streakLine, summaryLine } from '@/lib/copy';
 import { dayKey, lastNDays, timeOfDay } from '@/lib/dates';
 import { PHASE_LABEL, cycleToday, predictionLine } from '@/lib/cycle';
-import { changeWater, syncCycleDay, useCycleSettings, useMyDays, usePartnerDays, useShareSettings } from '@/lib/logs';
+import { syncCycleDay, useCycleSettings, useMyDays, usePartnerDays, useShareSettings } from '@/lib/logs';
 import { haptic } from '@/lib/haptics';
 import { questionFor, questionStatus, useAnswer, useQuestionDay } from '@/lib/questions';
 import { sendHug } from '@/lib/messages';
 import { usePaired } from '@/lib/session';
 import { todayList, useTodos } from '@/lib/todos';
-import { AREAS, LEVEL_LABEL, rainRisk, useFloodWatch, worst } from '@/lib/flood';
-import { radius, space, useTheme } from '@/theme';
+import { AREAS, LEVEL_LABEL, skyKind, useFloodWatch, weatherWords } from '@/lib/flood';
+import { placeLabel, temp, todFor, usePlaceWeather, useUnits, useWeatherPlace } from '@/lib/places';
+import { hourInMalaysia, timeOfDay as skyTime } from '@/lib/sky-pure';
+import { radius, space, useTheme, vivid } from '@/theme';
 
 /** Consecutive days (ending today or yesterday) with any check-in. Celebration only. */
 function streak(days: Record<string, unknown>, keys: string[]): number {
@@ -52,45 +56,6 @@ function ShareNote({ shared, partnerName }: { shared: boolean; partnerName: stri
           {shared ? `Shared with ${partnerName}` : 'Just for you'}
         </T>
       </Row>
-    </Pressable>
-  );
-}
-
-/** One of the big round shortcuts at the top of Home. */
-function QuickAction({ icon: Icon, label, onPress, testID, tone }: { icon: LucideIcon; label: string; onPress: () => void; testID: string; tone: 'peach' | 'sage' | 'sky' | 'butter' | 'rose' }) {
-  const { c, look } = useTheme();
-  const bg = { peach: c.peach, sage: c.sage, sky: c.sky, butter: c.butter, rose: c.heartSoft }[tone];
-  const fg = { peach: c.onPeach, sage: c.onSage, sky: c.onSky, butter: c.onButter, rose: c.heart }[tone];
-  return (
-    <Pressable
-      testID={testID}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={() => {
-        haptic.tap();
-        onPress();
-      }}
-      hitSlop={4}
-      style={({ pressed, focused }: { pressed: boolean; focused?: boolean }) => [
-        { flex: 1, alignItems: 'center', gap: 6, opacity: pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.95 : 1 }], borderRadius: radius.md },
-        focusRing(focused, c.primary),
-      ]}>
-      <View
-        style={{
-          width: 56,
-          height: 56,
-          borderRadius: look.name === 'professional' ? 14 : 28,
-          backgroundColor: bg,
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderWidth: look.outlined ? 2 : 0,
-          borderColor: c.text,
-        }}>
-        <Icon color={fg} size={24} strokeWidth={2.1} />
-      </View>
-      <T variant="small" numberOfLines={1} style={{ fontFamily: 'Raleway_600SemiBold' }}>
-        {label}
-      </T>
     </Pressable>
   );
 }
@@ -138,9 +103,20 @@ export default function Today() {
   const { todos, ready: todosReady } = useTodos(cid);
   const myToday = todayList(todos, uid, today);
   const flood = useFloodWatch();
-  const floodLevel = worst(AREAS.map((a) => flood.status[a.id]?.level ?? 'calm'));
-  const floodArea = AREAS.find((a) => flood.status[a.id]?.level === floodLevel) ?? AREAS[0];
-  const todayRain = flood.data?.forecast[floodArea.id]?.[0];
+  const [mealOpen, setMealOpen] = useState(false);
+  const mealTile = useRef<BurstHandle>(null);
+  const hugTile = useRef<BurstHandle>(null);
+  // The sky card follows the place each person chose (anywhere in the world);
+  // the flood label shows only for the Malaysian flood-watch areas.
+  const [place] = useWeatherPlace();
+  const [units] = useUnits();
+  const anywhere = usePlaceWeather(place);
+  const floodArea = place?.kind === 'area' ? AREAS.find((a) => a.id === place.id)! : null;
+  const floodLevel = floodArea ? (flood.status[floodArea.id]?.level ?? 'calm') : 'calm';
+  const todayRain = floodArea ? flood.data?.forecast[floodArea.id]?.[0] : anywhere.data?.days[0];
+  const skyNow = floodArea ? (flood.data?.now?.[floodArea.id] ?? null) : (anywhere.data?.now ?? null);
+  const skyTod = todFor(skyNow, floodArea ? skyTime(hourInMalaysia()) : 'day');
+  const skyPlace = place ? placeLabel(place, (id) => AREAS.find((a) => a.id === id)!.name) : 'Your weather';
   const partner = usePartnerDays(cid, partnerId, today).days[today];
   const evening = new Date().getHours() >= 18;
   const question = questionFor(today, cid);
@@ -194,36 +170,30 @@ export default function Today() {
       <Gap h={space.lg} />
 
       {/* The things you do most, one tap away. */}
-      <Row gap={space.xs} style={{ alignItems: 'flex-start' }}>
-        <QuickAction testID="qa-steps" icon={Footprints} label="Steps" tone="sage" onPress={() => router.push('/log-steps')} />
-        <QuickAction testID="qa-mood" icon={Smile} label="Mood" tone="butter" onPress={() => router.push('/log-mood')} />
-        <QuickAction
-          testID="qa-water"
-          icon={Droplets}
-          label="Water"
-          tone="sky"
-          onPress={() =>
-            changeWater({ uid, cid }, day?.food?.water ?? 0, 1)
-              .then(() => toast(`Glass ${(day?.food?.water ?? 0) + 1} today. Lovely.`))
-              .catch(() => toast(gentleError.save))
-          }
-        />
-        <QuickAction testID="qa-note" icon={Mail} label="Note" tone="peach" onPress={() => router.push('/notes')} />
-        <QuickAction
+      <Row gap={space.xs} style={{ alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <VividAction testID="qa-steps" icon={Footprints} label="Steps" color="green" style={{ flex: 1 }} onPress={() => router.push('/log-steps')} />
+        <VividAction testID="qa-mood" icon={Smile} label="Mood" color="amber" style={{ flex: 1 }} onPress={() => router.push('/log-mood')} />
+        <VividAction ref={mealTile} testID="qa-meal" icon={UtensilsCrossed} label="Meal" color="orange" style={{ flex: 1 }} onPress={() => setMealOpen(true)} />
+        <VividAction testID="qa-note" icon={Mail} label="Note" color="blue" style={{ flex: 1 }} onPress={() => router.push('/notes')} />
+        <VividAction
+          ref={hugTile}
           testID="qa-hug"
           icon={Heart}
           label="Hug"
-          tone="rose"
+          color="pink"
+          style={{ flex: 1 }}
           onPress={() =>
             sendHug(who)
               .then(() => {
                 haptic.success();
+                hugTile.current?.burst();
                 toast(`Hug sent to ${partnerName}.`);
               })
               .catch(() => toast(gentleError.send))
           }
         />
       </Row>
+      <MealSheet ctx={{ uid, cid }} visible={mealOpen} start={mealNow()} onClose={() => setMealOpen(false)} onSaved={() => mealTile.current?.burst()} />
       <Gap h={space.lg} />
 
       {/* Question of the day: answer to see your partner's. */}
@@ -256,9 +226,9 @@ export default function Today() {
       <Card>
         <SectionTitle right={<ShareNote shared={!!share?.steps} partnerName={partnerName} />}>Steps</SectionTitle>
         <Row gap={space.lg} style={{ alignItems: 'center' }}>
-          <ProgressRing value={day?.steps ?? 0} goal={goal} size={112} stroke={12} />
+          <ProgressRing value={day?.steps ?? 0} goal={goal} size={112} stroke={12} color={vivid.green[1]} />
           <View style={{ flex: 1 }}>
-            <WeekBars days={week} values={week.map((k) => days[k]?.steps)} goal={goal} height={72} />
+            <WeekBars days={week} values={week.map((k) => days[k]?.steps)} goal={goal} height={72} color={vivid.green[1]} />
           </View>
         </Row>
         <Gap h={space.sm} />
@@ -336,19 +306,41 @@ export default function Today() {
       <LinkCard testID="open-find" icon={MapPin} title={`Find ${partnerName}`} detail="See where you both are, if you each choose to share." onPress={() => router.push('/find')} />
       <Gap />
 
-      <LinkCard
+      {/* A window onto the sky near home, live. */}
+      <Pressable
         testID="open-weather"
-        icon={CloudSun}
-        tone={floodLevel === 'warning' ? 'peach' : floodLevel === 'watch' ? 'butter' : 'sky'}
-        color={floodLevel === 'warning' ? c.onPeach : floodLevel === 'watch' ? c.onButter : c.onSky}
-        title={`Weather & floods · ${LEVEL_LABEL[floodLevel]}`}
-        detail={
-          todayRain && floodLevel === 'calm'
-            ? `${floodArea.name} today: ${todayRain.minC}–${todayRain.maxC}°, ${['dry', 'some rain', 'heavy showers', 'very heavy rain'][rainRisk(todayRain)]}`
-            : (flood.status[floodArea.id]?.headline ?? (flood.loading ? 'Checking the sky near home…' : 'Tap for the weather near home.'))
-        }
+        accessibilityRole="button"
+        accessibilityLabel={place ? `Weather in ${skyPlace}: ${skyNow ? `${temp(skyNow.tempC, units)}, ${weatherWords(skyNow.code)}` : todayRain ? weatherWords(todayRain.code) : 'checking'}.${floodArea ? ` Flood watch: ${LEVEL_LABEL[floodLevel]}.` : ''} Open the weather` : 'Choose a place for your weather'}
         onPress={() => router.push('/weather')}
-      />
+        style={({ pressed }) => ({ transform: [{ scale: pressed && look.flat ? 0.985 : 1 }] })}>
+        <LiveSky kind={skyNow ? skyKind(skyNow.code) : todayRain ? skyKind(todayRain.code) : 'partly'} tod={skyTod} height={124} radius={look.cardRadius}>
+          <View style={{ flex: 1, paddingHorizontal: space.lg, paddingVertical: space.md, justifyContent: 'space-between' }}>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <T variant="label" color="#FFFFFF" numberOfLines={1} style={{ flex: 1, opacity: 0.92, letterSpacing: 0.8 }}>
+                {skyPlace.toUpperCase()}
+              </T>
+              {floodArea ? (
+              <Row gap={2} style={{ backgroundColor: floodLevel === 'calm' ? 'rgba(255,255,255,0.22)' : floodLevel === 'watch' ? '#FFCE52' : '#FF6136', borderRadius: 999, paddingLeft: 10, paddingRight: 6, paddingVertical: 3 }}>
+                <T variant="small" color={floodLevel === 'watch' ? '#3A2A00' : '#FFFFFF'} style={{ fontFamily: 'Raleway_700Bold', fontSize: 12, lineHeight: 16 }}>
+                  {floodLevel === 'calm' ? 'No floods' : floodLevel === 'watch' ? 'Flood watch' : 'Flood warning'}
+                </T>
+                <ChevronRight color={floodLevel === 'watch' ? '#3A2A00' : '#FFFFFF'} size={14} />
+              </Row>
+              ) : (
+                <ChevronRight color="#FFFFFF" size={18} />
+              )}
+            </Row>
+            <Row gap={space.sm} style={{ alignItems: 'baseline' }}>
+              <T color="#FFFFFF" style={{ fontSize: 44, lineHeight: 50, fontWeight: '300', letterSpacing: -1.5 }}>
+                {skyNow ? temp(skyNow.tempC, units) : todayRain ? temp(todayRain.maxC, units) : place === null ? '' : '–'}
+              </T>
+              <T variant="bodyStrong" color="#FFFFFF" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {skyNow ? weatherWords(skyNow.code) : todayRain ? weatherWords(todayRain.code) : place === null ? 'Tap to choose your place' : 'Checking…'}
+              </T>
+            </Row>
+          </View>
+        </LiveSky>
+      </Pressable>
       <Gap />
 
       <Card>
@@ -370,7 +362,7 @@ export default function Today() {
       <Gap />
 
       <Card>
-        <SectionTitle right={<ShareNote shared={!!share?.food} partnerName={partnerName} />}>Food &amp; water</SectionTitle>
+        <SectionTitle right={<ShareNote shared={!!share?.food} partnerName={partnerName} />}>Meals</SectionTitle>
         <FoodCardBody ctx={{ uid, cid }} food={day?.food} />
       </Card>
       <Gap />

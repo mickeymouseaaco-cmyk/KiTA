@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { CalendarDays, ChevronRight, MapPin, Plane, Plus } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
 
+import { FlightsCard } from '@/components/flights-card';
 import { Button, Card, EmptyState, Gap, Row, Screen, SectionTitle, T } from '@/components/ui';
 import { WorldMap } from '@/components/world-map';
 import { empty } from '@/lib/copy';
@@ -92,6 +93,8 @@ export default function Trip() {
         </>
       ) : null}
 
+      <Gap />
+      <FlightsCard />
       <Gap />
       <Pressable testID="open-bucket" accessibilityRole="button" onPress={() => router.push('/bucket-list')}>
         <Card>

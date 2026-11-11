@@ -19,7 +19,8 @@ import {
 } from '@/theme';
 
 const LOOK_LINE: Record<LookName, string> = {
-  soft: 'Rounded and calm. The original KiTA.',
+  minimal: 'Flat, quiet and content first. The new KiTA.',
+  soft: 'Rounded and calm, with warm colours.',
   professional: 'Clean lines, plain type, no frills.',
   playful: 'Bold outlines and cartoon fun.',
 };
@@ -40,7 +41,7 @@ function Swatch({ name, selected, onPress }: { name: ColorName; selected: boolea
       accessibilityLabel={`${accents[name].label} colours`}
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={{ alignItems: 'center', gap: space.xs, width: '33.33%', paddingVertical: space.xs }}>
+      style={{ alignItems: 'center', gap: space.xs, width: '25%', paddingVertical: space.xs }}>
       <View
         style={{
           width: 48,

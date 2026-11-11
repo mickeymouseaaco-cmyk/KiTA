@@ -602,6 +602,62 @@ describe('love languages, plant, trips', () => {
     await assertSucceeds(updateDoc(doc(db(B), `couples/${CID}/trips/t1`), { [`stress.${B}`]: 4 }));
     await assertFails(updateDoc(doc(db(B), `couples/${CID}/trips/t1`), { [`stress.${A}`]: 1 }));
   });
+
+  test('trips: both build the itinerary together; times and sizes are checked', async () => {
+    await seedCouple();
+    await assertSucceeds(
+      setDoc(doc(db(A), `couples/${CID}/trips/t1`), { title: 'Lisbon', startDate: '2026-12-01', endDate: '2026-12-05', createdBy: A, createdAt: serverTimestamp() }),
+    );
+    const at = (n: string) => `couples/${CID}/trips/t1/stops/${n}`;
+    const stop = { day: '2026-12-01', time: '09:30', title: 'Breakfast at the market', place: 'Time Out Market', note: null, addedBy: A, createdAt: serverTimestamp() };
+    await assertSucceeds(setDoc(doc(db(A), at('s1')), stop));
+    await assertSucceeds(setDoc(doc(db(B), at('s2')), { ...stop, addedBy: B, time: null, place: null }));
+    // Either of you can change or remove any stop.
+    await assertSucceeds(updateDoc(doc(db(B), at('s1')), { time: '10:00', title: 'Brunch instead', updatedAt: serverTimestamp() }));
+    await assertSucceeds(deleteDoc(doc(db(A), at('s2'))));
+    // Checked: real times, a title, sizes, who added it, and only known fields.
+    await assertFails(setDoc(doc(db(A), at('s3')), { ...stop, time: '25:00' }));
+    await assertFails(setDoc(doc(db(A), at('s4')), { ...stop, title: '' }));
+    await assertFails(setDoc(doc(db(A), at('s5')), { ...stop, note: 'x'.repeat(501) }));
+    await assertFails(setDoc(doc(db(A), at('s6')), { ...stop, day: 'tomorrow' }));
+    await assertFails(setDoc(doc(db(B), at('s7')), stop));
+    await assertFails(setDoc(doc(db(A), at('s8')), { ...stop, cost: 50 }));
+    await assertFails(updateDoc(doc(db(B), at('s1')), { addedBy: B, updatedAt: serverTimestamp() }));
+    // Outsiders can't see or touch it.
+    await assertFails(getDoc(doc(db(EVE), at('s1'))));
+    await assertFails(setDoc(doc(db(EVE), at('s9')), { ...stop, addedBy: EVE }));
+  });
+
+  test('trips: either of you can save a flight to follow; outsiders cannot', async () => {
+    await seedCouple();
+    await assertSucceeds(
+      setDoc(doc(db(A), `couples/${CID}/trips/t1`), { title: 'Penang', startDate: '2026-12-01', endDate: '2026-12-05', createdBy: A, createdAt: serverTimestamp() }),
+    );
+    const at = (n: string) => `couples/${CID}/trips/t1/flights/${n}`;
+    const flight = { flight: 'MH2520', label: 'Aina to Penang', addedBy: A, createdAt: serverTimestamp() };
+    await assertSucceeds(setDoc(doc(db(A), at('f1')), flight));
+    await assertSucceeds(getDoc(doc(db(B), at('f1'))));
+    await assertFails(setDoc(doc(db(A), at('f2')), { ...flight, flight: 'not a flight!' }));
+    await assertFails(setDoc(doc(db(A), at('f3')), { ...flight, label: 'x'.repeat(61) }));
+    await assertFails(setDoc(doc(db(B), at('f4')), flight));
+    await assertFails(getDoc(doc(db(EVE), at('f1'))));
+    await assertSucceeds(deleteDoc(doc(db(B), at('f1'))));
+  });
+});
+
+describe('error reports', () => {
+  test('signed-in apps can send a short report; nobody can read or change them from the app', async () => {
+    await seedCouple();
+    const report = { kind: 'error', message: 'TypeError: x is undefined', stack: 'at Home (index.js:1:2)', route: '/weather', platform: 'web', agent: 'Mozilla/5.0', version: '1.0.0', at: serverTimestamp() };
+    await assertSucceeds(setDoc(doc(db(A), 'errorReports/r1'), report));
+    await assertFails(getDoc(doc(db(A), 'errorReports/r1')));
+    await assertFails(updateDoc(doc(db(A), 'errorReports/r1'), { message: 'changed' }));
+    await assertFails(deleteDoc(doc(db(A), 'errorReports/r1')));
+    await assertFails(setDoc(doc(env.unauthenticatedContext().firestore(), 'errorReports/r2'), report));
+    await assertFails(setDoc(doc(db(A), 'errorReports/r3'), { ...report, notes: 'my private note' }));
+    await assertFails(setDoc(doc(db(A), 'errorReports/r4'), { ...report, message: 'x'.repeat(301) }));
+    await assertFails(setDoc(doc(db(A), 'errorReports/r5'), { ...report, kind: 'other' }));
+  });
 });
 
 describe('starred notes, shared to-dos and the weekend planner', () => {

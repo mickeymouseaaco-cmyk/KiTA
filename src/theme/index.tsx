@@ -7,7 +7,6 @@ import {
   cleanAppearance,
   colorsFor,
   looks,
-  palette,
   type Appearance,
   type Colors,
   type Look,
@@ -33,8 +32,8 @@ const STORAGE_KEY = 'together.appearance';
 
 const ThemeContext = createContext<Theme>({
   dark: false,
-  c: palette.light,
-  look: looks.soft,
+  c: colorsFor(DEFAULT_APPEARANCE.color, false),
+  look: looks[DEFAULT_APPEARANCE.look],
   motion: 'gentle',
   textScale: 1,
   appearance: DEFAULT_APPEARANCE,

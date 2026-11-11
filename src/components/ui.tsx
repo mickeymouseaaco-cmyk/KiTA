@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  Easing,
   Platform,
   Pressable,
   ScrollView,
@@ -22,7 +23,7 @@ import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { haptic } from '@/lib/haptics';
 
 import { Blob, PageWash } from './art';
-import { radius, space, touch, type as typeScale, useTheme } from '@/theme';
+import { radius, space, systemFont, touch, type as typeScale, useTheme } from '@/theme';
 
 // ------------------------------------------------------------------ text
 
@@ -39,6 +40,8 @@ export function T({
   const { c, look, textScale } = useTheme();
   const heading = variant === 'display' || variant === 'title' || variant === 'heading';
   const base = typeScale[variant];
+  // Minimal look: the phone's own typeface, whatever font name a screen asked for.
+  const asked = look.systemFont ? (StyleSheet.flatten(style as StyleProp<TextStyle>)?.fontFamily ?? (heading ? look.headingFont : base.fontFamily)) : undefined;
   return (
     <Text
       maxFontSizeMultiplier={1.6}
@@ -47,10 +50,11 @@ export function T({
         base,
         textScale !== 1 && { fontSize: Math.round(base.fontSize * textScale), lineHeight: Math.round(base.lineHeight * textScale) },
         heading && { fontFamily: look.headingFont },
-        heading && look.name === 'professional' && { letterSpacing: -0.2 },
+        heading && (look.name === 'professional' || look.flat) && { letterSpacing: variant === 'display' ? -0.6 : -0.3 },
         { color: color ?? (muted ? c.textMuted : c.text) },
         center && { textAlign: 'center' },
         style as StyleProp<TextStyle>,
+        systemFont(asked),
       ]}
     />
   );
@@ -71,14 +75,15 @@ export function Screen({
   contentStyle?: StyleProp<ViewStyle>;
   footer?: ReactNode;
 }) {
-  const { c } = useTheme();
+  const { c, look } = useTheme();
   const inner = [styles.screenContent, contentStyle];
   return (
     <SafeAreaView edges={edges} style={{ flex: 1, backgroundColor: c.bg }}>
-      <PageWash />
+      {/* Modern look: the ambient light belongs to top-level pages; pages under a title bar stay plain. */}
+      {look.flat && !edges.includes('top') ? null : <PageWash />}
       {scroll ? (
         <ScrollView contentContainerStyle={inner} keyboardShouldPersistTaps="handled">
-          <View style={styles.maxWidth}>{children}</View>
+          <PageEnter style={styles.maxWidth}>{children}</PageEnter>
         </ScrollView>
       ) : (
         <View style={[{ flex: 1 }, inner]}>
@@ -116,7 +121,13 @@ export function Card({
         appear,
         styles.card,
         { backgroundColor: bg, borderColor: c.border, borderRadius: look.cardRadius },
-        look.outlined
+        look.flat
+          ? {
+              borderWidth: 1,
+              borderColor: dark ? 'rgba(255, 255, 255, 0.09)' : 'rgba(12, 14, 28, 0.07)',
+              boxShadow: dark ? 'inset 0px 1px 0px rgba(255, 255, 255, 0.05)' : '0px 1px 2px rgba(16, 18, 30, 0.04), 0px 10px 28px rgba(16, 18, 30, 0.06)',
+            }
+          : look.outlined
           ? { borderWidth: look.cardBorder, borderColor: c.text, boxShadow: `4px 4px 0px ${c.primary}` }
           : look.softShadow && !dark
             ? styles.cardShadow
@@ -128,13 +139,55 @@ export function Card({
   );
 }
 
+/** Modern look: each page fades and rises a touch as it opens (still when animations are off). */
+function PageEnter({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+  const { look, motion } = useTheme();
+  const on = look.flat && motion !== 'off';
+  const [v] = useState(() => new Animated.Value(on ? 0 : 1));
+  useEffect(() => {
+    if (!on) return;
+    Animated.timing(v, { toValue: 1, duration: 280, easing: Easing.bezier(0.23, 1, 0.32, 1), useNativeDriver: Platform.OS !== 'web' }).start();
+  }, [on, v]);
+  return <Animated.View style={[style, { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }]}>{children}</Animated.View>;
+}
+
+/** A quiet placeholder with a slow shimmer, in the shape of what's loading. */
+export function Skeleton({ height = 16, width = '100%', radius: r = 10, style }: { height?: number; width?: number | `${number}%`; radius?: number; style?: StyleProp<ViewStyle> }) {
+  const { c, motion } = useTheme();
+  const [v] = useState(() => new Animated.Value(0.55));
+  useEffect(() => {
+    if (motion === 'off') return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(v, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(v, { toValue: 0.55, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [motion, v]);
+  return <Animated.View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[{ height, width, borderRadius: r, backgroundColor: c.surfaceAlt, opacity: v }, style]} />;
+}
+
+/** A page-shaped skeleton: a header line and a few cards. */
+export function SkeletonPage() {
+  return (
+    <View accessibilityLabel="Loading" style={{ gap: space.lg, padding: space.lg, width: '100%', maxWidth: 560, alignSelf: 'center' }}>
+      <Skeleton height={26} width="55%" />
+      <Skeleton height={120} radius={20} />
+      <Skeleton height={84} radius={20} />
+      <Skeleton height={84} radius={20} />
+    </View>
+  );
+}
+
 /** Content settles in softly when it appears (skipped when animations are off). */
 export function useAppear() {
   const { motion } = useTheme();
   const [v] = useState(() => new Animated.Value(motion === 'off' ? 1 : 0));
   useEffect(() => {
     if (motion === 'off') return;
-    Animated.timing(v, { toValue: 1, duration: motion === 'lively' ? 320 : 260, useNativeDriver: Platform.OS !== 'web' }).start();
+    Animated.timing(v, { toValue: 1, duration: motion === 'lively' ? 320 : 260, easing: Easing.bezier(0.23, 1, 0.32, 1), useNativeDriver: Platform.OS !== 'web' }).start();
   }, [motion, v]);
   return {
     opacity: v,
@@ -207,8 +260,10 @@ export function Button({
         haptic.tap();
         onPress?.();
       }}
-      style={({ pressed, focused }: { pressed: boolean; focused?: boolean }) => [
+      style={({ pressed, focused, hovered }: { pressed: boolean; focused?: boolean; hovered?: boolean }) => [
         styles.button,
+        look.flat && Platform.OS === 'web' && ({ transitionProperty: 'transform, opacity, box-shadow', transitionDuration: '140ms', transitionTimingFunction: 'cubic-bezier(0.23, 1, 0.32, 1)' } as object),
+        look.flat && kind === 'primary' && !off && { boxShadow: hovered && !pressed ? '0px 6px 18px rgba(16, 18, 30, 0.22)' : '0px 2px 8px rgba(16, 18, 30, 0.16)' },
         {
           backgroundColor: bg,
           borderRadius: look.controlRadius,
@@ -219,7 +274,7 @@ export function Button({
         focusRing(focused, c.primary),
         kind === 'ghost' && { borderWidth: 1.5, borderColor: look.outlined ? c.text : c.border },
         pop && { borderWidth: 2, borderColor: c.text, boxShadow: pressed ? `1px 1px 0px ${c.text}` : `3px 3px 0px ${c.text}` },
-        pressed && motion !== 'off' && { transform: pop ? [{ translateX: 2 }, { translateY: 2 }] : [{ scale: motion === 'lively' ? 0.95 : 0.98 }] },
+        pressed && motion !== 'off' && { transform: pop ? [{ translateX: 2 }, { translateY: 2 }] : [{ scale: motion === 'lively' ? 0.95 : look.flat ? 0.97 : 0.98 }] },
         style,
       ]}>
       {loading ? (
@@ -266,8 +321,9 @@ export function IconButton({
   active?: boolean;
   testID?: string;
 } & Omit<PressableProps, 'onPress' | 'style' | 'children'>) {
-  const { c } = useTheme();
-  const bg = { quiet: c.surfaceAlt, primary: c.primary, heart: c.heartSoft, plain: 'transparent' }[tone];
+  const { c, look } = useTheme();
+  // Minimal look: bare icons, like a navigation bar; a soft disc only when switched on.
+  const bg = look.flat && tone === 'quiet' ? (active ? c.surfaceAlt : 'transparent') : { quiet: c.surfaceAlt, primary: c.primary, heart: c.heartSoft, plain: 'transparent' }[tone];
   const fg = { quiet: c.text, primary: c.onPrimary, heart: c.heart, plain: c.textMuted }[tone];
   return (
     <Pressable
@@ -280,13 +336,15 @@ export function IconButton({
         haptic.tap();
         onPress?.();
       }}
-      style={({ pressed, focused }: { pressed: boolean; focused?: boolean }) => [
-        { alignItems: 'center', gap: 4, opacity: pressed ? 0.75 : 1, borderRadius: size },
+      style={({ pressed, focused, hovered }: { pressed: boolean; focused?: boolean; hovered?: boolean }) => [
+        { alignItems: 'center', gap: 4, opacity: pressed ? 0.6 : 1, borderRadius: size },
+        look.flat && hovered && !pressed && { backgroundColor: c.surfaceAlt },
+        look.flat && Platform.OS === 'web' && ({ transitionProperty: 'opacity, background-color', transitionDuration: '140ms' } as object),
         focusRing(focused, c.primary),
       ]}
       {...rest}>
       <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
-        <Icon color={fg} size={Math.round(size * 0.44)} strokeWidth={2.2} fill={active && tone === 'heart' ? c.heart : 'transparent'} />
+        <Icon color={fg} size={Math.round(size * (look.flat ? 0.5 : 0.44))} strokeWidth={look.flat ? 1.9 : 2.2} fill={active && tone === 'heart' ? c.heart : 'transparent'} />
       </View>
       {showLabel ? (
         <T variant="small" muted>
@@ -397,12 +455,18 @@ export function EmptyState({
   line: string;
   action?: ReactNode;
 }) {
-  const { c } = useTheme();
+  const { c, look } = useTheme();
   return (
     <View style={styles.empty}>
-      <Blob size={104}>
-        <Icon color={c.primary} size={36} strokeWidth={1.7} />
-      </Blob>
+      {look.flat ? (
+        <View style={{ width: 76, height: 76, borderRadius: 24, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center', boxShadow: '0px 10px 28px rgba(16, 18, 30, 0.07)' }}>
+          <Icon color={c.text} size={30} strokeWidth={1.6} />
+        </View>
+      ) : (
+        <Blob size={104}>
+          <Icon color={c.primary} size={36} strokeWidth={1.7} />
+        </Blob>
+      )}
       <T muted center style={{ maxWidth: 300 }}>
         {line}
       </T>
@@ -425,7 +489,7 @@ export function Segmented<V extends string>({
   return (
     <View
       accessibilityRole="tablist"
-      style={[styles.segment, { backgroundColor: c.surfaceAlt, borderRadius: r }, look.outlined && { borderWidth: 2, borderColor: c.text }]}>
+      style={[styles.segment, { backgroundColor: c.surfaceAlt, borderRadius: r }, look.flat && { padding: 3 }, look.outlined && { borderWidth: 2, borderColor: c.text }]}>
       {options.map((o) => {
         const on = o.value === value;
         return (
@@ -437,8 +501,14 @@ export function Segmented<V extends string>({
               haptic.tap();
               onChange(o.value);
             }}
-            style={[styles.segmentItem, { borderRadius: r >= radius.pill ? r : Math.max(4, r - 3) }, on && { backgroundColor: c.surface }, on && styles.cardShadow]}>
-            <T variant="bodyStrong" color={on ? c.primary : c.textMuted}>
+            style={[
+              styles.segmentItem,
+              { borderRadius: r >= radius.pill ? r : Math.max(4, r - 3) },
+              look.flat && { minHeight: 36 },
+              on && { backgroundColor: look.flat ? c.bg : c.surface },
+              on && (look.flat ? { boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.14)' } : styles.cardShadow),
+            ]}>
+            <T variant={look.flat ? 'small' : 'bodyStrong'} color={on ? c.primary : c.textMuted} style={look.flat ? { fontFamily: 'Raleway_600SemiBold' } : undefined}>
               {o.label}
             </T>
           </Pressable>
@@ -487,13 +557,14 @@ export function useInputStyle(): TextStyle {
   const { c, look, textScale } = useTheme();
   return {
     ...typeScale.body,
+    ...(look.systemFont ? systemFont(typeScale.body.fontFamily) : null),
     fontSize: Math.round(typeScale.body.fontSize * textScale),
     lineHeight: Math.round(typeScale.body.lineHeight * textScale),
     color: c.text,
     backgroundColor: c.surface,
     borderColor: look.outlined ? c.text : c.border,
-    borderWidth: look.outlined ? 2 : 1.5,
-    borderRadius: look.name === 'professional' ? 8 : radius.md,
+    borderWidth: look.outlined ? 2 : look.flat ? 1 : 1.5,
+    borderRadius: look.name === 'professional' ? 8 : look.flat ? look.controlRadius : radius.md,
     paddingHorizontal: space.lg,
     paddingVertical: 14,
     minHeight: touch.comfy,

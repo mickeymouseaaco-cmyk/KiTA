@@ -12,7 +12,7 @@ import { space, useTheme } from '@/theme';
 const ROWS: { key: ShareCategory; title: string; detail: string; soon?: boolean }[] = [
   { key: 'steps', title: 'Steps', detail: 'Your step count and weekly chart.' },
   { key: 'mood', title: 'Mood and stress', detail: 'Your emoji, stress level and note. Private by default.' },
-  { key: 'food', title: 'Food and water', detail: 'What you ate and how many glasses of water. Never amounts or calories.' },
+  { key: 'food', title: 'Meals', detail: 'What you ate. Never amounts or calories.' },
   { key: 'cycle', title: 'Cycle', detail: 'Today\u2019s phase and symptoms, with gentle ideas for them. Never your dates. Private by default.' },
   { key: 'media', title: 'Photos and voice in logs', detail: 'A selfie or voice note on your mood. Shared only while mood sharing is on too. Turning this off deletes the shared copies.' },
 ];
