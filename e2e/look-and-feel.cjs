@@ -168,13 +168,17 @@ async function main() {
   await afiq.locator(tid('save-meal')).click();
   await afiq.getByText('Nasi lemak with extra sambal').waitFor({ timeout: 10000 });
   assert.equal(await afiq.getByText('Water', { exact: true }).count(), 0, 'no water counter');
+  await afiq.waitForTimeout(400);
+  await shot(afiq, '01a1-home-top');
   await afiq.locator(tid('open-weather')).scrollIntoViewIfNeeded();
-  await shot(afiq, '01a2-home-meals-sky', true);
+  await shot(afiq, '01a2-home-meals-sky');
   log('Home: bright shortcuts, Meal sheet instead of water, live sky card');
 
   // 1b. The modern look in dark mode (it follows the phone).
   await afiq.emulateMedia({ colorScheme: 'dark' });
-  await afiq.waitForTimeout(600);
+  await afiq.goto(BASE);
+  await afiq.locator(tid('qa-meal')).waitFor({ timeout: 15000 });
+  await afiq.waitForTimeout(1200);
   await shot(afiq, '01b-home-dark', true);
   await afiq.goto(BASE + '/together');
   await afiq.waitForTimeout(1200);

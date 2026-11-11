@@ -308,27 +308,27 @@ export default function Today() {
         onPress={() => router.push('/weather')}
         style={({ pressed }) => ({ transform: [{ scale: pressed && look.flat ? 0.985 : 1 }] })}>
         <LiveSky kind={skyNow ? skyKind(skyNow.code) : todayRain ? skyKind(todayRain.code) : 'partly'} tod={skyTod} height={124} radius={look.cardRadius}>
-          <Row style={{ flex: 1, paddingHorizontal: space.lg, paddingVertical: space.md, alignItems: 'flex-end', justifyContent: 'space-between' }}>
-            <View>
-              <T variant="label" color="#FFFFFF" style={{ opacity: 0.92, letterSpacing: 0.8 }}>
+          <View style={{ flex: 1, paddingHorizontal: space.lg, paddingVertical: space.md, justifyContent: 'space-between' }}>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <T variant="label" color="#FFFFFF" numberOfLines={1} style={{ flex: 1, opacity: 0.92, letterSpacing: 0.8 }}>
                 {floodArea.name.toUpperCase()}
               </T>
-              <Row gap={space.sm} style={{ alignItems: 'baseline' }}>
-                <T color="#FFFFFF" style={{ fontSize: 40, lineHeight: 46, fontWeight: '300', letterSpacing: -1.5 }}>
-                  {skyNow ? `${skyNow.tempC}°` : todayRain ? `${todayRain.maxC}°` : '–'}
+              <Row gap={2} style={{ backgroundColor: floodLevel === 'calm' ? 'rgba(255,255,255,0.22)' : floodLevel === 'watch' ? '#FFCE52' : '#FF6136', borderRadius: 999, paddingLeft: 10, paddingRight: 6, paddingVertical: 3 }}>
+                <T variant="small" color={floodLevel === 'watch' ? '#3A2A00' : '#FFFFFF'} style={{ fontFamily: 'Raleway_700Bold', fontSize: 12, lineHeight: 16 }}>
+                  {floodLevel === 'calm' ? 'No floods' : floodLevel === 'watch' ? 'Flood watch' : 'Flood warning'}
                 </T>
-                <T variant="bodyStrong" color="#FFFFFF">
-                  {skyNow ? weatherWords(skyNow.code) : todayRain ? weatherWords(todayRain.code) : flood.loading ? 'Checking…' : 'Weather'}
-                </T>
+                <ChevronRight color={floodLevel === 'watch' ? '#3A2A00' : '#FFFFFF'} size={14} />
               </Row>
-            </View>
-            <Row gap={4} style={{ backgroundColor: floodLevel === 'calm' ? 'rgba(255,255,255,0.22)' : floodLevel === 'watch' ? '#FFCE52' : '#FF6136', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 6 }}>
-              <T variant="small" color={floodLevel === 'watch' ? '#3A2A00' : '#FFFFFF'} style={{ fontFamily: 'Raleway_700Bold', fontSize: 12 }}>
-                {floodLevel === 'calm' ? 'Floods: all calm' : `Floods: ${LEVEL_LABEL[floodLevel].toLowerCase()}`}
-              </T>
-              <ChevronRight color={floodLevel === 'watch' ? '#3A2A00' : '#FFFFFF'} size={14} />
             </Row>
-          </Row>
+            <Row gap={space.sm} style={{ alignItems: 'baseline' }}>
+              <T color="#FFFFFF" style={{ fontSize: 44, lineHeight: 50, fontWeight: '300', letterSpacing: -1.5 }}>
+                {skyNow ? `${skyNow.tempC}°` : todayRain ? `${todayRain.maxC}°` : '–'}
+              </T>
+              <T variant="bodyStrong" color="#FFFFFF" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {skyNow ? weatherWords(skyNow.code) : todayRain ? weatherWords(todayRain.code) : flood.loading ? 'Checking…' : 'Weather'}
+              </T>
+            </Row>
+          </View>
         </LiveSky>
       </Pressable>
       <Gap />
