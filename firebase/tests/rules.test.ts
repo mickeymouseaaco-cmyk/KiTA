@@ -645,6 +645,15 @@ describe('love languages, plant, trips', () => {
   });
 });
 
+describe('media that is still being saved', () => {
+  test('asking for a photo that is not saved yet says "not there" instead of refusing', async () => {
+    await seedCouple();
+    const snap = await assertSucceeds(getDoc(doc(db(B), `couples/${CID}/media/not-yet`)));
+    assert.equal(snap.exists(), false);
+    await assertFails(getDoc(doc(db(EVE), `couples/${CID}/media/not-yet`)));
+  });
+});
+
 describe('error reports', () => {
   test('signed-in apps can send a short report; nobody can read or change them from the app', async () => {
     await seedCouple();

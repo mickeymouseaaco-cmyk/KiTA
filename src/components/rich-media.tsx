@@ -227,7 +227,12 @@ export function NoteMedia({ cid, m, mine }: { cid: string; m: Message; mine: boo
   if (media.type === 'photo' || media.type === 'video') {
     return (
       <View style={{ gap: space.xs }}>
-        {media.type === 'photo' ? <StoredImage media={media} alt={m.text} /> : <VideoNote media={media} />}
+        {media.type === 'photo' ? (
+          // Tall photos are cropped a little so one picture never fills the whole screen.
+          <StoredImage media={media} alt={m.text} style={{ borderRadius: 14, aspectRatio: Math.max(0.8, media.width && media.height ? media.width / media.height : 4 / 3) }} />
+        ) : (
+          <VideoNote media={media} />
+        )}
         {!mine && media.allowSave ? <SaveButton media={media} /> : null}
       </View>
     );

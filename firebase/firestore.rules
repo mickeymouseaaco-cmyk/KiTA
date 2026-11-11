@@ -272,8 +272,11 @@ service cloud.firestore {
       // ---- media metadata (files live in Cloud Storage)
       match /media/{mediaId} {
         // Surprise media stays hidden from the partner until it unlocks.
+        // Asking for one that isn't there (yet, or any more) just answers "not there",
+        // so a photo that is still being saved isn't mistaken for a removed one.
         allow read: if isMember(cid)
-          && (resource.data.ownerId == me()
+          && (resource == null
+              || resource.data.ownerId == me()
               || !('hiddenUntil' in resource.data)
               || resource.data.hiddenUntil <= request.time);
         allow create: if isMember(cid)
