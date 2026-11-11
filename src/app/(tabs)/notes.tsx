@@ -228,7 +228,7 @@ export default function LoveNotes() {
                   <ChevronLeft color={c.text} size={30} strokeWidth={2.2} />
                 </Pressable>
               ) : null}
-              <T variant="display" accessibilityRole="header" numberOfLines={1} style={{ flexShrink: 1 }}>
+              <T variant="display" accessibilityRole="header" numberOfLines={1} style={[{ flexShrink: 1 }, fullScreen && { fontSize: 26, lineHeight: 32 }]}>
                 Love Notes
               </T>
             </Row>
