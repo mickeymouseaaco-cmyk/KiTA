@@ -79,23 +79,20 @@ export function FlightsCard({ tripId }: { tripId?: string }) {
           </Pressable>
         </Row>
       ))}
-      <Row gap={space.sm} style={{ alignItems: 'flex-start' }}>
-        <TextInput
-          testID="flight-input"
-          value={text}
-          onChangeText={setText}
-          placeholder="Flight no., e.g. MH 2520"
-          placeholderTextColor={c.textMuted}
-          autoCapitalize="characters"
-          autoCorrect={false}
-          maxLength={10}
-          returnKeyType="go"
-          onSubmitEditing={go}
-          accessibilityLabel="Flight number"
-          style={[input, { flex: 1 }]}
-        />
-        {tripId ? null : <Button testID="flight-track" small icon={Plane} label="Track" disabled={!flight} onPress={go} />}
-      </Row>
+      <TextInput
+        testID="flight-input"
+        value={text}
+        onChangeText={setText}
+        placeholder="Flight no., e.g. MH 2520"
+        placeholderTextColor={c.textMuted}
+        autoCapitalize="characters"
+        autoCorrect={false}
+        maxLength={10}
+        returnKeyType="go"
+        onSubmitEditing={go}
+        accessibilityLabel="Flight number"
+        style={input}
+      />
       {tripId ? (
         <>
           <TextInput
@@ -111,7 +108,12 @@ export function FlightsCard({ tripId }: { tripId?: string }) {
           <Gap h={space.sm} />
           <Button testID="flight-track" small icon={Plane} label="Save and track" disabled={!flight} hint="Type a flight number first" onPress={go} />
         </>
-      ) : null}
+      ) : (
+        <>
+          <Gap h={space.sm} />
+          <Button testID="flight-track" small icon={Plane} label="Track" disabled={!flight} hint="Type a flight number first" onPress={go} />
+        </>
+      )}
       {text.trim() && !flight ? (
         <T variant="small" color={c.heart} style={{ marginTop: space.xs }}>
           Use the number on the ticket: letters then numbers, like MH 2520 or AK 6124.

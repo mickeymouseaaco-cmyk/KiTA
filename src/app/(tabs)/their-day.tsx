@@ -21,10 +21,11 @@ import { ProgressRing, WeekBars } from '@/components/charts';
 import { useFeedback } from '@/components/feedback';
 import { DaySwitch, TopBar } from '@/components/headers';
 import { SharedFood } from '@/components/food-card';
+import { StatusStack } from '@/components/status-stack';
 import { HugButton } from '@/components/hug-button';
 import { MediaById } from '@/components/media-view';
 import { Button, Card, Chip, EmptyState, Gap, Row, Screen, SectionTitle, T } from '@/components/ui';
-import { QUICK_MESSAGES, STRESS_LABELS, empty, gentleError } from '@/lib/copy';
+import { QUICK_MESSAGES, STRESS_LABELS, gentleError } from '@/lib/copy';
 import { PHASE_LABEL, partnerCycleTips } from '@/lib/cycle';
 import { dayKey, lastNDays } from '@/lib/dates';
 import { usePartnerDays } from '@/lib/logs';
@@ -52,7 +53,7 @@ export default function TheirDay() {
   const { uid, cid, partnerId, partnerName, couple } = usePaired();
   const { toast } = useFeedback();
   const week = useMemo(() => lastNDays(7), []);
-  const { days, ready } = usePartnerDays(cid, partnerId, week[0]);
+  const { days } = usePartnerDays(cid, partnerId, week[0]);
   const today = days[dayKey()];
   const alert = gentleAlert(partnerName, today);
   const ideas = suggestionsFor(partnerName, today, couple?.loveLanguages?.[partnerId] ?? []);
@@ -73,6 +74,7 @@ export default function TheirDay() {
     <Screen>
       <TopBar subtitle="Their Day" title={`${partnerName}’s day`} />
       <DaySwitch value="theirs" />
+      <StatusStack only="partner" />
 
       {alert ? (
         <>
@@ -87,13 +89,6 @@ export default function TheirDay() {
           <Gap />
         </>
       ) : null}
-
-      {ready && !today?.mood && !hasSteps && !today?.food && !today?.cycle ? (
-        <Card>
-          <EmptyState icon={HeartHandshake} line={empty.theirDayNothing(partnerName)} />
-        </Card>
-      ) : null}
-      {ready && !today?.mood && !hasSteps && !today?.food && !today?.cycle ? <Gap /> : null}
 
       {today?.mood ? (
         <>
