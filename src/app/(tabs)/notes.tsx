@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import { CalendarClock, Camera, Check, ChevronLeft, Clock, ListFilter, Copy, Gift, Heart, ImagePlus, Images, ListTodo, Mail, Mic, Palette, Plus, Send, Star, Trash, Video, X, type LucideIcon } from 'lucide-react-native';
+import { CalendarClock, Camera, Check, ChevronLeft, Clock, Copy, Ellipsis, Gift, Heart, ImagePlus, Images, ListTodo, Mail, Mic, Palette, Plus, Send, Star, Trash, Video, X, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { Animated, Easing, FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,11 +21,12 @@ import { haptic } from '@/lib/haptics';
 import { showTimeFlags } from '@/lib/note-groups';
 import { LIMITS, type PreparedImage } from '@/lib/media';
 import { deleteMessage, isFaded, markRead, sendText, starredNotes, toggleFavorite, toggleImportant, useMessages } from '@/lib/messages';
-import { usePaired } from '@/lib/session';
+import { usePaired, useSession } from '@/lib/session';
 import { usePartnerTyping, useTypingSignal } from '@/lib/typing';
 import { cancelScheduled, openSurprise, toggleScheduledFavorite, useDeliveredToMe, useMyScheduled, type ScheduledNote } from '@/lib/together-data';
 import { addTodo, dueDateFor, useTodos } from '@/lib/todos';
 import type { Message } from '@/lib/types';
+import { parseWallpaper } from '@/lib/wallpaper';
 import { radius, space, useTheme } from '@/theme';
 
 type Draft =
@@ -99,6 +100,7 @@ export default function LoveNotes() {
   const [filter, setFilter] = useState<'all' | 'starred' | 'saved'>('all');
   const [filterOpen, setFilterOpen] = useState(false);
   const [wallpaperOpen, setWallpaperOpen] = useState(false);
+  const hasWallpaper = !!parseWallpaper(useSession().profile?.notesWallpaper);
   const [text, setText] = useState('');
   const [attachOpen, setAttachOpen] = useState(false);
   const [inputH, setInputH] = useState(COMPOSER_MIN);
@@ -230,19 +232,18 @@ export default function LoveNotes() {
                   <ChevronLeft color={c.text} size={30} strokeWidth={2.2} />
                 </Pressable>
               ) : null}
-              <T variant="display" accessibilityRole="header" numberOfLines={1} style={[{ flexShrink: 1 }, fullScreen && { fontSize: 26, lineHeight: 32 }]}>
+              <T variant="display" accessibilityRole="header" numberOfLines={1} style={[{ flexShrink: 1 }, fullScreen && { fontSize: 24, lineHeight: 30 }]}>
                 Surat Cinta
               </T>
             </Row>
             <Row gap={space.sm}>
               <IconButton
                 testID="open-filter"
-                icon={ListFilter}
-                label={filter === 'all' ? 'Show starred or saved notes' : `Showing ${filter} notes. Change`}
+                icon={Ellipsis}
+                label={filter === 'all' ? 'More: starred or saved notes, wallpaper' : `Showing ${filter} notes. More options`}
                 active={filter !== 'all'}
                 onPress={() => setFilterOpen(true)}
               />
-              <IconButton testID="open-wallpaper" icon={Palette} label="Change the wallpaper behind your notes" onPress={() => setWallpaperOpen(true)} />
               <IconButton testID="open-media" icon={Images} label="Photos, videos and voice notes" onPress={() => router.push('/notes-media')} />
               <IconButton testID="open-schedule" icon={CalendarClock} label="Schedule a note or hide a surprise" onPress={() => router.push('/schedule-note')} />
             </Row>
@@ -350,6 +351,7 @@ export default function LoveNotes() {
                 <Bubble
                   m={item.m}
                   showTime={flagFor.get(item.key) ?? true}
+                onWallpaper={hasWallpaper}
                   mine={item.m.fromUid === uid}
                   uid={uid}
                   cid={cid}
@@ -559,6 +561,17 @@ export default function LoveNotes() {
               }}
             />
           ))}
+          <View style={{ height: 1, backgroundColor: c.border, marginVertical: space.sm }} />
+          <OptionRow
+            testID="open-wallpaper"
+            icon={Palette}
+            label="Wallpaper"
+            onPress={() => {
+              setFilterOpen(false);
+              // Let the first sheet slide away before the next one opens.
+              setTimeout(() => setWallpaperOpen(true), 250);
+            }}
+          />
         </View>
       </Sheet>
 
@@ -759,6 +772,11 @@ function fadesIn(m: Message): string | null {
   return h >= 1 ? `fades in ${h}h` : 'fading soon';
 }
 
+/** A soft pill behind a note's small labels when there's a wallpaper. */
+function pill(bg: string, mine: boolean) {
+  return { alignSelf: mine ? ('flex-end' as const) : ('flex-start' as const), backgroundColor: bg, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1, opacity: 0.92 };
+}
+
 function Bubble({
   m,
   mine,
@@ -767,9 +785,12 @@ function Bubble({
   partnerName,
   onOptions,
   showTime,
+  onWallpaper,
 }: {
   m: Message;
   mine: boolean;
+  /** A wallpaper is behind the notes: small labels sit on a soft pill so they stay readable. */
+  onWallpaper?: boolean;
   /** Only the newest note of a burst (same person, within an hour) shows the time. */
   showTime: boolean;
   uid: string;
@@ -849,7 +870,7 @@ function Bubble({
         {body}
       </Pressable>
       {m.important && canStar ? (
-        <Row gap={4} style={{ marginTop: 2 }}>
+        <Row gap={4} style={[{ marginTop: 2 }, onWallpaper && pill(c.surface, mine)]}>
           <Star color={c.onButter} fill={c.onButter} size={11} />
           <T testID="important-badge" variant="small" color={c.onButter}>
             Important
@@ -857,7 +878,7 @@ function Bubble({
         </Row>
       ) : null}
       {showTime || fade || fav ? (
-        <Row gap={space.xs} style={{ marginTop: 2, flexWrap: 'wrap', justifyContent: mine ? 'flex-end' : 'flex-start' }}>
+        <Row gap={space.xs} style={[{ marginTop: 2, flexWrap: 'wrap', justifyContent: mine ? 'flex-end' : 'flex-start' }, onWallpaper && pill(c.surface, mine)]}>
           {fade ? <Clock color={c.textMuted} size={12} accessibilityLabel="Disappearing note" /> : null}
           {showTime || fade ? (
             <T testID={showTime ? 'note-time' : undefined} variant="small" muted style={{ fontSize: Math.round(12 * textScale), lineHeight: Math.round(16 * textScale) }}>
