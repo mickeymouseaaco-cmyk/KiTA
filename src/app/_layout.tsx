@@ -6,9 +6,10 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { RefreshCw, House, TriangleAlert } from 'lucide-react-native';
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { CelebrateProvider } from '@/components/celebrate';
 import { FeedbackProvider } from '@/components/feedback';
@@ -132,6 +133,7 @@ function Navigator() {
       <IncomingLove />
       <SurpriseWatcher />
       <LockScreen />
+      <StatusBarShade />
     </ThemeProvider>
   );
 }
@@ -189,6 +191,31 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
         <Button testID="error-retry" icon={RefreshCw} label="Try again" onPress={() => retry()} />
         <Button kind="ghost" icon={House} label="Go to Home" onPress={() => router.replace('/')} />
       </View>
+    </View>
+  );
+}
+
+/**
+ * On iPhone (added to the Home Screen) KiTA draws under the clock and Dynamic
+ * Island, and iOS shows the clock in white there. In light mode a soft shade
+ * behind it keeps the time and battery readable; in dark mode none is needed.
+ */
+function StatusBarShade() {
+  const { dark } = useTheme();
+  const { top } = useSafeAreaInsets();
+  if (Platform.OS !== 'web' || dark || top < 20) return null;
+  return (
+    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: top + 10, pointerEvents: 'none', zIndex: 1000 }}>
+      <Svg width="100%" height={top + 10}>
+        <Defs>
+          <LinearGradient id="status-shade" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#000000" stopOpacity="0.32" />
+            <Stop offset="0.7" stopColor="#000000" stopOpacity="0.12" />
+            <Stop offset="1" stopColor="#000000" stopOpacity="0" />
+          </LinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height={top + 10} fill="url(#status-shade)" />
+      </Svg>
     </View>
   );
 }

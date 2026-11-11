@@ -17,7 +17,11 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="KiTA" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- black-translucent: the app draws all the way to the top, under the clock and Dynamic Island,
+         like a native app (pages add the safe-area space themselves). The clock turns white, so the app
+         adds a soft shade behind it in light mode. iPhone reads this only when KiTA is added to the
+         Home Screen, so an icon added earlier needs adding again. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="application-name" content="KiTA" />
 
     <!-- react-native-web's recommended reset: full height, the app scrolls, not the page. -->
