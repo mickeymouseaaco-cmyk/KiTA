@@ -296,6 +296,23 @@ describe('love notes', () => {
     await assertSucceeds(deleteDoc(doc(db(A), `couples/${CID}/media/p1`)));
   });
 
+  test('a status is a photo or video note; text-only or hug "statuses" are refused', async () => {
+    await seedCouple();
+    const d = db(A);
+    const batch = writeBatch(d);
+    batch.set(doc(d, `couples/${CID}/media/s1`), {
+      ownerId: A, type: 'photo', storagePath: `couples/${CID}/media/${A}/s1.jpg`, contentType: 'image/jpeg', bytes: 1000,
+      visibility: 'couple', allowSave: true, parent: { kind: 'message', id: 'st1' }, createdAt: serverTimestamp(),
+    });
+    batch.set(doc(d, `couples/${CID}/messages/st1`), { fromUid: A, toUid: B, kind: 'photo', mediaId: 's1', status: true, text: 'Sunset at Klang', favoriteBy: [], createdAt: serverTimestamp() });
+    await assertSucceeds(batch.commit());
+    // The partner sees it, and viewing marks it seen.
+    await assertSucceeds(updateDoc(doc(db(B), `couples/${CID}/messages/st1`), { readAt: serverTimestamp() }));
+    await assertFails(setDoc(doc(db(A), `couples/${CID}/messages/st2`), { fromUid: A, toUid: B, kind: 'text', text: 'hi', status: true, favoriteBy: [], createdAt: serverTimestamp() }));
+    await assertFails(setDoc(doc(db(A), `couples/${CID}/messages/st3`), { fromUid: A, toUid: B, kind: 'hug', status: true, favoriteBy: [], createdAt: serverTimestamp() }));
+    await assertFails(setDoc(doc(db(A), `couples/${CID}/messages/st4`), { fromUid: A, toUid: B, kind: 'photo', mediaId: 's1', status: false, favoriteBy: [], createdAt: serverTimestamp() }));
+  });
+
   test('unlinking (the couple ends) cuts off access for both immediately', async () => {
     await seedCouple();
     await assertSucceeds(

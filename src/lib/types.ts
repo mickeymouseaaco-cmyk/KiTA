@@ -156,6 +156,8 @@ export type Message = {
   viewedAt?: Timestamp;
   /** Disappearing: hidden after this time, and cleaned up by a scheduled function. */
   expiresAt?: Timestamp;
+  /** Posted as a status (a photo or video shown in the status ring for 24 hours); it stays in Love Notes. */
+  status?: boolean;
   createdAt: Timestamp | null; // null while the server timestamp is pending
 };
 

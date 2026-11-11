@@ -11,6 +11,8 @@ import { normalizeFlight, pickAircraft, toPosition, toRoute } from '../functions
 import { cleanFlightNo, compass, etaWords, fr24Url, mapSpan, phaseWord, prettyFlightNo, routeProgress } from '../src/lib/flight-pure';
 import { coupleTips, rangeBar, skyColors, skyLayers, skyLines, timeOfDay, hourInMalaysia } from '../src/lib/sky-pure';
 import { parseCurrent } from '../src/lib/flood-pure';
+import { SLOT_MS, TEKA_TEKI, nextIn, tekaTekiAt } from '../src/lib/teka-teki';
+import { activeStatuses, startIndex, statusAge, unreadNotes, unseenCount } from '../src/lib/status-pure';
 import { isTyping } from '../src/lib/typing-pure';
 import { cleanErrorReport, scrub } from '../src/lib/errors-pure';
 import { cleanPlace, defaultPlace, localHour, parseCities, placeForecastUrl, rainAmount, speed, temp, timeOfDayAt, todFor, unitsFor } from '../src/lib/place-pure';
@@ -833,4 +835,41 @@ test('is typing: fresh for a few seconds, then gone', () => {
   assert.equal(isTyping(null, now), false);
   assert.equal(isTyping(now + 3000, now), true, 'a partner clock a little ahead still counts');
   assert.equal(isTyping(now + 120_000, now), false);
+});
+
+// ------------------------------------------------------------ Teka-teki
+test('teka-teki: the same riddle for both, new every 30 minutes, all of them before a repeat', () => {
+  const t = Date.UTC(2026, 10, 11, 12, 0);
+  assert.equal(tekaTekiAt(t).item, tekaTekiAt(t + 29 * 60_000).item, 'same riddle within the half hour');
+  assert.notEqual(tekaTekiAt(t).item, tekaTekiAt(t + SLOT_MS).item, 'a new one after 30 minutes');
+  const seen = new Set<string>();
+  for (let k = 0; k < TEKA_TEKI.length; k++) seen.add(tekaTekiAt(t + k * SLOT_MS).item.soalan);
+  assert.equal(seen.size, TEKA_TEKI.length, 'every riddle comes round before any repeats');
+  assert.equal(new Set(TEKA_TEKI.map((r) => r.soalan)).size, TEKA_TEKI.length, 'no duplicate riddles');
+  assert.ok(TEKA_TEKI.every((r) => r.soalan.endsWith('?') && r.jawapan.length > 0));
+  assert.equal(nextIn(t + 18 * 60_000, tekaTekiAt(t).nextAtMs), 'dalam 12 minit');
+  assert.equal(nextIn(t + 29 * 60_000 + 50_000, tekaTekiAt(t).nextAtMs), 'dalam 1 minit');
+});
+
+// ------------------------------------------------------------ Status
+test('status: last 24 hours only, oldest first; unseen counts and where to start', () => {
+  const now = Date.UTC(2026, 10, 11, 12, 0);
+  const at = (h: number) => ({ toMillis: () => now - h * 3600_000 });
+  const msgs = [
+    { id: 'a', fromUid: 'aina', status: true, createdAt: at(1), readAt: undefined },
+    { id: 'b', fromUid: 'aina', status: true, createdAt: at(5), readAt: { x: 1 } },
+    { id: 'c', fromUid: 'aina', status: true, createdAt: at(30) }, // too old
+    { id: 'd', fromUid: 'aina', createdAt: at(2) }, // a normal note
+    { id: 'e', fromUid: 'afiq', status: true, createdAt: at(3) },
+    { id: 'f', fromUid: 'aina', status: true, viewOnce: true, createdAt: at(2) },
+  ] as never[];
+  const theirs = activeStatuses(msgs, 'aina', now) as { id: string }[];
+  assert.deepEqual(theirs.map((m) => m.id), ['b', 'a']);
+  assert.equal(unseenCount(theirs as never[]), 1);
+  assert.equal(startIndex(theirs as never[]), 1, 'start at the first one not watched');
+  assert.equal(startIndex([{ readAt: 1 }] as never[]), 0);
+  assert.equal(unreadNotes([{ fromUid: 'aina', kind: 'text' }, { fromUid: 'aina', kind: 'text', readAt: 1 }, { fromUid: 'afiq', kind: 'text' }] as never[], 'afiq'), 1);
+  assert.equal(statusAge(now - 30_000, now), 'just now');
+  assert.equal(statusAge(now - 25 * 60_000, now), '25m ago');
+  assert.equal(statusAge(now - 3 * 3600_000, now), '3h ago');
 });

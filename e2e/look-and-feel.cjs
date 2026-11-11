@@ -283,6 +283,41 @@ async function main() {
   await afiq.goto(BASE + '/notes');
   await afiq.locator(tid('note-input')).waitFor();
   log('Notes: full screen with a back arrow; live "is typing" for the partner');
+
+  // Status: Afiq posts a photo; Aina sees a ring and a number, watches it, and it's in Love Notes too.
+  await afiq.goto(BASE);
+  await afiq.locator(tid('status-add')).click();
+  const [chooser] = await Promise.all([afiq.waitForEvent('filechooser'), afiq.locator(tid('status-photo')).click()]);
+  await chooser.setFiles(path.join(__dirname, '..', 'public', 'icons', 'icon-512.png'));
+  await afiq.locator(tid('status-caption')).fill('Sunset at the lake');
+  await shot(afiq, '04f-status-add');
+  await afiq.locator(tid('status-share')).click();
+  await aina.goto(BASE);
+  await aina.locator(tid('status-unseen')).waitFor({ timeout: 30000 });
+  await aina.waitForTimeout(800);
+  await shot(aina, '04g-status-new');
+  await aina.locator(tid('status-partner')).click();
+  await aina.locator(tid('status-caption-text')).filter({ hasText: 'Sunset at the lake' }).waitFor({ timeout: 15000 });
+  await aina.waitForTimeout(1500);
+  await shot(aina, '04h-status-viewer');
+  await aina.locator(tid('status-close')).click();
+  await aina.locator(tid('status-unseen')).waitFor({ state: 'detached', timeout: 10000 });
+  await afiq.locator(tid('status-mine')).click();
+  await afiq.locator(tid('status-seen')).filter({ hasText: /Seen by/ }).waitFor({ timeout: 10000 });
+  await afiq.locator(tid('status-close')).click();
+  await aina.goto(BASE + '/notes');
+  await aina.getByText('Sunset at the lake').first().waitFor({ timeout: 10000 });
+  await shot(aina, '04i-status-in-notes');
+  log('Status: a photo for 24 hours with a ring and number, watched and seen, and kept in Love Notes');
+
+  // Teka-teki: a Malay riddle on Home, answer on tap.
+  await afiq.goto(BASE);
+  await afiq.locator(tid('teka-teki-soalan')).waitFor({ timeout: 15000 });
+  await afiq.locator(tid('teka-teki-reveal')).click();
+  await afiq.locator(tid('teka-teki-jawapan')).waitFor();
+  await afiq.locator(tid('teka-teki')).scrollIntoViewIfNeeded();
+  await shot(afiq, '04j-teka-teki');
+  log('Teka-teki: a new Malay riddle every 30 minutes, with the answer on tap');
   log(`Love-note box is ${Math.round(w)}px wide, grows to ${Math.round(grown)}px, and sends`);
 
   // 3. Weather at a glance.

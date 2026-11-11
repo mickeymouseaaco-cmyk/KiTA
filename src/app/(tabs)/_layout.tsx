@@ -4,6 +4,8 @@ import { Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { haptic } from '@/lib/haptics';
+import { useSession } from '@/lib/session';
+import { useStatuses } from '@/lib/status';
 import { fonts, useTheme } from '@/theme';
 
 /** Wide screens (tablets, computers) get a sidebar instead of a bottom bar. */
@@ -19,6 +21,9 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const sidebar = width >= SIDEBAR_FROM;
+  // Unopened notes from my partner (statuses included) as a number on Notes, like WhatsApp.
+  const { cid, uid, partnerId } = useSession();
+  const { unreadNotes } = useStatuses(cid, uid, partnerId);
   return (
     <Tabs
       screenListeners={{ tabPress: () => haptic.tap() }}
@@ -49,6 +54,8 @@ export default function TabsLayout() {
         name="notes"
         options={{
           title: 'Notes',
+          tabBarBadge: unreadNotes ? (unreadNotes > 99 ? '99+' : unreadNotes) : undefined,
+          tabBarBadgeStyle: { backgroundColor: c.heart, color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
           tabBarIcon: ({ color, focused }) => <Mail color={color} size={24} strokeWidth={look.flat ? (focused ? 2.4 : 1.7) : 2} />,
           ...(sidebar ? null : { tabBarStyle: { display: 'none' } }),
         }}

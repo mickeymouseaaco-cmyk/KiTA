@@ -125,6 +125,7 @@ function Navigator() {
         <Stack.Screen name="privacy" options={{ title: 'What they can see' }} />
         <Stack.Screen name="privacy-policy" options={{ title: 'Privacy' }} />
         <Stack.Screen name="terms" options={{ title: 'Terms' }} />
+        <Stack.Screen name="status" options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'fade' }} />
       </Stack>
       <Gate />
       <AppearanceSync />
