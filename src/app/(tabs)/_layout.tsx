@@ -15,7 +15,7 @@ const SIDEBAR_FROM = 900;
  * old link keeps working.
  */
 export default function TabsLayout() {
-  const { c } = useTheme();
+  const { c, look } = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const sidebar = width >= SIDEBAR_FROM;
@@ -27,13 +27,13 @@ export default function TabsLayout() {
         tabBarActiveTintColor: c.primary,
         tabBarInactiveTintColor: c.textMuted,
         tabBarActiveBackgroundColor: sidebar ? c.primarySoft : undefined,
-        tabBarLabelStyle: { fontFamily: fonts.bodySemi, fontSize: sidebar ? 15 : 12 },
+        tabBarLabelStyle: look.systemFont ? { fontFamily: 'System', fontWeight: '600', fontSize: sidebar ? 15 : 11 } : { fontFamily: fonts.bodySemi, fontSize: sidebar ? 15 : 12 },
         tabBarPosition: sidebar ? 'left' : 'bottom',
         tabBarVariant: sidebar ? 'material' : 'uikit',
         tabBarStyle: sidebar
-          ? { backgroundColor: c.surface, borderRightColor: c.border, minWidth: 220, paddingTop: 24 }
+          ? { backgroundColor: look.flat ? c.bg : c.surface, borderRightColor: c.border, minWidth: 220, paddingTop: 24 }
           : {
-              backgroundColor: c.surface,
+              backgroundColor: look.flat ? c.bg : c.surface,
               borderTopColor: c.border,
               height: 72 + insets.bottom,
               paddingTop: 6,

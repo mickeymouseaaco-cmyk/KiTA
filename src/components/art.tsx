@@ -62,7 +62,7 @@ export function Blob({ size = 96, children }: { size?: number; children?: ReactN
 /** The warm colour wash at the top of every page. */
 export function PageWash({ height = 320 }: { height?: number }) {
   const { c, look } = useTheme();
-  if (look.name === 'professional') return null;
+  if (look.name === 'professional' || look.flat) return null;
   return (
     <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height }}>
       <Svg width="100%" height={height} preserveAspectRatio="none">

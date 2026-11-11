@@ -90,11 +90,27 @@ export const motion = { quick: 180, base: 260, gentle: 420 } as const;
 // Everything below is chosen by each person in Settings → Look & feel.
 
 /** Colour themes. Each changes the accent family; mood tones stay the same so meaning never changes. */
-export type ColorName = 'lavender' | 'kita' | 'ocean' | 'blossom' | 'forest' | 'sunset';
-type Accent = Pick<Colors, 'bg' | 'surface' | 'surfaceAlt' | 'border' | 'primary' | 'onPrimary' | 'primarySoft' | 'ring' | 'ringTrack'>;
+export type ColorName = 'mono' | 'lavender' | 'kita' | 'ocean' | 'blossom' | 'forest' | 'sunset';
+type Accent = Colors;
 
 /** Accent text colours keep at least 4.5:1 contrast on white (light) and on the dark surface (dark). */
 export const accents: Record<ColorName, { label: string; light: Partial<Accent>; dark: Partial<Accent> }> = {
+  // Black, white and one grey family; rose is the single accent (hearts, progress).
+  mono: {
+    label: 'Mono',
+    light: {
+      bg: '#FFFFFF', surface: '#F5F5F7', surfaceAlt: '#ECECEF', border: '#E2E2E6', text: '#0B0B0D', textMuted: '#6B6B73',
+      primary: '#0B0B0D', onPrimary: '#FFFFFF', primarySoft: '#ECECEF', heart: '#C4405F', heartSoft: '#FBECEF',
+      peach: '#F5F5F7', onPeach: '#0B0B0D', sage: '#F5F5F7', onSage: '#0B0B0D', sky: '#F5F5F7', onSky: '#0B0B0D', butter: '#F5F5F7', onButter: '#0B0B0D',
+      ring: '#D9607C', ringTrack: '#E6E6EA', shadow: 'rgba(0, 0, 0, 0)', overlay: 'rgba(0, 0, 0, 0.4)',
+    },
+    dark: {
+      bg: '#000000', surface: '#161618', surfaceAlt: '#222225', border: '#2C2C30', text: '#F5F5F7', textMuted: '#9A9AA2',
+      primary: '#F5F5F7', onPrimary: '#0B0B0D', primarySoft: '#222225', heart: '#F08BA3', heartSoft: '#2E1A20',
+      peach: '#161618', onPeach: '#F5F5F7', sage: '#161618', onSage: '#F5F5F7', sky: '#161618', onSky: '#F5F5F7', butter: '#161618', onButter: '#F5F5F7',
+      ring: '#F08BA3', ringTrack: '#2C2C30', overlay: 'rgba(0, 0, 0, 0.6)',
+    },
+  },
   lavender: { label: 'Lavender', light: {}, dark: {} },
   kita: {
     label: 'KiTA',
@@ -130,7 +146,7 @@ export function colorsFor(name: ColorName, dark: boolean): Colors {
 }
 
 /** Styles: how shapes, type and depth feel. */
-export type LookName = 'soft' | 'professional' | 'playful';
+export type LookName = 'minimal' | 'soft' | 'professional' | 'playful';
 export type Look = {
   name: LookName;
   label: string;
@@ -145,9 +161,27 @@ export type Look = {
   softShadow: boolean;
   /** A little emoji next to the greeting. */
   emoji: boolean;
+  /** The phone's own typeface (San Francisco on iPhone) instead of Lora and Raleway. */
+  systemFont: boolean;
+  /** Flat surfaces: no page wash, no shadows, bare icon buttons, plain empty states. */
+  flat: boolean;
 };
 
 export const looks: Record<LookName, Look> = {
+  // The shape rule: actions and inputs 12, cards 16, chips are pills.
+  minimal: {
+    name: 'minimal',
+    label: 'Minimal',
+    headingFont: 'System',
+    cardRadius: 16,
+    controlRadius: 12,
+    cardBorder: 0,
+    outlined: false,
+    softShadow: false,
+    emoji: false,
+    systemFont: true,
+    flat: true,
+  },
   soft: {
     name: 'soft',
     label: 'Soft',
@@ -158,6 +192,8 @@ export const looks: Record<LookName, Look> = {
     outlined: false,
     softShadow: true,
     emoji: false,
+    systemFont: false,
+    flat: false,
   },
   professional: {
     name: 'professional',
@@ -169,6 +205,8 @@ export const looks: Record<LookName, Look> = {
     outlined: false,
     softShadow: false,
     emoji: false,
+    systemFont: false,
+    flat: false,
   },
   playful: {
     name: 'playful',
@@ -180,6 +218,8 @@ export const looks: Record<LookName, Look> = {
     outlined: true,
     softShadow: false,
     emoji: true,
+    systemFont: false,
+    flat: false,
   },
 };
 
@@ -190,16 +230,30 @@ export type TextSize = 'small' | 'default' | 'large' | 'xlarge';
 /** How much bigger (or smaller) all text is, on top of the phone's own text size. */
 export const TEXT_SCALE: Record<TextSize, number> = { small: 0.9, default: 1, large: 1.15, xlarge: 1.3 };
 
-export type Appearance = { color: ColorName; look: LookName; motion: MotionLevel; mode: ModeName; text: TextSize };
-export const DEFAULT_APPEARANCE: Appearance = { color: 'lavender', look: 'soft', motion: 'gentle', mode: 'auto', text: 'default' };
+/** Bumped when the default look changes, so everyone meets the new design once (and can switch back). */
+export const APPEARANCE_VERSION = 2;
+export type Appearance = { color: ColorName; look: LookName; motion: MotionLevel; mode: ModeName; text: TextSize; v: number };
+export const DEFAULT_APPEARANCE: Appearance = { color: 'mono', look: 'minimal', motion: 'gentle', mode: 'auto', text: 'default', v: APPEARANCE_VERSION };
+
+/** Raleway/Lora names → the matching weight of the phone's own font. */
+export function systemFont(family: string | undefined): { fontFamily: string; fontWeight: '400' | '600' | '700' } | null {
+  if (!family) return null;
+  if (family === 'System') return { fontFamily: 'System', fontWeight: '700' };
+  if (!/^(Raleway|Lora)_/.test(family)) return null;
+  const weight = /_700/.test(family) || family === 'Lora_600SemiBold' ? '700' : /_600|Lora_500/.test(family) ? '600' : '400';
+  return { fontFamily: 'System', fontWeight: weight };
+}
 
 /** Anything unknown (an older or newer app version wrote it) falls back to the default. */
 export function cleanAppearance(raw: unknown): Appearance {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const pick = <K extends string>(v: unknown, allowed: readonly K[], fallback: K): K => (allowed.includes(v as K) ? (v as K) : fallback);
+  // A choice saved before the redesign: start from the new look, keep everything else.
+  const current = r.v === APPEARANCE_VERSION;
   return {
-    color: pick(r.color, Object.keys(accents) as ColorName[], DEFAULT_APPEARANCE.color),
-    look: pick(r.look, Object.keys(looks) as LookName[], DEFAULT_APPEARANCE.look),
+    v: APPEARANCE_VERSION,
+    color: current ? pick(r.color, Object.keys(accents) as ColorName[], DEFAULT_APPEARANCE.color) : DEFAULT_APPEARANCE.color,
+    look: current ? pick(r.look, Object.keys(looks) as LookName[], DEFAULT_APPEARANCE.look) : DEFAULT_APPEARANCE.look,
     motion: pick(r.motion, ['off', 'gentle', 'lively'] as const, DEFAULT_APPEARANCE.motion),
     mode: pick(r.mode, ['auto', 'light', 'dark'] as const, DEFAULT_APPEARANCE.mode),
     text: pick(r.text, ['small', 'default', 'large', 'xlarge'] as const, DEFAULT_APPEARANCE.text),

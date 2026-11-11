@@ -50,7 +50,7 @@ function Gate() {
 
 function Navigator() {
   const { c, dark, look } = useTheme();
-  const headerBg = look.name === 'professional' ? c.bg : c.primarySoft;
+  const headerBg = look.name === 'professional' || look.flat ? c.bg : c.primarySoft;
   const navTheme = {
     ...(dark ? DarkTheme : DefaultTheme),
     colors: {
@@ -70,8 +70,8 @@ function Navigator() {
         screenOptions={{
           headerShadowVisible: false,
           headerStyle: { backgroundColor: headerBg },
-          headerTitleStyle: { fontFamily: look.headingFont, fontSize: 20, color: c.text },
-          headerTitleAlign: 'left',
+          headerTitleStyle: look.systemFont ? { fontFamily: 'System', fontWeight: '600', fontSize: 17, color: c.text } : { fontFamily: look.headingFont, fontSize: 20, color: c.text },
+          headerTitleAlign: look.flat ? 'center' : 'left',
           headerTintColor: c.primary,
           contentStyle: { backgroundColor: c.bg },
           headerBackButtonDisplayMode: 'minimal',

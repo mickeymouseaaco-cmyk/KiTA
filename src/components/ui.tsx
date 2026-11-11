@@ -22,7 +22,7 @@ import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { haptic } from '@/lib/haptics';
 
 import { Blob, PageWash } from './art';
-import { radius, space, touch, type as typeScale, useTheme } from '@/theme';
+import { radius, space, systemFont, touch, type as typeScale, useTheme } from '@/theme';
 
 // ------------------------------------------------------------------ text
 
@@ -39,6 +39,8 @@ export function T({
   const { c, look, textScale } = useTheme();
   const heading = variant === 'display' || variant === 'title' || variant === 'heading';
   const base = typeScale[variant];
+  // Minimal look: the phone's own typeface, whatever font name a screen asked for.
+  const asked = look.systemFont ? (StyleSheet.flatten(style as StyleProp<TextStyle>)?.fontFamily ?? (heading ? look.headingFont : base.fontFamily)) : undefined;
   return (
     <Text
       maxFontSizeMultiplier={1.6}
@@ -47,10 +49,11 @@ export function T({
         base,
         textScale !== 1 && { fontSize: Math.round(base.fontSize * textScale), lineHeight: Math.round(base.lineHeight * textScale) },
         heading && { fontFamily: look.headingFont },
-        heading && look.name === 'professional' && { letterSpacing: -0.2 },
+        heading && (look.name === 'professional' || look.flat) && { letterSpacing: variant === 'display' ? -0.6 : -0.3 },
         { color: color ?? (muted ? c.textMuted : c.text) },
         center && { textAlign: 'center' },
         style as StyleProp<TextStyle>,
+        systemFont(asked),
       ]}
     />
   );
@@ -116,7 +119,9 @@ export function Card({
         appear,
         styles.card,
         { backgroundColor: bg, borderColor: c.border, borderRadius: look.cardRadius },
-        look.outlined
+        look.flat
+          ? null
+          : look.outlined
           ? { borderWidth: look.cardBorder, borderColor: c.text, boxShadow: `4px 4px 0px ${c.primary}` }
           : look.softShadow && !dark
             ? styles.cardShadow
@@ -266,8 +271,9 @@ export function IconButton({
   active?: boolean;
   testID?: string;
 } & Omit<PressableProps, 'onPress' | 'style' | 'children'>) {
-  const { c } = useTheme();
-  const bg = { quiet: c.surfaceAlt, primary: c.primary, heart: c.heartSoft, plain: 'transparent' }[tone];
+  const { c, look } = useTheme();
+  // Minimal look: bare icons, like a navigation bar; a soft disc only when switched on.
+  const bg = look.flat && tone === 'quiet' ? (active ? c.surfaceAlt : 'transparent') : { quiet: c.surfaceAlt, primary: c.primary, heart: c.heartSoft, plain: 'transparent' }[tone];
   const fg = { quiet: c.text, primary: c.onPrimary, heart: c.heart, plain: c.textMuted }[tone];
   return (
     <Pressable
@@ -286,7 +292,7 @@ export function IconButton({
       ]}
       {...rest}>
       <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
-        <Icon color={fg} size={Math.round(size * 0.44)} strokeWidth={2.2} fill={active && tone === 'heart' ? c.heart : 'transparent'} />
+        <Icon color={fg} size={Math.round(size * (look.flat ? 0.5 : 0.44))} strokeWidth={look.flat ? 1.9 : 2.2} fill={active && tone === 'heart' ? c.heart : 'transparent'} />
       </View>
       {showLabel ? (
         <T variant="small" muted>
@@ -323,7 +329,7 @@ export function Chip({
         styles.chip,
         {
           backgroundColor: selected ? c.primary : c.surface,
-          borderWidth: 1,
+          borderWidth: look.flat ? 0 : 1,
           borderColor: selected ? c.primary : c.border,
           borderRadius: look.name === 'professional' ? 8 : radius.pill,
           opacity: pressed ? 0.8 : 1,
@@ -397,12 +403,18 @@ export function EmptyState({
   line: string;
   action?: ReactNode;
 }) {
-  const { c } = useTheme();
+  const { c, look } = useTheme();
   return (
     <View style={styles.empty}>
-      <Blob size={104}>
-        <Icon color={c.primary} size={36} strokeWidth={1.7} />
-      </Blob>
+      {look.flat ? (
+        <View style={{ width: 72, height: 72, borderRadius: 36, borderWidth: 1.5, borderColor: c.text, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon color={c.text} size={32} strokeWidth={1.5} />
+        </View>
+      ) : (
+        <Blob size={104}>
+          <Icon color={c.primary} size={36} strokeWidth={1.7} />
+        </Blob>
+      )}
       <T muted center style={{ maxWidth: 300 }}>
         {line}
       </T>
@@ -425,7 +437,7 @@ export function Segmented<V extends string>({
   return (
     <View
       accessibilityRole="tablist"
-      style={[styles.segment, { backgroundColor: c.surfaceAlt, borderRadius: r }, look.outlined && { borderWidth: 2, borderColor: c.text }]}>
+      style={[styles.segment, { backgroundColor: c.surfaceAlt, borderRadius: r }, look.flat && { padding: 3 }, look.outlined && { borderWidth: 2, borderColor: c.text }]}>
       {options.map((o) => {
         const on = o.value === value;
         return (
@@ -437,8 +449,14 @@ export function Segmented<V extends string>({
               haptic.tap();
               onChange(o.value);
             }}
-            style={[styles.segmentItem, { borderRadius: r >= radius.pill ? r : Math.max(4, r - 3) }, on && { backgroundColor: c.surface }, on && styles.cardShadow]}>
-            <T variant="bodyStrong" color={on ? c.primary : c.textMuted}>
+            style={[
+              styles.segmentItem,
+              { borderRadius: r >= radius.pill ? r : Math.max(4, r - 3) },
+              look.flat && { minHeight: 36 },
+              on && { backgroundColor: look.flat ? c.bg : c.surface },
+              on && (look.flat ? { boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.14)' } : styles.cardShadow),
+            ]}>
+            <T variant={look.flat ? 'small' : 'bodyStrong'} color={on ? c.primary : c.textMuted} style={look.flat ? { fontFamily: 'Raleway_600SemiBold' } : undefined}>
               {o.label}
             </T>
           </Pressable>
@@ -487,13 +505,14 @@ export function useInputStyle(): TextStyle {
   const { c, look, textScale } = useTheme();
   return {
     ...typeScale.body,
+    ...(look.systemFont ? systemFont(typeScale.body.fontFamily) : null),
     fontSize: Math.round(typeScale.body.fontSize * textScale),
     lineHeight: Math.round(typeScale.body.lineHeight * textScale),
     color: c.text,
     backgroundColor: c.surface,
     borderColor: look.outlined ? c.text : c.border,
-    borderWidth: look.outlined ? 2 : 1.5,
-    borderRadius: look.name === 'professional' ? 8 : radius.md,
+    borderWidth: look.outlined ? 2 : look.flat ? 0 : 1.5,
+    borderRadius: look.name === 'professional' ? 8 : look.flat ? look.controlRadius : radius.md,
     paddingHorizontal: space.lg,
     paddingVertical: 14,
     minHeight: touch.comfy,
