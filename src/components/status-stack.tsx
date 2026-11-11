@@ -115,7 +115,7 @@ export function StatusStack({ only }: { only?: 'partner' }) {
       onPress={() => router.push({ pathname: '/status', params: { who: 'partner' } })}
       style={{ flex: 1 }}>
       <Backdrop cid={cid} m={latestTheirs} />
-      <View style={{ flex: 1, padding: space.lg, justifyContent: 'space-between' }}>
+      <View style={{ flex: 1, padding: space.lg, paddingRight: 60, justifyContent: 'space-between' }}>
         <Row gap={space.sm}>
           <Ring state={unseen ? 'new' : 'seen'} size={40}>
             <Avatar uid={partnerId} avatarId={couple?.avatars?.[partnerId]} name={partnerName} size={40} tone="sage" />
@@ -145,7 +145,7 @@ export function StatusStack({ only }: { only?: 'partner' }) {
       </View>
     </Pressable>
   ) : (
-    <View testID={id('status-partner-empty')} style={{ flex: 1, padding: space.lg, justifyContent: 'space-between' }}>
+    <View testID={id('status-partner-empty')} style={{ flex: 1, padding: space.lg, paddingRight: 60, justifyContent: 'space-between' }}>
       <Row gap={space.sm}>
         <View style={{ opacity: 0.6 }}>
           <Avatar uid={partnerId} avatarId={couple?.avatars?.[partnerId]} name={partnerName} size={40} tone="sage" />
@@ -171,7 +171,7 @@ export function StatusStack({ only }: { only?: 'partner' }) {
       onPress={() => router.push({ pathname: '/status', params: { who: 'me' } })}
       style={{ flex: 1 }}>
       <Backdrop cid={cid} m={latestMine} />
-      <View style={{ flex: 1, padding: space.lg, justifyContent: 'space-between' }}>
+      <View style={{ flex: 1, padding: space.lg, paddingRight: 60, justifyContent: 'space-between' }}>
         <Row gap={space.sm}>
           <Ring state="seen" size={40}>
             <Avatar uid={uid} avatarId={profile?.avatarId} name={myName || 'Me'} size={40} />
@@ -191,7 +191,7 @@ export function StatusStack({ only }: { only?: 'partner' }) {
       </View>
     </Pressable>
   ) : (
-    <Pressable testID={id('status-mine-empty')} accessibilityRole="button" accessibilityLabel="Add a status" onPress={() => setAdding(true)} style={{ flex: 1, padding: space.lg, justifyContent: 'space-between' }}>
+    <Pressable testID={id('status-mine-empty')} accessibilityRole="button" accessibilityLabel="Add a status" onPress={() => setAdding(true)} style={{ flex: 1, padding: space.lg, paddingRight: 60, justifyContent: 'space-between' }}>
       <Row gap={space.sm}>
         <Avatar uid={uid} avatarId={profile?.avatarId} name={myName || 'Me'} size={40} />
         <T variant="label" muted style={{ flex: 1 }}>

@@ -33,7 +33,7 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: c.textMuted,
         animation: look.flat ? 'fade' : 'none',
         tabBarActiveBackgroundColor: sidebar ? c.primarySoft : undefined,
-        tabBarLabelStyle: look.systemFont ? { fontFamily: 'System', fontWeight: '600', fontSize: sidebar ? 15 : 10, marginTop: sidebar ? 0 : 1 } : { fontFamily: fonts.bodySemi, fontSize: sidebar ? 15 : 10.5 },
+        tabBarLabelStyle: look.systemFont ? { fontFamily: 'System', fontWeight: '600', fontSize: sidebar ? 15 : 10, lineHeight: sidebar ? undefined : 13 } : { fontFamily: fonts.bodySemi, fontSize: sidebar ? 15 : 10.5, lineHeight: sidebar ? undefined : 13 },
         tabBarPosition: sidebar ? 'left' : 'bottom',
         tabBarVariant: sidebar ? 'material' : 'uikit',
         tabBarStyle: sidebar
@@ -41,9 +41,9 @@ export default function TabsLayout() {
           : {
               backgroundColor: look.flat ? c.bg : c.surface,
               borderTopColor: c.border,
-              height: 50 + Math.max(insets.bottom, 4),
-              paddingTop: 4,
-              paddingBottom: Math.max(insets.bottom, 4),
+              height: 50 + Math.max(insets.bottom, 6),
+              paddingTop: 5,
+              paddingBottom: Math.max(insets.bottom, 6),
             },
         tabBarItemStyle: sidebar ? { borderRadius: 14, marginHorizontal: 12, marginVertical: 2 } : undefined,
         sceneStyle: { backgroundColor: c.bg },
