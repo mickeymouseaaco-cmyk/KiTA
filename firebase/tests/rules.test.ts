@@ -645,6 +645,21 @@ describe('love languages, plant, trips', () => {
   });
 });
 
+describe('error reports', () => {
+  test('signed-in apps can send a short report; nobody can read or change them from the app', async () => {
+    await seedCouple();
+    const report = { kind: 'error', message: 'TypeError: x is undefined', stack: 'at Home (index.js:1:2)', route: '/weather', platform: 'web', agent: 'Mozilla/5.0', version: '1.0.0', at: serverTimestamp() };
+    await assertSucceeds(setDoc(doc(db(A), 'errorReports/r1'), report));
+    await assertFails(getDoc(doc(db(A), 'errorReports/r1')));
+    await assertFails(updateDoc(doc(db(A), 'errorReports/r1'), { message: 'changed' }));
+    await assertFails(deleteDoc(doc(db(A), 'errorReports/r1')));
+    await assertFails(setDoc(doc(env.unauthenticatedContext().firestore(), 'errorReports/r2'), report));
+    await assertFails(setDoc(doc(db(A), 'errorReports/r3'), { ...report, notes: 'my private note' }));
+    await assertFails(setDoc(doc(db(A), 'errorReports/r4'), { ...report, message: 'x'.repeat(301) }));
+    await assertFails(setDoc(doc(db(A), 'errorReports/r5'), { ...report, kind: 'other' }));
+  });
+});
+
 describe('starred notes, shared to-dos and the weekend planner', () => {
   test('either partner can star a note as important; only as themselves', async () => {
     await seedCouple();

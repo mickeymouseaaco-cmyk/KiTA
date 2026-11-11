@@ -23,6 +23,13 @@ const phone = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 };
 const small = { viewport: { width: 360, height: 760 }, deviceScaleFactor: 2 };
 const tid = (id) => `[data-testid="${id}"]`;
 
+/** First-time welcome pages: skip them (or go to "I already have an account"). */
+async function pastWelcome(page, mode = 'new') {
+  await page.locator(`${tid('welcome-next')}, ${tid('name')}, ${tid('email')}`).first().waitFor({ timeout: 30000 });
+  if (await page.locator(tid('welcome-next')).count()) await page.locator(tid(mode === 'new' ? 'welcome-skip' : 'welcome-have-account')).click();
+  await page.locator(tid('email')).waitFor();
+}
+
 let step = 0;
 /** Every open page and every page error, so any failure leaves evidence. */
 const pages = {};
@@ -71,7 +78,29 @@ function mockWeather(ctx) {
       instruction_en: '',
     },
   ];
-  ctx.route('https://api.open-meteo.com/**', (r) => r.fulfill({ json: forecast }));
+  ctx.route('https://api.open-meteo.com/**', (r) => {
+    // Any place in the world: same week, its own time zone and sunrise/sunset.
+    const u = new URL(r.request().url());
+    const anywhere = u.searchParams.get('timezone') === 'auto';
+    r.fulfill({
+      json: anywhere
+        ? {
+            ...forecast,
+            utc_offset_seconds: 32400,
+            daily: { ...forecast.daily, weather_code: [1, 2, 3, 61, 1, 0, 2], sunrise: days.map((d) => `${d}T06:10`), sunset: days.map((d) => `${d}T16:35`) },
+            current: { temperature_2m: 12.2, apparent_temperature: 10.1, weather_code: 1, is_day: 1, relative_humidity_2m: 55, wind_speed_10m: 18 },
+          }
+        : forecast,
+    });
+  });
+  ctx.route('https://geocoding-api.open-meteo.com/**', (r) => {
+    const name = (new URL(r.request().url()).searchParams.get('name') || '').toLowerCase();
+    const all = [
+      { name: 'Tokyo', country: 'Japan', admin1: 'Tokyo', latitude: 35.6895, longitude: 139.6917 },
+      { name: 'London', country: 'United Kingdom', admin1: 'England', latitude: 51.5085, longitude: -0.1257 },
+    ];
+    r.fulfill({ json: { results: all.filter((p) => p.name.toLowerCase().startsWith(name)) } });
+  });
   // Flight tracking: the server asks live aircraft services; here we answer for it.
   ctx.route('**/trackFlight', (r) => {
     const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, OPTIONS' };
@@ -114,6 +143,7 @@ function mockWeather(ctx) {
 
 async function signUp(page, name) {
   await page.goto(BASE);
+  await pastWelcome(page);
   await page.locator(tid('name')).waitFor();
   await page.locator(tid('name')).fill(name);
   await page.locator(tid('email')).fill(`${name.toLowerCase().replace(/\W/g, '')}-${run}@example.com`);
@@ -255,6 +285,27 @@ async function main() {
   await afiq.getByRole('button', { name: /Thunderstorms/ }).first().click();
   await shot(afiq, '06-weather-warning-open', true);
   log('Weather shows icons and short warnings; full MET text on tap');
+
+  // 3b. Weather for anywhere: search a city, °F, my location, then back to the flood watch.
+  await afiq.locator(tid('place-button')).click();
+  await afiq.locator(tid('place-search')).fill('Tok');
+  await afiq.locator(tid('place-result-Tokyo')).click();
+  await afiq.locator(tid('weather-temp')).filter({ hasText: '12°' }).waitFor({ timeout: 15000 });
+  assert.equal(await afiq.locator(tid('flood-safe')).count(), 0, 'no flood watch outside the Malaysian areas');
+  assert.equal(await afiq.locator(tid('call-999')).count(), 0);
+  await shot(afiq, '06b-weather-tokyo', true);
+  await afiq.locator(tid('place-button')).click();
+  await afiq.getByText('°F', { exact: true }).click();
+  await afiq.mouse.click(10, 10);
+  await afiq.locator(tid('weather-temp')).filter({ hasText: '54°' }).waitFor({ timeout: 5000 });
+  await afiq.locator(tid('place-button')).click();
+  await afiq.getByText('°C', { exact: true }).click();
+  await afiq.locator(tid('place-near-me')).click();
+  await afiq.locator(tid('place-button')).filter({ hasText: /Klang|Shah Alam|Near you|Kota|Selangor/ }).waitFor({ timeout: 15000 });
+  await afiq.locator(tid('place-button')).click();
+  await afiq.locator(tid('place-area-shahalam')).click();
+  await afiq.locator(tid('flood-safe')).waitFor({ timeout: 10000 });
+  log('Weather anywhere: city search, °F, my location, and back to the Shah Alam flood watch');
 
   // 4. Steps from iPhone.
   await afiq.goto(BASE + '/steps-sync');
@@ -486,7 +537,7 @@ async function main() {
   // The choice follows Afiq to another phone.
   const afiq2 = await mk('afiq-2nd-phone');
   await afiq2.goto(BASE);
-  await afiq2.locator(tid('email')).waitFor();
+  await pastWelcome(afiq2, 'returning');
   await afiq2.getByText('I have an account').click();
   await afiq2.locator(tid('email')).fill(`afiqhakimi-${run}@example.com`);
   await afiq2.locator(tid('password')).fill('gentle-pass');

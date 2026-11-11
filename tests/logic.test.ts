@@ -11,6 +11,8 @@ import { normalizeFlight, pickAircraft, toPosition, toRoute } from '../functions
 import { cleanFlightNo, compass, etaWords, fr24Url, mapSpan, phaseWord, prettyFlightNo, routeProgress } from '../src/lib/flight-pure';
 import { coupleTips, rangeBar, skyColors, skyLayers, skyLines, timeOfDay, hourInMalaysia } from '../src/lib/sky-pure';
 import { parseCurrent } from '../src/lib/flood-pure';
+import { cleanErrorReport, scrub } from '../src/lib/errors-pure';
+import { cleanPlace, defaultPlace, localHour, parseCities, placeForecastUrl, rainAmount, speed, temp, timeOfDayAt, todFor, unitsFor } from '../src/lib/place-pure';
 import { mapsUrl, parseTime, sortStops, stopsByDay, timeLabel } from '../src/lib/itinerary-pure';
 import { showTimeFlags } from '../src/lib/note-groups';
 import { gentleAlert, isHighSteps, suggestionsFor } from '../src/lib/suggestions';
@@ -722,9 +724,14 @@ test('sky: time of day near the equator, and the right sky for it', () => {
 });
 
 test('sky: the weather right now is read safely', () => {
-  assert.deepEqual(parseCurrent({ current: { temperature_2m: 29.6, apparent_temperature: 34.2, weather_code: 2, is_day: 1, relative_humidity_2m: 74, wind_speed_10m: 9.4 } } as never), {
-    tempC: 30, feelsC: 34, code: 2, isDay: true, humidity: 74, windKmh: 9,
-  });
+  assert.deepEqual(
+    parseCurrent({
+      utc_offset_seconds: 28800,
+      daily: { sunrise: ['2026-11-11T07:06'], sunset: ['2026-11-11T19:03'] },
+      current: { temperature_2m: 29.6, apparent_temperature: 34.2, weather_code: 2, is_day: 1, relative_humidity_2m: 74, wind_speed_10m: 9.4 },
+    } as never),
+    { tempC: 30, feelsC: 34, code: 2, isDay: true, humidity: 74, windKmh: 9, sunrise: 7.1, sunset: 19.05, utcOffsetSec: 28800 },
+  );
   assert.equal(parseCurrent({} as never), null);
   assert.equal(parseCurrent({ current: { temperature_2m: null } } as never), null);
   assert.equal(parseCurrent({ current: { temperature_2m: 25, is_day: 0 } } as never)!.isDay, false);
@@ -755,4 +762,64 @@ test('sky: ideas for the two of you from the week', () => {
   assert.deepEqual(rangeBar({ minC: 24, maxC: 32 }, 24, 32), { from: 0, to: 1 });
   const mid = rangeBar({ minC: 26, maxC: 26 }, 24, 32);
   assert.ok(mid.to > mid.from, 'a single-temperature day still shows a sliver');
+});
+
+// ------------------------------------------------------------ Weather anywhere
+test('weather anywhere: places are checked, and Malaysia starts with the flood watch', () => {
+  assert.deepEqual(cleanPlace({ kind: 'area', id: 'klang' }), { kind: 'area', id: 'klang' });
+  assert.equal(cleanPlace({ kind: 'area', id: 'penang' }), null);
+  assert.deepEqual(cleanPlace({ kind: 'city', name: ' Tokyo ', country: 'Japan', lat: 35.68951, lon: 139.69171 }), { kind: 'city', name: 'Tokyo', country: 'Japan', lat: 35.69, lon: 139.692 });
+  assert.equal(cleanPlace({ kind: 'city', name: 'Nowhere', lat: 95, lon: 0 }), null);
+  assert.equal(cleanPlace('junk'), null);
+  assert.equal(cleanPlace({ kind: 'here', lat: 1, lon: 2 })!.kind, 'here');
+  assert.deepEqual(defaultPlace('Asia/Kuala_Lumpur'), { kind: 'area', id: 'shahalam' });
+  assert.deepEqual(defaultPlace('Asia/Kuching'), { kind: 'area', id: 'shahalam' });
+  assert.equal(defaultPlace('Europe/London'), null);
+  assert.match(placeForecastUrl(35.69, 139.69), /timezone=auto.*sunrise,sunset.*current=/);
+});
+
+test('weather anywhere: °C or °F by country, and the conversions', () => {
+  assert.equal(unitsFor('en-US'), 'F');
+  assert.equal(unitsFor('en-MY'), 'C');
+  assert.equal(unitsFor('en-GB'), 'C');
+  assert.equal(unitsFor(undefined), 'C');
+  assert.equal(temp(30, 'C'), '30°');
+  assert.equal(temp(30, 'F'), '86°');
+  assert.equal(temp(-40, 'F'), '-40°');
+  assert.equal(speed(16, 'C'), '16 km/h');
+  assert.equal(speed(16, 'F'), '10 mph');
+  assert.equal(rainAmount(25.4, 'F'), '1 in');
+  assert.equal(rainAmount(12.5, 'C'), '12.5 mm');
+});
+
+test('weather anywhere: dawn, day, dusk and night from the place’s own sunrise and sunset', () => {
+  // London in winter: sunrise ~7:40, sunset ~16:10.
+  assert.equal(timeOfDayAt(7.5, 7.67, 16.17), 'dawn');
+  assert.equal(timeOfDayAt(12, 7.67, 16.17), 'day');
+  assert.equal(timeOfDayAt(16, 7.67, 16.17), 'dusk');
+  assert.equal(timeOfDayAt(18, 7.67, 16.17), 'night');
+  assert.equal(localHour(Date.UTC(2026, 10, 11, 0, 30), 9 * 3600), 9.5);
+  assert.equal(localHour(Date.UTC(2026, 10, 11, 2, 0), -5 * 3600), 21);
+  const at = Date.UTC(2026, 10, 11, 3, 0); // 12:00 in Tokyo
+  const tokyo = { isDay: true, sunrise: 6.17, sunset: 16.58, utcOffsetSec: 9 * 3600 };
+  assert.equal(todFor(tokyo, 'night', at), 'day');
+  assert.equal(todFor({ ...tokyo, isDay: false }, 'day', at), 'night', 'the service saying night wins over the clock');
+  assert.equal(todFor(null, 'dusk', at), 'dusk');
+  assert.deepEqual(parseCities({ results: [{ name: 'Paris', country: 'France', admin1: 'Île-de-France', latitude: 48.85, longitude: 2.35 }, { name: 'bad' }] }), [
+    { name: 'Paris', country: 'France', region: 'Île-de-France', lat: 48.85, lon: 2.35 },
+  ]);
+  assert.deepEqual(parseCities(null), []);
+});
+
+// ------------------------------------------------------------ Error reports
+test('error reports are short and carry nothing personal', () => {
+  assert.equal(scrub('Failed for aina@example.com at https://x.app/a?t=secret123 id 12345678', 300), 'Failed for [email] at https://x.app/a id [number]');
+  const r = cleanErrorReport(new TypeError('Cannot read properties of null'), { kind: 'crash', route: '/trip/IZsPv9ex8fNebcdP89Qt', platform: 'web', agent: 'x'.repeat(300), version: '1.0.0' });
+  assert.equal(r.message, 'TypeError: Cannot read properties of null');
+  assert.equal(r.route, '/trip/[id]');
+  assert.equal(r.agent.length, 200);
+  assert.ok(r.stack.length <= 2000);
+  assert.equal(cleanErrorReport('plain text', { kind: 'promise', route: '', platform: 'ios', agent: '', version: '' }).message, 'plain text');
+  assert.equal(cleanErrorReport(null, { kind: 'error', route: '', platform: 'web', agent: '', version: '' }).message, 'Unknown error');
+  assert.equal(cleanErrorReport({ message: 'x'.repeat(500) }, { kind: 'error', route: '', platform: 'web', agent: '', version: '' }).message.length, 300);
 });

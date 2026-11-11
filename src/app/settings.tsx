@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
-import { Camera, ChevronRight, Eye, Footprints, HardDrive, ImagePlus, Lock, LogOut, Palette, Trash, Unlink, type LucideIcon } from 'lucide-react-native';
+import { Camera, ChevronRight, Eye, FileText, Footprints, HardDrive, ImagePlus, Lock, LogOut, Palette, ShieldCheck, Trash, Unlink, type LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
 import { Platform, Pressable, TextInput, View } from 'react-native';
 
@@ -257,6 +257,14 @@ export default function Settings() {
         )}
         <Gap h={space.sm} />
         <Button kind="ghost" icon={LogOut} label="Sign out" onPress={() => signOut(auth)} />
+      </Card>
+
+      <Gap />
+      <SectionTitle>About KiTA</SectionTitle>
+      <Card style={{ paddingVertical: space.sm }}>
+        <Button testID="open-privacy-policy" kind="ghost" small icon={ShieldCheck} label="Privacy policy" onPress={() => router.push('/privacy-policy')} />
+        <Gap h={space.sm} />
+        <Button testID="open-terms" kind="ghost" small icon={FileText} label="Terms of use" onPress={() => router.push('/terms')} />
       </Card>
 
       <Gap h={space.xl} />

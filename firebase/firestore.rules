@@ -80,6 +80,18 @@ service cloud.firestore {
 
     // ----------------------------------------------------------- stepTokens
     // Hashes of the private "steps from iPhone" links. Server functions only.
+    // Error reports: a short technical note when something breaks (src/lib/errors.ts).
+    // Write-only from the app; read in the Firebase console; deleted after 90 days.
+    match /errorReports/{reportId} {
+      allow create: if signedIn()
+        && incoming().keys().hasOnly(['kind', 'message', 'stack', 'route', 'platform', 'agent', 'version', 'at'])
+        && incoming().kind in ['crash', 'error', 'promise']
+        && str(incoming().message, 300) && str(incoming().stack, 2000) && str(incoming().route, 120)
+        && str(incoming().platform, 20) && str(incoming().agent, 200) && str(incoming().version, 20)
+        && incoming().at == request.time;
+      allow read, update, delete: if false;
+    }
+
     match /stepTokens/{tokenHash} {
       allow read, write: if false;
     }

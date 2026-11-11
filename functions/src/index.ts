@@ -874,3 +874,17 @@ export const trackFlight = onCall(async (req) => {
   flightAnswers.set(q.flight, answer);
   return answer;
 });
+
+// ------------------------------------------------------------ error reports
+/** Error reports are only useful for a while: delete those older than 90 days. */
+export const purgeOldErrorReports = onSchedule({ schedule: 'every day 04:00', timeZone: 'Asia/Kuala_Lumpur' }, async () => {
+  const cutoff = Timestamp.fromMillis(Date.now() - 90 * DAY_MS);
+  for (;;) {
+    const old = await db.collection('errorReports').where('at', '<', cutoff).limit(400).get();
+    if (old.empty) break;
+    const batch = db.batch();
+    old.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    if (old.size < 400) break;
+  }
+});

@@ -23,6 +23,13 @@ fs.mkdirSync(OUT, { recursive: true });
 const phone = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: false, isMobile: false };
 const tid = (id) => `[data-testid="${id}"]`;
 
+/** First-time welcome pages: skip them (or go to "I already have an account"). */
+async function pastWelcome(page, mode = 'new') {
+  await page.locator(`${tid('welcome-next')}, ${tid('name')}, ${tid('email')}`).first().waitFor({ timeout: 30000 });
+  if (await page.locator(tid('welcome-next')).count()) await page.locator(tid(mode === 'new' ? 'welcome-skip' : 'welcome-have-account')).click();
+  await page.locator(tid('email')).waitFor();
+}
+
 let step = 0;
 function log(msg) {
   step += 1;
@@ -36,6 +43,7 @@ async function shot(page, name) {
 
 async function signUp(page, name) {
   await page.goto(BASE);
+  await pastWelcome(page);
   await page.locator(tid('name')).waitFor();
   await page.locator(tid('name')).fill(name);
   await page.locator(tid('email')).fill(`${name.toLowerCase()}-${run}@example.com`);

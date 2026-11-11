@@ -48,7 +48,7 @@ const GROUPS: { title: string; line: string; tiles: Tile[] }[] = [
       { route: '/stress-smash', testID: 'open-stress-smash', icon: Hammer, title: 'Stress Smash', detail: 'Bonk the stress away', tone: 'rose' },
       { route: '/reset', testID: 'open-reset-tile', icon: HeartHandshake, title: 'Gentle reset', detail: 'After a tense day', tone: 'peach' },
       { route: '/find', testID: 'open-find-tile', icon: MapPin, title: 'Find each other', detail: 'Where you both are', tone: 'lavender' },
-      { route: '/weather', testID: 'open-weather-tile', icon: CloudRain, title: 'Weather & floods', detail: 'Shah Alam and Klang', tone: 'sky' },
+      { route: '/weather', testID: 'open-weather-tile', icon: CloudRain, title: 'Weather', detail: 'Anywhere, plus flood watch', tone: 'sky' },
     ],
   },
 ];

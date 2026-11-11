@@ -104,25 +104,55 @@ export type OpenMeteo = {
     precipitation_sum: (number | null)[];
     precipitation_probability_max: (number | null)[];
     weather_code: (number | null)[];
+    sunrise?: (string | null)[];
+    sunset?: (string | null)[];
   };
+  /** The place's offset from UTC (Open-Meteo always sends it). */
+  utc_offset_seconds?: number;
   hourly?: { time: string[]; precipitation: (number | null)[] };
   current?: { temperature_2m?: number | null; apparent_temperature?: number | null; weather_code?: number | null; is_day?: number | null; relative_humidity_2m?: number | null; wind_speed_10m?: number | null };
 };
 
 /** The weather right now (Open-Meteo "current"). */
-export type CurrentWeather = { tempC: number; feelsC: number | null; code: number; isDay: boolean; humidity: number | null; windKmh: number | null };
+export type CurrentWeather = {
+  tempC: number;
+  feelsC: number | null;
+  code: number;
+  isDay: boolean;
+  humidity: number | null;
+  windKmh: number | null;
+  /** Local to the place: hours since midnight (e.g. 7.08), and its offset from UTC. */
+  sunrise: number | null;
+  sunset: number | null;
+  utcOffsetSec: number | null;
+};
+
+function hourOfIso(iso: string | null | undefined): number | null {
+  const m = /T(\d{2}):(\d{2})/.exec(iso ?? '');
+  return m ? Number(m[1]) + Number(m[2]) / 60 : null;
+}
 
 export function parseCurrent(json: OpenMeteo): CurrentWeather | null {
   const c = json.current;
   if (!c || typeof c.temperature_2m !== 'number') return null;
   const n = (v: number | null | undefined) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : null);
-  return { tempC: Math.round(c.temperature_2m), feelsC: n(c.apparent_temperature), code: typeof c.weather_code === 'number' ? c.weather_code : 0, isDay: c.is_day !== 0, humidity: n(c.relative_humidity_2m), windKmh: n(c.wind_speed_10m) };
+  return {
+    tempC: Math.round(c.temperature_2m),
+    feelsC: n(c.apparent_temperature),
+    code: typeof c.weather_code === 'number' ? c.weather_code : 0,
+    isDay: c.is_day !== 0,
+    humidity: n(c.relative_humidity_2m),
+    windKmh: n(c.wind_speed_10m),
+    sunrise: hourOfIso(json.daily?.sunrise?.[0]),
+    sunset: hourOfIso(json.daily?.sunset?.[0]),
+    utcOffsetSec: typeof json.utc_offset_seconds === 'number' ? json.utc_offset_seconds : null,
+  };
 }
 
 export function forecastUrl(a: Area): string {
   return (
     `https://api.open-meteo.com/v1/forecast?latitude=${a.lat}&longitude=${a.lon}&timezone=Asia%2FKuala_Lumpur&forecast_days=7` +
-    '&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,weather_code&hourly=precipitation' +
+    '&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,weather_code,sunrise,sunset&hourly=precipitation' +
     '&current=temperature_2m,apparent_temperature,weather_code,is_day,relative_humidity_2m,wind_speed_10m'
   );
 }

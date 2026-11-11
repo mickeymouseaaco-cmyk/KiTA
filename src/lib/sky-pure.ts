@@ -81,7 +81,7 @@ export type CoupleTip = { icon: TipIcon; text: string };
 const weekday = (date: string) => new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
 
 /** Up to three ideas for the two of you from the week ahead. */
-export function coupleTips(days: readonly ForecastDay[], partner: string): CoupleTip[] {
+export function coupleTips(days: readonly ForecastDay[], partner: string, fmt: (c: number) => string = (c) => `${c}°`): CoupleTip[] {
   if (!days.length) return [];
   const p = partner || 'your love';
   const tips: CoupleTip[] = [];
@@ -89,12 +89,12 @@ export function coupleTips(days: readonly ForecastDay[], partner: string): Coupl
   const wet = (d: ForecastDay) => d.rainMm >= 5 || d.rainChance >= 70;
   if (today.maxHourlyMm >= 15 || today.code >= 95) tips.push({ icon: 'home', text: `Stormy today. A cosy night in with ${p}: a film and your favourite takeaway.` });
   else if (wet(today)) tips.push({ icon: 'umbrella', text: 'Rain likely today. Pack an umbrella big enough for two.' });
-  if (today.maxC >= 33) tips.push({ icon: 'hot', text: `Hot one at ${today.maxC}°. Plan outdoor things for the evening, and stay in the shade.` });
+  if (today.maxC >= 33) tips.push({ icon: 'hot', text: `Hot one at ${fmt(today.maxC)}. Plan outdoor things for the evening, and stay in the shade.` });
 
   // The best day ahead for doing something outside together: dry first, then not too hot.
   const ahead = days.slice(1);
   const best = [...ahead].sort((a, b) => a.rainMm - b.rainMm || a.rainChance - b.rainChance || Math.abs(a.maxC - 30) - Math.abs(b.maxC - 30))[0];
-  if (best && !wet(best)) tips.push({ icon: 'walk', text: `${weekday(best.date)} looks best for an outing together: ${best.rainChance}% rain, up to ${best.maxC}°.` });
+  if (best && !wet(best)) tips.push({ icon: 'walk', text: `${weekday(best.date)} looks best for an outing together: ${best.rainChance}% rain, up to ${fmt(best.maxC)}.` });
 
   // Weekend: which day is nicer.
   const sat = ahead.find((d) => weekday(d.date) === 'Saturday');
@@ -103,7 +103,7 @@ export function coupleTips(days: readonly ForecastDay[], partner: string): Coupl
     const drier = sat.rainMm < sun.rainMm ? 'Saturday' : 'Sunday';
     tips.push({ icon: 'weekend', text: `This weekend, ${drier} is the drier day. Save your plans for then.` });
   }
-  if (!wet(today) && today.code <= 2 && tips.length < 3) tips.push({ icon: 'sunset', text: 'Clear-ish evening ahead. Catch the sunset together, around 7:15pm.' });
+  if (!wet(today) && today.code <= 2 && tips.length < 3) tips.push({ icon: 'sunset', text: 'Clear-ish evening ahead. Catch the sunset together.' });
   return tips.slice(0, 3);
 }
 

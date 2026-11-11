@@ -23,7 +23,8 @@ import { questionFor, questionStatus, useAnswer, useQuestionDay } from '@/lib/qu
 import { sendHug } from '@/lib/messages';
 import { usePaired } from '@/lib/session';
 import { todayList, useTodos } from '@/lib/todos';
-import { AREAS, LEVEL_LABEL, skyKind, useFloodWatch, weatherWords, worst } from '@/lib/flood';
+import { AREAS, LEVEL_LABEL, skyKind, useFloodWatch, weatherWords } from '@/lib/flood';
+import { placeLabel, temp, todFor, usePlaceWeather, useUnits, useWeatherPlace } from '@/lib/places';
 import { hourInMalaysia, timeOfDay as skyTime } from '@/lib/sky-pure';
 import { radius, space, useTheme, vivid } from '@/theme';
 
@@ -105,12 +106,17 @@ export default function Today() {
   const [mealOpen, setMealOpen] = useState(false);
   const mealTile = useRef<BurstHandle>(null);
   const hugTile = useRef<BurstHandle>(null);
-  const floodLevel = worst(AREAS.map((a) => flood.status[a.id]?.level ?? 'calm'));
-  const floodArea = AREAS.find((a) => flood.status[a.id]?.level === floodLevel) ?? AREAS[0];
-  const todayRain = flood.data?.forecast[floodArea.id]?.[0];
-  const skyNow = flood.data?.now?.[floodArea.id] ?? null;
-  const skyClock = skyTime(hourInMalaysia());
-  const skyTod = !skyNow ? skyClock : !skyNow.isDay ? 'night' : skyClock === 'night' ? 'day' : skyClock;
+  // The sky card follows the place each person chose (anywhere in the world);
+  // the flood label shows only for the Malaysian flood-watch areas.
+  const [place] = useWeatherPlace();
+  const [units] = useUnits();
+  const anywhere = usePlaceWeather(place);
+  const floodArea = place?.kind === 'area' ? AREAS.find((a) => a.id === place.id)! : null;
+  const floodLevel = floodArea ? (flood.status[floodArea.id]?.level ?? 'calm') : 'calm';
+  const todayRain = floodArea ? flood.data?.forecast[floodArea.id]?.[0] : anywhere.data?.days[0];
+  const skyNow = floodArea ? (flood.data?.now?.[floodArea.id] ?? null) : (anywhere.data?.now ?? null);
+  const skyTod = todFor(skyNow, floodArea ? skyTime(hourInMalaysia()) : 'day');
+  const skyPlace = place ? placeLabel(place, (id) => AREAS.find((a) => a.id === id)!.name) : 'Your weather';
   const partner = usePartnerDays(cid, partnerId, today).days[today];
   const evening = new Date().getHours() >= 18;
   const question = questionFor(today, cid);
@@ -304,28 +310,32 @@ export default function Today() {
       <Pressable
         testID="open-weather"
         accessibilityRole="button"
-        accessibilityLabel={`Weather and floods near ${floodArea.name}: ${skyNow ? `${skyNow.tempC} degrees, ${weatherWords(skyNow.code)}` : todayRain ? weatherWords(todayRain.code) : 'checking'}. Flood watch: ${LEVEL_LABEL[floodLevel]}. Open the weather`}
+        accessibilityLabel={place ? `Weather in ${skyPlace}: ${skyNow ? `${temp(skyNow.tempC, units)}, ${weatherWords(skyNow.code)}` : todayRain ? weatherWords(todayRain.code) : 'checking'}.${floodArea ? ` Flood watch: ${LEVEL_LABEL[floodLevel]}.` : ''} Open the weather` : 'Choose a place for your weather'}
         onPress={() => router.push('/weather')}
         style={({ pressed }) => ({ transform: [{ scale: pressed && look.flat ? 0.985 : 1 }] })}>
         <LiveSky kind={skyNow ? skyKind(skyNow.code) : todayRain ? skyKind(todayRain.code) : 'partly'} tod={skyTod} height={124} radius={look.cardRadius}>
           <View style={{ flex: 1, paddingHorizontal: space.lg, paddingVertical: space.md, justifyContent: 'space-between' }}>
             <Row style={{ justifyContent: 'space-between' }}>
               <T variant="label" color="#FFFFFF" numberOfLines={1} style={{ flex: 1, opacity: 0.92, letterSpacing: 0.8 }}>
-                {floodArea.name.toUpperCase()}
+                {skyPlace.toUpperCase()}
               </T>
+              {floodArea ? (
               <Row gap={2} style={{ backgroundColor: floodLevel === 'calm' ? 'rgba(255,255,255,0.22)' : floodLevel === 'watch' ? '#FFCE52' : '#FF6136', borderRadius: 999, paddingLeft: 10, paddingRight: 6, paddingVertical: 3 }}>
                 <T variant="small" color={floodLevel === 'watch' ? '#3A2A00' : '#FFFFFF'} style={{ fontFamily: 'Raleway_700Bold', fontSize: 12, lineHeight: 16 }}>
                   {floodLevel === 'calm' ? 'No floods' : floodLevel === 'watch' ? 'Flood watch' : 'Flood warning'}
                 </T>
                 <ChevronRight color={floodLevel === 'watch' ? '#3A2A00' : '#FFFFFF'} size={14} />
               </Row>
+              ) : (
+                <ChevronRight color="#FFFFFF" size={18} />
+              )}
             </Row>
             <Row gap={space.sm} style={{ alignItems: 'baseline' }}>
               <T color="#FFFFFF" style={{ fontSize: 44, lineHeight: 50, fontWeight: '300', letterSpacing: -1.5 }}>
-                {skyNow ? `${skyNow.tempC}°` : todayRain ? `${todayRain.maxC}°` : '–'}
+                {skyNow ? temp(skyNow.tempC, units) : todayRain ? temp(todayRain.maxC, units) : place === null ? '' : '–'}
               </T>
               <T variant="bodyStrong" color="#FFFFFF" numberOfLines={1} style={{ flexShrink: 1 }}>
-                {skyNow ? weatherWords(skyNow.code) : todayRain ? weatherWords(todayRain.code) : flood.loading ? 'Checking…' : 'Weather'}
+                {skyNow ? weatherWords(skyNow.code) : todayRain ? weatherWords(todayRain.code) : place === null ? 'Tap to choose your place' : 'Checking…'}
               </T>
             </Row>
           </View>
