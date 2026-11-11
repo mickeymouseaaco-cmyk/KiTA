@@ -558,7 +558,8 @@ export function useInputStyle(): TextStyle {
   return {
     ...typeScale.body,
     ...(look.systemFont ? systemFont(typeScale.body.fontFamily) : null),
-    fontSize: Math.round(typeScale.body.fontSize * textScale),
+    // At least 16px on the web: smaller text boxes make iPhone zoom the page in when tapped.
+    fontSize: Platform.OS === 'web' ? Math.max(16, Math.round(typeScale.body.fontSize * textScale)) : Math.round(typeScale.body.fontSize * textScale),
     lineHeight: Math.round(typeScale.body.lineHeight * textScale),
     color: c.text,
     backgroundColor: c.surface,

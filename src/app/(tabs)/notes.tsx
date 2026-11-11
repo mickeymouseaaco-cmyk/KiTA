@@ -1,9 +1,9 @@
 import { Image } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import { CalendarClock, Camera, Check, Clock, ListFilter, Copy, Gift, Heart, ImagePlus, Images, ListTodo, Mail, Mic, Plus, Send, Star, Trash, Video, X, type LucideIcon } from 'lucide-react-native';
-import { useCallback, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
+import { CalendarClock, Camera, Check, ChevronLeft, Clock, ListFilter, Copy, Gift, Heart, ImagePlus, Images, ListTodo, Mail, Mic, Plus, Send, Star, Trash, Video, X, type LucideIcon } from 'lucide-react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Animated, Easing, FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useCelebrate } from '@/components/celebrate';
@@ -21,6 +21,7 @@ import { showTimeFlags } from '@/lib/note-groups';
 import { LIMITS, type PreparedImage } from '@/lib/media';
 import { deleteMessage, isFaded, markRead, sendText, starredNotes, toggleFavorite, toggleImportant, useMessages } from '@/lib/messages';
 import { usePaired } from '@/lib/session';
+import { usePartnerTyping, useTypingSignal } from '@/lib/typing';
 import { cancelScheduled, openSurprise, toggleScheduledFavorite, useDeliveredToMe, useMyScheduled, type ScheduledNote } from '@/lib/together-data';
 import { addTodo, dueDateFor, useTodos } from '@/lib/todos';
 import type { Message } from '@/lib/types';
@@ -86,6 +87,10 @@ export default function LoveNotes() {
   const input = useInputStyle();
   const who = usePaired();
   const { uid, cid, partnerName } = who;
+  // On phones the bottom bar is hidden here, so the notes get the whole screen.
+  const fullScreen = useWindowDimensions().width < 900;
+  const typing = useTypingSignal(cid, uid);
+  const partnerTyping = usePartnerTyping(cid, who.partnerId);
   const { toast, ensurePermission } = useFeedback();
   const params = useLocalSearchParams<{ compose?: string }>();
   const { messages, ready, error } = useMessages(cid);
@@ -160,6 +165,7 @@ export default function LoveNotes() {
     const body = text.trim();
     if (!body) return;
     const star = important;
+    typing.stopped();
     setText('');
     setInputH(COMPOSER_MIN);
     setImportant(false);
@@ -212,13 +218,20 @@ export default function LoveNotes() {
   }
 
   return (
-    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: c.bg }}>
+    <SafeAreaView edges={fullScreen ? ['top', 'bottom'] : ['top']} style={{ flex: 1, backgroundColor: c.bg }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={{ paddingHorizontal: space.lg, paddingTop: space.lg, gap: space.md, width: '100%', maxWidth: 560, alignSelf: 'center' }}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <T variant="display" accessibilityRole="header">
-              Love Notes
-            </T>
+            <Row gap={2} style={{ flexShrink: 1 }}>
+              {fullScreen ? (
+                <Pressable testID="notes-back" accessibilityRole="button" accessibilityLabel="Back to Home" onPress={() => router.navigate('/')} hitSlop={10} style={{ marginLeft: -8, padding: 4 }}>
+                  <ChevronLeft color={c.text} size={30} strokeWidth={2.2} />
+                </Pressable>
+              ) : null}
+              <T variant="display" accessibilityRole="header" numberOfLines={1} style={[{ flexShrink: 1 }, fullScreen && { fontSize: 26, lineHeight: 32 }]}>
+                Love Notes
+              </T>
+            </Row>
             <Row gap={space.sm}>
               <IconButton
                 testID="open-filter"
@@ -347,6 +360,8 @@ export default function LoveNotes() {
           )}
         />
 
+        {partnerTyping ? <TypingLine name={partnerName} /> : null}
+
         <View style={{ borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.surface, padding: space.md, gap: space.sm }}>
           {text.trim() ? (
             <Pressable
@@ -390,7 +405,11 @@ export default function LoveNotes() {
             <TextInput
               testID="note-input"
               value={text}
-              onChangeText={setText}
+              onChangeText={(t) => {
+                setText(t);
+                typing.typed(t);
+              }}
+              onBlur={typing.stopped}
               onFocus={() => setAttachOpen(false)}
               placeholder={`Write to ${partnerName}…`}
               placeholderTextColor={c.textMuted}
@@ -829,6 +848,42 @@ function Bubble({
           {fav ? <Heart color={c.heart} fill={c.heart} size={13} accessibilityLabel="Saved" /> : null}
         </Row>
       ) : null}
+    </View>
+  );
+}
+
+/** "Aina is typing…" with three softly pulsing dots, just above the composer. */
+function TypingLine({ name }: { name: string }) {
+  const { c, motion } = useTheme();
+  const [v] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    if (motion === 'off') return;
+    const loop = Animated.loop(Animated.timing(v, { toValue: 1, duration: 1100, easing: Easing.linear, useNativeDriver: Platform.OS !== 'web' }));
+    loop.start();
+    return () => loop.stop();
+  }, [motion, v]);
+  return (
+    <View testID="partner-typing" accessibilityLiveRegion="polite" accessibilityLabel={`${name} is typing`} style={{ width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: space.md, paddingBottom: 6 }}>
+      <Row gap={space.sm}>
+        <View style={{ flexDirection: 'row', gap: 4, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, borderBottomLeftRadius: 6, paddingHorizontal: 12, paddingVertical: 10 }}>
+          {[0, 1, 2].map((i) => (
+            <Animated.View
+              key={i}
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: 4,
+                backgroundColor: c.textMuted,
+                opacity: motion === 'off' ? 0.6 : v.interpolate({ inputRange: [0, 0.2 + i * 0.15, 0.45 + i * 0.15, 1], outputRange: [0.3, 1, 0.3, 0.3], extrapolate: 'clamp' }),
+                transform: motion === 'off' ? [] : [{ translateY: v.interpolate({ inputRange: [0, 0.2 + i * 0.15, 0.45 + i * 0.15, 1], outputRange: [0, -3, 0, 0], extrapolate: 'clamp' }) }],
+              }}
+            />
+          ))}
+        </View>
+        <T variant="small" muted>
+          {name} is typing…
+        </T>
+      </Row>
     </View>
   );
 }

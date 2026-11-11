@@ -645,6 +645,19 @@ describe('love languages, plant, trips', () => {
   });
 });
 
+describe('is typing', () => {
+  test('each of you sets only your own marker (just a time); your partner can see it; outsiders cannot', async () => {
+    await seedCouple();
+    await assertSucceeds(setDoc(doc(db(A), `couples/${CID}/typing/${A}`), { at: serverTimestamp() }));
+    await assertSucceeds(getDoc(doc(db(B), `couples/${CID}/typing/${A}`)));
+    await assertFails(setDoc(doc(db(B), `couples/${CID}/typing/${A}`), { at: serverTimestamp() }));
+    await assertFails(setDoc(doc(db(A), `couples/${CID}/typing/${A}`), { at: serverTimestamp(), text: 'secret draft' }));
+    await assertFails(getDoc(doc(db(EVE), `couples/${CID}/typing/${A}`)));
+    await assertFails(deleteDoc(doc(db(B), `couples/${CID}/typing/${A}`)));
+    await assertSucceeds(deleteDoc(doc(db(A), `couples/${CID}/typing/${A}`)));
+  });
+});
+
 describe('media that is still being saved', () => {
   test('asking for a photo that is not saved yet says "not there" instead of refusing', async () => {
     await seedCouple();

@@ -266,6 +266,23 @@ async function main() {
   await afiq.locator(tid('filter-clear')).click();
   await afiq.getByText('Bringing nasi lemak').waitFor();
   log('Notes: one time per burst; starred/saved behind a filter button');
+
+  // Notes takes the whole phone screen: no bottom bar, a back arrow instead.
+  assert.equal(await afiq.getByRole('tab', { name: /Together/ }).filter({ visible: true }).count(), 0, 'no bottom bar on Notes');
+  await afiq.locator(tid('notes-back')).waitFor();
+  // "Afiq is typing…" shows live on Aina's phone, and goes when he clears the box.
+  await aina.goto(BASE + '/notes');
+  await aina.locator(tid('note-input')).waitFor({ timeout: 15000 });
+  await afiq.locator(tid('note-input')).fill('Thinking of y');
+  await aina.locator(tid('partner-typing')).waitFor({ timeout: 10000 });
+  await shot(aina, '04e-notes-typing');
+  await afiq.locator(tid('note-input')).fill('');
+  await aina.locator(tid('partner-typing')).waitFor({ state: 'detached', timeout: 10000 });
+  await afiq.locator(tid('notes-back')).click();
+  await afiq.locator(tid('qa-meal')).waitFor({ timeout: 10000 });
+  await afiq.goto(BASE + '/notes');
+  await afiq.locator(tid('note-input')).waitFor();
+  log('Notes: full screen with a back arrow; live "is typing" for the partner');
   log(`Love-note box is ${Math.round(w)}px wide, grows to ${Math.round(grown)}px, and sends`);
 
   // 3. Weather at a glance.
