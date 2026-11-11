@@ -269,6 +269,14 @@ service cloud.firestore {
         allow delete: if isMember(cid) && resource.data.ownerId == me();
       }
 
+      // "Is typing…": one tiny marker per person; only its time, never the text.
+      match /typing/{typerUid} {
+        allow read: if isMember(cid);
+        allow create, update: if isMember(cid) && typerUid == me()
+          && incoming().keys().hasOnly(['at']) && incoming().at == request.time;
+        allow delete: if isMember(cid) && typerUid == me();
+      }
+
       // ---- media metadata (files live in Cloud Storage)
       match /media/{mediaId} {
         // Surprise media stays hidden from the partner until it unlocks.

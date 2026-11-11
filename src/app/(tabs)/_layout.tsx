@@ -44,7 +44,15 @@ export default function TabsLayout() {
         sceneStyle: { backgroundColor: c.bg },
       }}>
       <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color, focused }) => <House color={color} size={24} strokeWidth={look.flat ? (focused ? 2.4 : 1.7) : 2} /> }} />
-      <Tabs.Screen name="notes" options={{ title: 'Notes', tabBarIcon: ({ color, focused }) => <Mail color={color} size={24} strokeWidth={look.flat ? (focused ? 2.4 : 1.7) : 2} /> }} />
+      {/* Notes takes the whole screen on phones (like a chat); its own back arrow returns Home. */}
+      <Tabs.Screen
+        name="notes"
+        options={{
+          title: 'Notes',
+          tabBarIcon: ({ color, focused }) => <Mail color={color} size={24} strokeWidth={look.flat ? (focused ? 2.4 : 1.7) : 2} />,
+          ...(sidebar ? null : { tabBarStyle: { display: 'none' } }),
+        }}
+      />
       <Tabs.Screen name="together" options={{ title: 'Together', tabBarIcon: ({ color, focused }) => <Users color={color} size={24} strokeWidth={look.flat ? (focused ? 2.4 : 1.7) : 2} /> }} />
       <Tabs.Screen name="trip" options={{ title: 'Trips', tabBarIcon: ({ color, focused }) => <Plane color={color} size={24} strokeWidth={look.flat ? (focused ? 2.4 : 1.7) : 2} /> }} />
       {/* Not in the bar (opened from the switch on Home), but still a normal page, so /their-day links work. */}

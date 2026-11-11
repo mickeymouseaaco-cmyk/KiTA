@@ -11,6 +11,7 @@ import { normalizeFlight, pickAircraft, toPosition, toRoute } from '../functions
 import { cleanFlightNo, compass, etaWords, fr24Url, mapSpan, phaseWord, prettyFlightNo, routeProgress } from '../src/lib/flight-pure';
 import { coupleTips, rangeBar, skyColors, skyLayers, skyLines, timeOfDay, hourInMalaysia } from '../src/lib/sky-pure';
 import { parseCurrent } from '../src/lib/flood-pure';
+import { isTyping } from '../src/lib/typing-pure';
 import { cleanErrorReport, scrub } from '../src/lib/errors-pure';
 import { cleanPlace, defaultPlace, localHour, parseCities, placeForecastUrl, rainAmount, speed, temp, timeOfDayAt, todFor, unitsFor } from '../src/lib/place-pure';
 import { mapsUrl, parseTime, sortStops, stopsByDay, timeLabel } from '../src/lib/itinerary-pure';
@@ -822,4 +823,14 @@ test('error reports are short and carry nothing personal', () => {
   assert.equal(cleanErrorReport('plain text', { kind: 'promise', route: '', platform: 'ios', agent: '', version: '' }).message, 'plain text');
   assert.equal(cleanErrorReport(null, { kind: 'error', route: '', platform: 'web', agent: '', version: '' }).message, 'Unknown error');
   assert.equal(cleanErrorReport({ message: 'x'.repeat(500) }, { kind: 'error', route: '', platform: 'web', agent: '', version: '' }).message.length, 300);
+});
+
+// ------------------------------------------------------------ Is typing
+test('is typing: fresh for a few seconds, then gone', () => {
+  const now = 1_000_000;
+  assert.equal(isTyping(now - 2000, now), true);
+  assert.equal(isTyping(now - 8000, now), false);
+  assert.equal(isTyping(null, now), false);
+  assert.equal(isTyping(now + 3000, now), true, 'a partner clock a little ahead still counts');
+  assert.equal(isTyping(now + 120_000, now), false);
 });
