@@ -94,19 +94,23 @@ export function FlightsCard({ tripId }: { tripId?: string }) {
           accessibilityLabel="Flight number"
           style={[input, { flex: 1 }]}
         />
-        <Button testID="flight-track" small icon={Plane} label={tripId ? 'Save & track' : 'Track'} disabled={!flight} onPress={go} />
+        {tripId ? null : <Button testID="flight-track" small icon={Plane} label="Track" disabled={!flight} onPress={go} />}
       </Row>
       {tripId ? (
-        <TextInput
-          testID="flight-label"
-          value={label}
-          onChangeText={setLabel}
-          placeholder="Whose flight? e.g. Aina to Penang (optional)"
-          placeholderTextColor={c.textMuted}
-          maxLength={60}
-          accessibilityLabel="A label for this flight, optional"
-          style={[input, { marginTop: space.sm }]}
-        />
+        <>
+          <TextInput
+            testID="flight-label"
+            value={label}
+            onChangeText={setLabel}
+            placeholder="Whose flight? (optional)"
+            placeholderTextColor={c.textMuted}
+            maxLength={60}
+            accessibilityLabel="A label for this flight, like Aina to Penang. Optional"
+            style={[input, { marginTop: space.sm }]}
+          />
+          <Gap h={space.sm} />
+          <Button testID="flight-track" small icon={Plane} label="Save and track" disabled={!flight} hint="Type a flight number first" onPress={go} />
+        </>
       ) : null}
       {text.trim() && !flight ? (
         <T variant="small" color={c.heart} style={{ marginTop: space.xs }}>
