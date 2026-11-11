@@ -52,28 +52,55 @@
         flex: 1;
       }
     </style>
+    <!-- A separate style block (Expo may replace the one above with its own reset). -->
+    <style id="kita-fit">
+      html,
+      body,
+      #root {
+        height: var(--app-h, 100%) !important;
+      }
+      #root {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+      }
+    </style>
     <script>
       // On an iPhone home-screen app with the see-through status bar, iOS reports the
       // page as shorter than the screen (it leaves out the status bar), even though the
       // page starts at the very top. That left a strip at the bottom and cut the tab bar
-      // off. So, there only, size the app to the real screen height.
+      // off. So, there, size the app to the real screen height: as a CSS variable and
+      // directly on the page and #root, so no other style can undo it.
       (function () {
         function fit() {
           var nav = window.navigator;
-          var h = window.innerHeight;
+          var h = Math.max(window.innerHeight, document.documentElement.clientHeight || 0);
+          var ios = /iPhone|iPad|iPod/.test(nav.userAgent);
           var standalone = nav.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
-          if (standalone && /iPhone|iPad|iPod/.test(nav.userAgent)) {
+          if (ios && standalone) {
             var portrait = window.innerHeight >= window.innerWidth;
             var full = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
             if (full > h && full - h < 140) h = full;
           }
-          document.documentElement.style.setProperty('--app-h', h + 'px');
+          var px = h + 'px';
+          var de = document.documentElement;
+          de.style.setProperty('--app-h', px);
+          de.style.setProperty('height', px, 'important');
+          if (document.body) document.body.style.setProperty('height', px, 'important');
+          var root = document.getElementById('root');
+          if (root) root.style.setProperty('height', px, 'important');
         }
         fit();
+        document.addEventListener('DOMContentLoaded', fit);
+        window.addEventListener('load', fit);
         window.addEventListener('resize', fit);
         window.addEventListener('orientationchange', function () {
           setTimeout(fit, 300);
         });
+        // iOS sometimes settles the size a moment after opening.
+        setTimeout(fit, 500);
+        setTimeout(fit, 1500);
       })();
     </script>
 
