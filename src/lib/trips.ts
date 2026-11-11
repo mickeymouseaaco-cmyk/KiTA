@@ -102,30 +102,32 @@ export function useTrips(cid: string | null) {
   return useCollection<Trip>(cid ? ['couples', cid, 'trips'] : null, 'startDate');
 }
 
-export function useTrip(cid: string, id: string) {
-  const [trip, setTrip] = useState<Trip | null | undefined>(undefined);
-  useEffect(
-    () =>
-      onSnapshot(
-        doc(db, 'couples', cid, 'trips', id),
-        (s) => setTrip(s.exists() ? ({ id: s.id, ...s.data() } as Trip) : null),
-        () => setTrip(null),
-      ),
-    [cid, id],
-  );
-  return trip;
+/** One trip. `undefined` while loading (including while the app is still finding your couple, e.g. after a refresh). */
+export function useTrip(cid: string | null, id: string | undefined) {
+  const [state, setState] = useState<{ key: string; trip: Trip | null } | null>(null);
+  const key = cid && id ? `${cid}/${id}` : '';
+  useEffect(() => {
+    if (!cid || !id) return;
+    return onSnapshot(
+      doc(db, 'couples', cid, 'trips', id),
+      (s) => setState({ key, trip: s.exists() ? ({ id: s.id, ...s.data() } as Trip) : null }),
+      () => setState({ key, trip: null }),
+    );
+  }, [cid, id, key]);
+  return state && state.key === key ? state.trip : undefined;
 }
 
-export function useTripItems(cid: string, tripId: string) {
-  return useCollection<TripItem>(['couples', cid, 'trips', tripId, 'items'], 'createdAt');
+// These wait for the couple to be known (null path = not yet).
+export function useTripItems(cid: string | null, tripId: string) {
+  return useCollection<TripItem>(cid ? ['couples', cid, 'trips', tripId, 'items'] : null, 'createdAt');
 }
 
-export function useTripEntries(cid: string, tripId: string) {
-  return useCollection<TripEntry>(['couples', cid, 'trips', tripId, 'entries'], 'createdAt');
+export function useTripEntries(cid: string | null, tripId: string) {
+  return useCollection<TripEntry>(cid ? ['couples', cid, 'trips', tripId, 'entries'] : null, 'createdAt');
 }
 
-export function useTripStops(cid: string, tripId: string) {
-  return useCollection<TripStop>(['couples', cid, 'trips', tripId, 'stops'], 'day');
+export function useTripStops(cid: string | null, tripId: string) {
+  return useCollection<TripStop>(cid ? ['couples', cid, 'trips', tripId, 'stops'] : null, 'day');
 }
 
 function cleanStop(s: StopInput) {
