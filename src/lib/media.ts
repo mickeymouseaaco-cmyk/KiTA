@@ -69,18 +69,39 @@ export function useMediaUrl(storagePath: string | undefined) {
   return { url: mine?.url ?? null, failed: mine?.failed ?? false };
 }
 
-/** Live media metadata. `null` means it was removed by its owner. */
+/**
+ * Live media metadata. `null` means it was removed by its owner.
+ *
+ * A just-sent photo can be asked for a moment before the server has saved it.
+ * Older security rules answered that with "permission denied", which used to
+ * stop the listener and wrongly show "removed". So a refusal is retried for a
+ * little while before giving up, and a "not there yet" from this phone's own
+ * cache keeps showing the spinner.
+ */
 export function useMedia(cid: string, mediaId: string | undefined) {
-  const [media, setMedia] = useState<Media | null | undefined>(undefined);
+  const [state, setState] = useState<{ id: string; media: Media | null | undefined } | null>(null);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (!mediaId) return;
-    return onSnapshot(
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    const stop = onSnapshot(
       doc(db, 'couples', cid, 'media', mediaId),
-      (snap) => setMedia(snap.exists() ? ({ id: snap.id, ...snap.data() } as Media) : null),
-      () => setMedia(null),
+      { includeMetadataChanges: true },
+      (snap) => {
+        if (snap.exists()) setState({ id: mediaId, media: { id: snap.id, ...snap.data() } as Media });
+        else if (!snap.metadata.fromCache) setState({ id: mediaId, media: null });
+      },
+      () => {
+        if (attempt < 8) retry = setTimeout(() => setAttempt((n) => n + 1), 1500);
+        else setState({ id: mediaId, media: null });
+      },
     );
-  }, [cid, mediaId]);
-  return media;
+    return () => {
+      stop();
+      if (retry) clearTimeout(retry);
+    };
+  }, [cid, mediaId, attempt]);
+  return state && state.id === mediaId ? state.media : undefined;
 }
 
 /** The owner removes their media everywhere: the file and its record. */

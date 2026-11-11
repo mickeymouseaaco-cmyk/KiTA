@@ -302,7 +302,7 @@ export default function LoveNotes() {
           inverted={shown.length > 0}
           data={shown}
           keyExtractor={(f) => f.key}
-          contentContainerStyle={{ padding: space.lg, gap: space.xs, flexGrow: 1, width: '100%', maxWidth: 560, alignSelf: 'center' }}
+          contentContainerStyle={{ paddingHorizontal: space.md, paddingVertical: space.md, gap: 3, flexGrow: 1, width: '100%', maxWidth: 560, alignSelf: 'center' }}
           ListHeaderComponent={
             shown.length > 0 && pending.length && filter === 'all' ? (
               <View style={{ gap: space.sm }}>
@@ -326,7 +326,7 @@ export default function LoveNotes() {
             ) : undefined
           }
           renderItem={({ item }) => (
-            <View style={{ paddingBottom: flagFor.get(item.key) ? space.sm : 0 }}>
+            <View style={{ paddingBottom: flagFor.get(item.key) ? 10 : 0 }}>
             {item.m ? (
               <Bubble
                 m={item.m}
@@ -748,7 +748,9 @@ function Bubble({
   /** Long-press (or the screen reader's "More options") opens the note's options. */
   onOptions: () => void;
 }) {
-  const { c } = useTheme();
+  const { c, textScale } = useTheme();
+  // Compact, like a messaging app: smaller type and tighter bubbles, so more fits on screen.
+  const msg = { fontSize: Math.round(15 * textScale), lineHeight: Math.round(20 * textScale) };
   const fav = m.favoriteBy?.includes(uid);
   const fg = mine ? c.onPrimary : c.text;
   const when = relativeTime(m.createdAt?.toDate?.() ?? null);
@@ -759,8 +761,8 @@ function Bubble({
   if (m.kind === 'hug') {
     body = (
       <Row gap={space.sm}>
-        <Heart color={mine ? c.onPrimary : c.heart} fill={mine ? c.onPrimary : c.heart} size={22} />
-        <T variant="bodyStrong" color={fg}>
+        <Heart color={mine ? c.onPrimary : c.heart} fill={mine ? c.onPrimary : c.heart} size={18} />
+        <T variant="bodyStrong" color={fg} style={msg}>
           {mine ? `You sent ${partnerName} a hug` : `${partnerName} sent you a hug`}
         </T>
       </Row>
@@ -769,14 +771,18 @@ function Bubble({
     body = <ViewOnceNote cid={cid} m={m} mine={mine} partnerName={partnerName} />;
   } else if (m.mediaId) {
     body = (
-      <View style={{ gap: space.sm, minWidth: 240 }}>
+      <View style={{ gap: 6, width: 232, maxWidth: '100%' }}>
         <NoteMedia cid={cid} m={m} mine={mine} />
-        {m.text ? <T color={fg}>{m.text}</T> : null}
+        {m.text ? (
+          <T color={fg} style={[msg, { paddingHorizontal: 6, paddingBottom: 2 }]}>
+            {m.text}
+          </T>
+        ) : null}
       </View>
     );
   } else {
     body = (
-      <T testID="note-text" color={fg}>
+      <T testID="note-text" color={fg} style={msg}>
         {m.text}
       </T>
     );
@@ -792,20 +798,21 @@ function Bubble({
         onLongPress={onOptions}
         delayLongPress={400}
         style={{
-          maxWidth: '86%',
+          maxWidth: '80%',
           backgroundColor: mine ? c.primary : c.surface,
-          borderRadius: radius.lg,
-          borderBottomRightRadius: mine ? 8 : radius.lg,
-          borderBottomLeftRadius: mine ? radius.lg : 8,
-          padding: space.lg,
+          borderRadius: 18,
+          borderBottomRightRadius: mine ? 6 : 18,
+          borderBottomLeftRadius: mine ? 18 : 6,
+          paddingHorizontal: m.mediaId && !m.viewOnce ? 4 : 12,
+          paddingVertical: m.mediaId && !m.viewOnce ? 4 : 7,
           borderWidth: mine ? 0 : 1,
           borderColor: c.border,
         }}>
         {body}
       </Pressable>
       {m.important && canStar ? (
-        <Row gap={4} style={{ marginTop: 4 }}>
-          <Star color={c.onButter} fill={c.onButter} size={12} />
+        <Row gap={4} style={{ marginTop: 2 }}>
+          <Star color={c.onButter} fill={c.onButter} size={11} />
           <T testID="important-badge" variant="small" color={c.onButter}>
             Important
           </T>
@@ -813,9 +820,9 @@ function Bubble({
       ) : null}
       {showTime || fade || fav ? (
         <Row gap={space.xs} style={{ marginTop: 2, flexWrap: 'wrap', justifyContent: mine ? 'flex-end' : 'flex-start' }}>
-          {fade ? <Clock color={c.textMuted} size={13} accessibilityLabel="Disappearing note" /> : null}
+          {fade ? <Clock color={c.textMuted} size={12} accessibilityLabel="Disappearing note" /> : null}
           {showTime || fade ? (
-            <T testID={showTime ? 'note-time' : undefined} variant="small" muted>
+            <T testID={showTime ? 'note-time' : undefined} variant="small" muted style={{ fontSize: Math.round(12 * textScale), lineHeight: Math.round(16 * textScale) }}>
               {[showTime ? when : null, fade, showTime && mine && m.readAt ? 'seen' : null].filter(Boolean).join(' · ')}
             </T>
           ) : null}
