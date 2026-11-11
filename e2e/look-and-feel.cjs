@@ -50,6 +50,7 @@ function mockWeather(ctx) {
       weather_code: [95, 63, 80, 1, 2, 61, 65],
     },
     hourly: { time: days.map((d) => `${d}T16:00`), precipitation: [22, 9, 3, 0, 0, 6, 16] },
+    current: { temperature_2m: 29.6, apparent_temperature: 34.4, weather_code: 95, is_day: 1, relative_humidity_2m: 81, wind_speed_10m: 14.2 },
   };
   const until = new Date(Date.now() + 6 * 3600_000 + 8 * 3600_000).toISOString().slice(0, 19).replace('T', ' ');
   const warnings = [
@@ -157,6 +158,20 @@ async function main() {
   assert.ok(box && box.height < 50, `greeting should be one line (height ${box && box.height})`);
   log(`Greeting is one line (${Math.round(box.height)}px tall)`);
 
+  // 1a. Bright shortcuts; Meal (not water) opens the meal sheet; the hug sends.
+  assert.equal(await afiq.locator(tid('qa-water')).count(), 0, 'no water shortcut');
+  await afiq.locator(tid('qa-meal')).click();
+  await afiq.locator(tid('meal-text')).waitFor();
+  await afiq.locator(tid('meal-kind-lunch')).click();
+  await afiq.locator(tid('meal-text')).fill('Nasi lemak with extra sambal');
+  await shot(afiq, '01a-meal-sheet');
+  await afiq.locator(tid('save-meal')).click();
+  await afiq.getByText('Nasi lemak with extra sambal').waitFor({ timeout: 10000 });
+  assert.equal(await afiq.getByText('Water', { exact: true }).count(), 0, 'no water counter');
+  await afiq.locator(tid('open-weather')).scrollIntoViewIfNeeded();
+  await shot(afiq, '01a2-home-meals-sky', true);
+  log('Home: bright shortcuts, Meal sheet instead of water, live sky card');
+
   // 1b. The modern look in dark mode (it follows the phone).
   await afiq.emulateMedia({ colorScheme: 'dark' });
   await afiq.waitForTimeout(600);
@@ -223,7 +238,16 @@ async function main() {
   await afiq.goto(BASE + '/weather');
   await afiq.locator(tid('flood-today')).waitFor({ timeout: 15000 });
   await afiq.getByText('Thunderstorms').first().waitFor();
+  await afiq.locator(tid('weather-sky')).waitFor();
+  assert.equal((await afiq.locator(tid('weather-temp')).innerText()).trim(), '30°');
+  const firstLine = await afiq.locator(tid('sky-line')).innerText();
+  await afiq.locator(tid('sky-next')).click();
+  await afiq.waitForTimeout(500);
+  assert.notEqual(await afiq.locator(tid('sky-line')).innerText(), firstLine, 'tapping gives another line');
+  assert.ok((await afiq.locator(tid('couple-tip')).count()) >= 1, 'ideas for the two of you');
+  assert.equal(await afiq.locator(tid('week-day')).count(), 7);
   await shot(afiq, '05-weather-top');
+  await shot(afiq, '05b-weather-full', true);
   await afiq.getByRole('button', { name: /Thunderstorms/ }).first().click();
   await shot(afiq, '06-weather-warning-open', true);
   log('Weather shows icons and short warnings; full MET text on tap');

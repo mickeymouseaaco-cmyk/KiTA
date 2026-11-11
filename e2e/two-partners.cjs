@@ -255,9 +255,6 @@ async function main() {
   // ============================================================ Phase 2
   // ------------------------------------------------------------- food & water
   await tab(alex, 'Today');
-  await alex.locator(tid('water-plus')).click();
-  await alex.locator(tid('water-plus')).click();
-  await alex.locator(tid('water-count')).filter({ hasText: '2' }).waitFor();
   await alex.locator(tid('add-meal')).click();
   await alex.locator(tid('meal-text')).fill('Soup and warm bread');
   await alex.locator(tid('save-meal')).click();

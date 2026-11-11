@@ -96,7 +96,7 @@ export type RiverLevel = 'normal' | 'alert' | 'warning' | 'danger' | 'unknown';
 
 // ---------------------------------------------------------------- forecast
 
-type OpenMeteo = {
+export type OpenMeteo = {
   daily?: {
     time: string[];
     temperature_2m_max: (number | null)[];
@@ -106,12 +106,24 @@ type OpenMeteo = {
     weather_code: (number | null)[];
   };
   hourly?: { time: string[]; precipitation: (number | null)[] };
+  current?: { temperature_2m?: number | null; apparent_temperature?: number | null; weather_code?: number | null; is_day?: number | null; relative_humidity_2m?: number | null; wind_speed_10m?: number | null };
 };
+
+/** The weather right now (Open-Meteo "current"). */
+export type CurrentWeather = { tempC: number; feelsC: number | null; code: number; isDay: boolean; humidity: number | null; windKmh: number | null };
+
+export function parseCurrent(json: OpenMeteo): CurrentWeather | null {
+  const c = json.current;
+  if (!c || typeof c.temperature_2m !== 'number') return null;
+  const n = (v: number | null | undefined) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : null);
+  return { tempC: Math.round(c.temperature_2m), feelsC: n(c.apparent_temperature), code: typeof c.weather_code === 'number' ? c.weather_code : 0, isDay: c.is_day !== 0, humidity: n(c.relative_humidity_2m), windKmh: n(c.wind_speed_10m) };
+}
 
 export function forecastUrl(a: Area): string {
   return (
     `https://api.open-meteo.com/v1/forecast?latitude=${a.lat}&longitude=${a.lon}&timezone=Asia%2FKuala_Lumpur&forecast_days=7` +
-    '&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,weather_code&hourly=precipitation'
+    '&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,weather_code&hourly=precipitation' +
+    '&current=temperature_2m,apparent_temperature,weather_code,is_day,relative_humidity_2m,wind_speed_10m'
   );
 }
 

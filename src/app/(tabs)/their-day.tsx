@@ -143,7 +143,7 @@ export default function TheirDay() {
       {today?.food ? (
         <>
           <Card>
-            <SectionTitle>Food &amp; water</SectionTitle>
+            <SectionTitle>Meals</SectionTitle>
             <SharedFood food={today.food} />
           </Card>
           <Gap />

@@ -9,6 +9,8 @@ import { projectDay } from '../src/lib/projection';
 import { CHEERS, DEFAULT_TARGET, NAME_MAX, cheerFor, nameSize, stressAfter, targetName } from '../src/lib/smash-pure';
 import { normalizeFlight, pickAircraft, toPosition, toRoute } from '../functions/src/flight-pure';
 import { cleanFlightNo, compass, etaWords, fr24Url, mapSpan, phaseWord, prettyFlightNo, routeProgress } from '../src/lib/flight-pure';
+import { coupleTips, rangeBar, skyColors, skyLayers, skyLines, timeOfDay, hourInMalaysia } from '../src/lib/sky-pure';
+import { parseCurrent } from '../src/lib/flood-pure';
 import { mapsUrl, parseTime, sortStops, stopsByDay, timeLabel } from '../src/lib/itinerary-pure';
 import { showTimeFlags } from '../src/lib/note-groups';
 import { gentleAlert, isHighSteps, suggestionsFor } from '../src/lib/suggestions';
@@ -695,4 +697,62 @@ test('flights: route, progress and a rough landing time', () => {
   assert.equal(fr24Url('MH2520', 'MAS2520'), 'https://www.flightradar24.com/MAS2520');
   assert.equal(fr24Url('MH2520'), 'https://www.flightradar24.com/data/flights/mh2520');
   assert.ok(mapSpan({ altFt: 36000, onGround: false }) > mapSpan({ altFt: 2000, onGround: false }));
+});
+
+// ------------------------------------------------------------ The living sky
+test('sky: time of day near the equator, and the right sky for it', () => {
+  assert.equal(timeOfDay(7), 'dawn');
+  assert.equal(timeOfDay(12), 'day');
+  assert.equal(timeOfDay(19), 'dusk');
+  assert.equal(timeOfDay(22), 'night');
+  assert.equal(timeOfDay(3), 'night');
+  assert.equal(hourInMalaysia(Date.UTC(2026, 10, 11, 4, 30)), 12.5);
+  assert.notDeepEqual(skyColors('sun', 'day'), skyColors('sun', 'night'));
+  assert.deepEqual(skyColors('storm', 'day'), ['#2B3452', '#5D6886']);
+  const night = skyLayers('sun', 'night');
+  assert.equal(night.sun, false);
+  assert.equal(night.moon, true);
+  assert.ok(night.stars > 0);
+  const storm = skyLayers('storm', 'day');
+  assert.ok(storm.rain > 20 && storm.lightning && storm.darkClouds && !storm.sun);
+  assert.equal(skyLayers('fog', 'day').fog, true);
+  assert.ok(skyLines('rain', 'day', 30, 'Aina').length >= 3);
+  assert.match(skyLines('sun', 'night', 30, 'Aina')[0], /stars/);
+  assert.match(skyLines('sun', 'day', 35, 'Aina')[0], /Aina/);
+});
+
+test('sky: the weather right now is read safely', () => {
+  assert.deepEqual(parseCurrent({ current: { temperature_2m: 29.6, apparent_temperature: 34.2, weather_code: 2, is_day: 1, relative_humidity_2m: 74, wind_speed_10m: 9.4 } } as never), {
+    tempC: 30, feelsC: 34, code: 2, isDay: true, humidity: 74, windKmh: 9,
+  });
+  assert.equal(parseCurrent({} as never), null);
+  assert.equal(parseCurrent({ current: { temperature_2m: null } } as never), null);
+  assert.equal(parseCurrent({ current: { temperature_2m: 25, is_day: 0 } } as never)!.isDay, false);
+});
+
+test('sky: ideas for the two of you from the week', () => {
+  const day = (date: string, o: Partial<{ minC: number; maxC: number; rainMm: number; rainChance: number; maxHourlyMm: number; code: number }> = {}) => ({
+    date, minC: 24, maxC: 31, rainMm: 0, rainChance: 10, maxHourlyMm: 0, code: 1, ...o,
+  });
+  // 2026-11-11 is a Wednesday.
+  const week = [
+    day('2026-11-11', { rainMm: 30, rainChance: 90, maxHourlyMm: 18, code: 95 }),
+    day('2026-11-12', { rainMm: 8, rainChance: 70 }),
+    day('2026-11-13', { rainMm: 0, rainChance: 5, maxC: 30 }),
+    day('2026-11-14', { rainMm: 12, rainChance: 80 }),
+    day('2026-11-15', { rainMm: 1, rainChance: 20 }),
+  ];
+  const tips = coupleTips(week, 'Aina');
+  assert.equal(tips[0].icon, 'home');
+  assert.match(tips[0].text, /Aina/);
+  assert.ok(tips.some((t) => t.icon === 'walk' && /Friday/.test(t.text)), JSON.stringify(tips));
+  assert.ok(tips.some((t) => t.icon === 'weekend' && /Sunday/.test(t.text)), JSON.stringify(tips));
+  assert.ok(tips.length <= 3);
+  assert.deepEqual(coupleTips([], 'Aina'), []);
+  const hot = coupleTips([day('2026-11-11', { maxC: 35 })], 'Aina');
+  assert.ok(hot.some((t) => t.icon === 'hot'));
+
+  assert.deepEqual(rangeBar({ minC: 24, maxC: 32 }, 24, 32), { from: 0, to: 1 });
+  const mid = rangeBar({ minC: 26, maxC: 26 }, 24, 32);
+  assert.ok(mid.to > mid.from, 'a single-temperature day still shows a sliver');
 });

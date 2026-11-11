@@ -260,3 +260,20 @@ export function cleanAppearance(raw: unknown): Appearance {
     text: pick(r.text, ['small', 'default', 'large', 'xlarge'] as const, DEFAULT_APPEARANCE.text),
   };
 }
+
+// ---------------------------------------------------------- vivid colours
+/**
+ * Bright, friendly colours for the things you tap every day (Home shortcuts,
+ * meals, the forecast). Each pair is a top-to-bottom gradient; white icons
+ * sit on them with good contrast in light and dark mode.
+ */
+export const vivid = {
+  green: ['#43D98F', '#13B37D'],
+  amber: ['#FFCE52', '#FFA41B'],
+  orange: ['#FF9A57', '#FF6136'],
+  blue: ['#62A2FF', '#4A6CFF'],
+  pink: ['#FF7EAB', '#EC4B82'],
+  violet: ['#B091FF', '#7C5CFA'],
+  teal: ['#4FD6E0', '#1FA7C9'],
+} as const;
+export type VividName = keyof typeof vivid;

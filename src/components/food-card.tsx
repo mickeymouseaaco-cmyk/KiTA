@@ -1,171 +1,210 @@
 /**
- * Food & water: a quick, judgement-free log. No calories, no targets, no streak
- * pressure. Water is just a counter of glasses.
+ * Meals: a quick, judgement-free log of what you ate. No calories, no targets,
+ * no streak pressure. Four bright slots (breakfast, lunch, dinner, snack);
+ * tap one to add what you had.
+ *
+ * (Older days may still hold a count of water glasses; it's simply not shown
+ * any more.)
  */
-import { GlassWater, Minus, Plus, X } from 'lucide-react-native';
-import { useState } from 'react';
+import { Check, Cookie, Croissant, Sandwich, UtensilsCrossed, X, type LucideIcon } from 'lucide-react-native';
+import { useRef, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 
 import { gentleError } from '@/lib/copy';
 import { haptic } from '@/lib/haptics';
-import { addMeal, changeWater, removeMeal, type LogCtx } from '@/lib/logs';
+import { addMeal, removeMeal, type LogCtx } from '@/lib/logs';
 import type { FoodLog, MealKind, SharedDay } from '@/lib/types';
-import { radius, space, useTheme } from '@/theme';
+import { space, useTheme, vivid, type VividName } from '@/theme';
 
-import { useFeedback } from './feedback';
-import { Button, Chip, IconButton, Row, T, useInputStyle } from './ui';
+import { Sheet, useFeedback } from './feedback';
+import { Button, Row, T, useInputStyle } from './ui';
+import { VividAction, VividSquare, type BurstHandle } from './vivid';
 
 export const MEAL_LABEL: Record<MealKind, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack' };
+export const MEAL_LOOK: Record<MealKind, { icon: LucideIcon; color: VividName; hint: string }> = {
+  breakfast: { icon: Croissant, color: 'amber', hint: 'Nasi lemak, toast, a coffee…' },
+  lunch: { icon: Sandwich, color: 'green', hint: 'Chicken rice, a salad, leftovers…' },
+  dinner: { icon: UtensilsCrossed, color: 'orange', hint: 'Home-cooked, takeaway, a date night…' },
+  snack: { icon: Cookie, color: 'pink', hint: 'Fruit, kuih, something sweet…' },
+};
+const KINDS = Object.keys(MEAL_LABEL) as MealKind[];
 
-function defaultKind(): MealKind {
+export function mealNow(): MealKind {
   const h = new Date().getHours();
   return h < 11 ? 'breakfast' : h < 15 ? 'lunch' : h < 21 ? 'dinner' : 'snack';
 }
 
-export function Glasses({ count }: { count: number }) {
-  const { c } = useTheme();
-  const shown = Math.min(count, 10);
+/** The "add a meal" sheet: pick which meal, write what you had. */
+export function MealSheet({ ctx, visible, start, onClose, onSaved }: { ctx: LogCtx; visible: boolean; start: MealKind; onClose: () => void; onSaved?: (kind: MealKind) => void }) {
   return (
-    <Row gap={4} style={{ flexWrap: 'wrap' }} accessible accessibilityLabel={`${count} ${count === 1 ? 'glass' : 'glasses'} of water`}>
-      {Array.from({ length: shown }, (_, i) => (
-        <GlassWater key={i} color={c.onSky} size={20} />
-      ))}
-      {count > 10 ? (
-        <T variant="small" color={c.onSky}>
-          +{count - 10}
-        </T>
-      ) : null}
-    </Row>
+    <Sheet visible={visible} onClose={onClose}>
+      {visible ? <MealForm key={start} ctx={ctx} start={start} onClose={onClose} onSaved={onSaved} /> : null}
+    </Sheet>
+  );
+}
+
+function MealForm({ ctx, start, onClose, onSaved }: { ctx: LogCtx; start: MealKind; onClose: () => void; onSaved?: (kind: MealKind) => void }) {
+  const { c } = useTheme();
+  const input = useInputStyle();
+  const { toast } = useFeedback();
+  const [kind, setKind] = useState<MealKind>(start);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    if (!text.trim()) return;
+    setBusy(true);
+    try {
+      await addMeal(ctx, kind, text);
+      haptic.success();
+      onSaved?.(kind);
+      onClose();
+    } catch {
+      toast(gentleError.save);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <View style={{ gap: space.lg }}>
+      <T variant="title" center>
+        What did you have?
+      </T>
+      <Row gap={space.sm} style={{ justifyContent: 'center' }}>
+        {KINDS.map((k) => {
+          const { icon: Icon, color } = MEAL_LOOK[k];
+          const on = k === kind;
+          return (
+            <Pressable
+              key={k}
+              testID={`meal-kind-${k}`}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={MEAL_LABEL[k]}
+              onPress={() => {
+                haptic.tap();
+                setKind(k);
+              }}
+              style={{ alignItems: 'center', gap: 6, flex: 1, maxWidth: 84, opacity: on ? 1 : 0.55 }}>
+              <View style={{ borderRadius: 18, padding: 3, borderWidth: 2, borderColor: on ? vivid[color][1] : 'transparent' }}>
+                <VividSquare color={color} size={48} radius={14}>
+                  <Icon color="#FFFFFF" size={22} strokeWidth={2.3} />
+                </VividSquare>
+              </View>
+              <T variant="small" style={{ fontFamily: on ? 'Raleway_700Bold' : 'Raleway_600SemiBold', fontSize: 13 }}>
+                {MEAL_LABEL[k]}
+              </T>
+            </Pressable>
+          );
+        })}
+      </Row>
+      <TextInput
+        testID="meal-text"
+        value={text}
+        onChangeText={setText}
+        placeholder={MEAL_LOOK[kind].hint}
+        placeholderTextColor={c.textMuted}
+        maxLength={200}
+        autoFocus
+        returnKeyType="done"
+        onSubmitEditing={save}
+        accessibilityLabel={`What did you have for ${MEAL_LABEL[kind].toLowerCase()}?`}
+        style={input}
+      />
+      <Button testID="save-meal" label={`Add ${MEAL_LABEL[kind].toLowerCase()}`} onPress={save} loading={busy} disabled={!text.trim()} hint="Write what you had first" />
+    </View>
   );
 }
 
 export function FoodCardBody({ ctx, food }: { ctx: LogCtx; food?: FoodLog }) {
   const { c } = useTheme();
-  const input = useInputStyle();
   const { toast } = useFeedback();
-  const [adding, setAdding] = useState(false);
-  const [kind, setKind] = useState<MealKind>(defaultKind);
-  const [text, setText] = useState('');
+  const [sheet, setSheet] = useState<MealKind | null>(null);
+  const tiles = useRef<Partial<Record<MealKind, BurstHandle | null>>>({});
   const meals = food?.meals ?? [];
-  const water = food?.water ?? 0;
-
-  async function save() {
-    if (!text.trim()) return;
-    try {
-      await addMeal(ctx, kind, text);
-      haptic.success();
-      setText('');
-      setAdding(false);
-    } catch {
-      toast(gentleError.save);
-    }
-  }
+  const has = (k: MealKind) => meals.filter((m) => m.kind === k).length;
 
   return (
     <View style={{ gap: space.md }}>
-      <View style={{ backgroundColor: c.sky, borderRadius: radius.md, padding: space.md, gap: space.sm }}>
-        <Row style={{ justifyContent: 'space-between' }}>
-          <T variant="bodyStrong" color={c.onSky}>
-            Water
-          </T>
-          <Row gap={space.sm}>
-            <IconButton
-              icon={Minus}
-              label="One glass less"
-              size={44}
-              onPress={() => changeWater(ctx, water, -1).catch(() => toast(gentleError.save))}
-            />
-            <T testID="water-count" variant="heading" color={c.onSky} style={{ minWidth: 28, textAlign: 'center' }}>
-              {water}
-            </T>
-            <IconButton
-              testID="water-plus"
-              icon={Plus}
-              label="Add a glass of water"
-              tone="primary"
-              size={44}
-              onPress={() => {
-                haptic.tap();
-                changeWater(ctx, water, 1).catch(() => toast(gentleError.save));
+      <Row gap={space.xs} style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        {KINDS.map((k) => (
+          <View key={k} style={{ flex: 1, alignItems: 'center' }}>
+            <VividAction
+              ref={(r) => {
+                tiles.current[k] = r;
               }}
+              testID={k === mealNow() ? 'add-meal' : `meal-slot-${k}`}
+              icon={MEAL_LOOK[k].icon}
+              label={MEAL_LABEL[k]}
+              color={MEAL_LOOK[k].color}
+              size={52}
+              detail={has(k) ? `${has(k)} logged. Add another` : 'Add what you had'}
+              onPress={() => setSheet(k)}
             />
-          </Row>
-        </Row>
-        {water > 0 ? <Glasses count={water} /> : <T variant="small" color={c.onSky}>A glass whenever you think of it.</T>}
-      </View>
+            {has(k) ? (
+              <View style={{ position: 'absolute', top: -4, right: 8, width: 20, height: 20, borderRadius: 10, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center', boxShadow: '0px 2px 6px rgba(0,0,0,0.18)', pointerEvents: 'none' }}>
+                <Check color={vivid[MEAL_LOOK[k].color][1]} size={13} strokeWidth={3.2} />
+              </View>
+            ) : null}
+          </View>
+        ))}
+      </Row>
 
       {meals.length ? (
-        <View style={{ gap: space.xs }}>
-          {meals.map((m) => (
-            <Row key={m.id} gap={space.sm} style={{ minHeight: 40 }}>
-              <T variant="label" muted style={{ width: 84 }}>
-                {MEAL_LABEL[m.kind].toUpperCase()}
-              </T>
-              <T style={{ flex: 1 }}>{m.text}</T>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Remove ${m.text}`}
-                hitSlop={10}
-                onPress={() => removeMeal(ctx, meals, m.id).catch(() => toast(gentleError.save))}
-                style={{ padding: 6 }}>
-                <X color={c.textMuted} size={16} />
-              </Pressable>
-            </Row>
-          ))}
-        </View>
-      ) : null}
-
-      {adding ? (
-        <View style={{ gap: space.sm }}>
-          <Row gap={space.sm} style={{ flexWrap: 'wrap' }}>
-            {(Object.keys(MEAL_LABEL) as MealKind[]).map((k) => (
-              <Chip key={k} label={MEAL_LABEL[k]} selected={kind === k} onPress={() => setKind(k)} />
-            ))}
-          </Row>
-          <TextInput
-            testID="meal-text"
-            value={text}
-            onChangeText={setText}
-            placeholder="What did you have?"
-            placeholderTextColor={c.textMuted}
-            maxLength={200}
-            onSubmitEditing={save}
-            style={input}
-          />
-          <Row gap={space.sm}>
-            <Button small kind="ghost" label="Cancel" style={{ flex: 1 }} onPress={() => setAdding(false)} />
-            <Button testID="save-meal" small label="Add" style={{ flex: 1 }} onPress={save} disabled={!text.trim()} />
-          </Row>
+        <View style={{ gap: 2 }}>
+          {meals.map((m) => {
+            const { icon: Icon, color } = MEAL_LOOK[m.kind];
+            return (
+              <Row key={m.id} gap={space.sm} style={{ minHeight: 40 }}>
+                <Icon color={vivid[color][1]} size={18} strokeWidth={2.2} accessibilityLabel={MEAL_LABEL[m.kind]} />
+                <T style={{ flex: 1 }} numberOfLines={2}>
+                  {m.text}
+                </T>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${m.text}`}
+                  hitSlop={10}
+                  onPress={() => removeMeal(ctx, meals, m.id).catch(() => toast(gentleError.save))}
+                  style={{ padding: 6 }}>
+                  <X color={c.textMuted} size={16} />
+                </Pressable>
+              </Row>
+            );
+          })}
         </View>
       ) : (
-        <Button testID="add-meal" small kind="soft" label={meals.length ? 'Add something else' : 'Add a meal or snack'} onPress={() => setAdding(true)} />
+        <T variant="small" muted center>
+          Tap a meal to add it. No calories, no counting.
+        </T>
       )}
+
+      <MealSheet ctx={ctx} visible={!!sheet} start={sheet ?? mealNow()} onClose={() => setSheet(null)} onSaved={(k) => tiles.current[k]?.burst()} />
     </View>
   );
 }
 
-/** Partner's view of shared food. */
+/** Partner's view of shared meals. */
 export function SharedFood({ food }: { food: NonNullable<SharedDay['food']> }) {
-  const { c } = useTheme();
   return (
     <View style={{ gap: space.sm }}>
       {food.meals.length ? (
-        food.meals.map((m, i) => (
-          <Row key={i} gap={space.sm}>
-            <T variant="label" muted style={{ width: 84 }}>
-              {MEAL_LABEL[m.kind].toUpperCase()}
-            </T>
-            <T style={{ flex: 1 }}>{m.text}</T>
-          </Row>
-        ))
+        food.meals.map((m, i) => {
+          const { icon: Icon, color } = MEAL_LOOK[m.kind];
+          return (
+            <Row key={i} gap={space.sm}>
+              <VividSquare color={color} size={30} radius={9}>
+                <Icon color="#FFFFFF" size={15} strokeWidth={2.3} />
+              </VividSquare>
+              <T variant="label" muted style={{ width: 84 }}>
+                {MEAL_LABEL[m.kind].toUpperCase()}
+              </T>
+              <T style={{ flex: 1 }}>{m.text}</T>
+            </Row>
+          );
+        })
       ) : (
         <T muted>No meals shared yet today.</T>
       )}
-      {food.water > 0 ? (
-        <View style={{ backgroundColor: c.sky, borderRadius: radius.md, padding: space.md }}>
-          <Glasses count={food.water} />
-        </View>
-      ) : null}
     </View>
   );
 }

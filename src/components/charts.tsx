@@ -12,12 +12,15 @@ export function ProgressRing({
   size = 148,
   stroke = 14,
   label,
+  color,
 }: {
   value: number;
   goal: number;
   size?: number;
   stroke?: number;
   label?: string;
+  /** Ring colour (defaults to the theme's). */
+  color?: string;
 }) {
   const { c } = useTheme();
   const r = (size - stroke) / 2;
@@ -36,7 +39,7 @@ export function ProgressRing({
           cx={size / 2}
           cy={size / 2}
           r={r}
-          stroke={c.ring}
+          stroke={color ?? c.ring}
           strokeWidth={stroke}
           fill="none"
           strokeLinecap="round"
@@ -62,11 +65,14 @@ export function WeekBars({
   values,
   goal,
   height = 96,
+  color,
 }: {
   days: string[];
   values: (number | undefined)[];
   goal: number;
   height?: number;
+  /** Colour for days that reached the goal, and today (defaults to the theme's). */
+  color?: string;
 }) {
   const { c } = useTheme();
   const max = Math.max(goal, ...values.map((v) => v ?? 0), 1);
@@ -90,7 +96,8 @@ export function WeekBars({
                   maxWidth: 28,
                   height: h,
                   borderRadius: radius.sm,
-                  backgroundColor: v >= goal ? c.ring : isToday ? c.primary : c.primarySoft,
+                  backgroundColor: v >= goal ? (color ?? c.ring) : isToday ? (color ?? c.primary) : c.primarySoft,
+                  opacity: color && isToday && v < goal ? 0.75 : 1,
                 }}
               />
             </View>
