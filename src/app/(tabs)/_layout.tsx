@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router/js-tabs';
 import { HeartHandshake, House, Mail, Plane, Users } from 'lucide-react-native';
-import { Platform, useWindowDimensions } from 'react-native';
+import { useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { haptic } from '@/lib/haptics';
@@ -33,7 +33,7 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: c.textMuted,
         animation: look.flat ? 'fade' : 'none',
         tabBarActiveBackgroundColor: sidebar ? c.primarySoft : undefined,
-        tabBarLabelStyle: look.systemFont ? { fontFamily: 'System', fontWeight: '600', fontSize: sidebar ? 15 : 11 } : { fontFamily: fonts.bodySemi, fontSize: sidebar ? 15 : 12 },
+        tabBarLabelStyle: look.systemFont ? { fontFamily: 'System', fontWeight: '600', fontSize: sidebar ? 15 : 10, lineHeight: sidebar ? undefined : 13 } : { fontFamily: fonts.bodySemi, fontSize: sidebar ? 15 : 10.5, lineHeight: sidebar ? undefined : 13 },
         tabBarPosition: sidebar ? 'left' : 'bottom',
         tabBarVariant: sidebar ? 'material' : 'uikit',
         tabBarStyle: sidebar
@@ -41,14 +41,14 @@ export default function TabsLayout() {
           : {
               backgroundColor: look.flat ? c.bg : c.surface,
               borderTopColor: c.border,
-              height: 72 + insets.bottom,
-              paddingTop: 6,
-              paddingBottom: Platform.OS === 'web' ? 12 : Math.max(insets.bottom, 12),
+              height: 54 + Math.max(insets.bottom, 6),
+              paddingTop: 4,
+              paddingBottom: Math.max(insets.bottom, 6),
             },
         tabBarItemStyle: sidebar ? { borderRadius: 14, marginHorizontal: 12, marginVertical: 2 } : undefined,
         sceneStyle: { backgroundColor: c.bg },
       }}>
-      <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color, focused }) => <House color={color} size={24} strokeWidth={look.flat ? (focused ? 2.4 : 1.7) : 2} /> }} />
+      <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color, focused }) => <House color={color} size={22} strokeWidth={look.flat ? (focused ? 2.4 : 1.7) : 2} /> }} />
       {/* Notes takes the whole screen on phones (like a chat); its own back arrow returns Home. */}
       <Tabs.Screen
         name="notes"
@@ -56,12 +56,12 @@ export default function TabsLayout() {
           title: 'Notes',
           tabBarBadge: unreadNotes ? (unreadNotes > 99 ? '99+' : unreadNotes) : undefined,
           tabBarBadgeStyle: { backgroundColor: c.heart, color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
-          tabBarIcon: ({ color, focused }) => <Mail color={color} size={24} strokeWidth={look.flat ? (focused ? 2.4 : 1.7) : 2} />,
+          tabBarIcon: ({ color, focused }) => <Mail color={color} size={22} strokeWidth={look.flat ? (focused ? 2.4 : 1.7) : 2} />,
           ...(sidebar ? null : { tabBarStyle: { display: 'none' } }),
         }}
       />
-      <Tabs.Screen name="together" options={{ title: 'Together', tabBarIcon: ({ color, focused }) => <Users color={color} size={24} strokeWidth={look.flat ? (focused ? 2.4 : 1.7) : 2} /> }} />
-      <Tabs.Screen name="trip" options={{ title: 'Trips', tabBarIcon: ({ color, focused }) => <Plane color={color} size={24} strokeWidth={look.flat ? (focused ? 2.4 : 1.7) : 2} /> }} />
+      <Tabs.Screen name="together" options={{ title: 'Together', tabBarIcon: ({ color, focused }) => <Users color={color} size={22} strokeWidth={look.flat ? (focused ? 2.4 : 1.7) : 2} /> }} />
+      <Tabs.Screen name="trip" options={{ title: 'Trips', tabBarIcon: ({ color, focused }) => <Plane color={color} size={22} strokeWidth={look.flat ? (focused ? 2.4 : 1.7) : 2} /> }} />
       {/* Not in the bar (opened from the switch on Home), but still a normal page, so /their-day links work. */}
       <Tabs.Screen
         name="their-day"

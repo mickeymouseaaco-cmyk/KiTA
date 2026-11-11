@@ -308,6 +308,10 @@ async function main() {
   await aina.goto(BASE + '/notes');
   await aina.getByText('Sunset at the lake').first().waitFor({ timeout: 10000 });
   await shot(aina, '04i-status-in-notes');
+  await aina.goto(BASE + '/their-day');
+  await aina.locator(tid('their-status-partner')).waitFor({ timeout: 15000 });
+  await aina.waitForTimeout(800);
+  await shot(aina, '04j-status-their-day');
   log('Status: a photo for 24 hours with a ring and number, watched and seen, and kept in Love Notes');
 
   // Teka-teki: a Malay riddle on Home, answer on tap.

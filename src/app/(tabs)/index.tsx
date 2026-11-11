@@ -9,7 +9,7 @@ import { useFeedback } from '@/components/feedback';
 import { InstallBanner } from '@/components/install-banner';
 import { FoodCardBody, MealSheet, mealNow } from '@/components/food-card';
 import { LiveSky } from '@/components/live-sky';
-import { StatusRow } from '@/components/status-row';
+import { StatusStack } from '@/components/status-stack';
 import { TekaTekiCard } from '@/components/teka-teki-card';
 import { VividAction, type BurstHandle } from '@/components/vivid';
 import { StoredPrivateImage, StoredPrivateVoice } from '@/components/media-view';
@@ -148,7 +148,7 @@ export default function Today() {
         title={greeting(myName, timeOfDay()) + (look.emoji ? ` ${{ morning: '☀️', afternoon: '🌤️', evening: '🌙' }[timeOfDay()]}` : '')}
       />
       <DaySwitch value="mine" />
-      <StatusRow />
+      <StatusStack />
       <InstallBanner />
 
       {/* A warm hello: how today is going, and a word from your partner. */}

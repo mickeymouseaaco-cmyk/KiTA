@@ -202,8 +202,15 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
  * behind it keeps the time and battery readable; in dark mode none is needed.
  */
 function StatusBarShade() {
-  const { dark } = useTheme();
+  const { c, dark } = useTheme();
   const { top } = useSafeAreaInsets();
+  // The page behind the app takes the app's own background, so no edge of the
+  // screen ever shows a different-coloured strip (light or dark, any look).
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    document.documentElement.style.backgroundColor = c.bg;
+    document.body.style.backgroundColor = c.bg;
+  }, [c.bg]);
   if (Platform.OS !== 'web' || dark || top < 20) return null;
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: top + 10, pointerEvents: 'none', zIndex: 1000 }}>

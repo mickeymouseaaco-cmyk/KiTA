@@ -24,7 +24,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="application-name" content="KiTA" />
 
-    <!-- react-native-web's recommended reset: full height, the app scrolls, not the page. -->
+    <!-- react-native-web's recommended reset: full height, the app scrolls, not the page.
+         #root is pinned to all four edges so, on an iPhone home-screen app, it fills the
+         whole screen (under the status bar and down to the home bar) with no empty gap. -->
     <style id="expo-reset">
       html,
       body {
@@ -42,7 +44,14 @@
       }
       #root {
         display: flex;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
         height: 100%;
+        min-height: 100vh;
+        min-height: 100lvh;
         flex: 1;
       }
     </style>
