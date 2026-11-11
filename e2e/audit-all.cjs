@@ -140,9 +140,18 @@ async function main() {
   await a.waitForTimeout(1500);
   await a.goto(BASE + '/');
   await a.locator(tid('summary-line')).waitFor();
+  const bLogs = [];
+  b.on('console', (m) => bLogs.push(`${m.type()}: ${m.text().slice(0, 240)}`));
   await b.goto(BASE + '/notes');
   await b.locator(tid('note-input')).fill('Miss you already. Lunch tomorrow? ♡');
-  await b.locator(tid('send-note')).click();
+  try {
+    await b.locator(tid('send-note')).click({ timeout: 10000 });
+  } catch (e) {
+    await b.screenshot({ path: path.join(OUT, 'fail-audit-notes.png') });
+    console.log('NOTES DEBUG', JSON.stringify(bLogs.slice(-25), null, 1));
+    console.log('NOTES DEBUG renders', await b.evaluate(() => document.querySelectorAll('[data-testid="send-note"]').length));
+    throw e;
+  }
   await b.waitForTimeout(800);
 
   for (const [route, name] of ROUTES) {
