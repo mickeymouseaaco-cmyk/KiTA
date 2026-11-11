@@ -25,8 +25,8 @@
     <meta name="application-name" content="KiTA" />
 
     <!-- react-native-web's recommended reset: full height, the app scrolls, not the page.
-         #root is pinned to all four edges so, on an iPhone home-screen app, it fills the
-         whole screen (under the status bar and down to the home bar) with no empty gap. -->
+         #root's height comes from --app-h (set by the script below) so the app fills the
+         whole screen, from under the clock down to the home bar, with no gap. -->
     <style id="expo-reset">
       html,
       body {
@@ -47,14 +47,35 @@
         position: fixed;
         top: 0;
         right: 0;
-        bottom: 0;
         left: 0;
-        height: 100%;
-        min-height: 100vh;
-        min-height: 100lvh;
+        height: var(--app-h, 100%);
         flex: 1;
       }
     </style>
+    <script>
+      // On an iPhone home-screen app with the see-through status bar, iOS reports the
+      // page as shorter than the screen (it leaves out the status bar), even though the
+      // page starts at the very top. That left a strip at the bottom and cut the tab bar
+      // off. So, there only, size the app to the real screen height.
+      (function () {
+        function fit() {
+          var nav = window.navigator;
+          var h = window.innerHeight;
+          var standalone = nav.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+          if (standalone && /iPhone|iPad|iPod/.test(nav.userAgent)) {
+            var portrait = window.innerHeight >= window.innerWidth;
+            var full = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+            if (full > h && full - h < 140) h = full;
+          }
+          document.documentElement.style.setProperty('--app-h', h + 'px');
+        }
+        fit();
+        window.addEventListener('resize', fit);
+        window.addEventListener('orientationchange', function () {
+          setTimeout(fit, 300);
+        });
+      })();
+    </script>
 
     <!-- Offline start-up and notifications (public/sw.js). -->
     <script>

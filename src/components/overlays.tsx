@@ -54,7 +54,7 @@ export function IncomingLove() {
       forMe.filter((m) => m.kind === 'hug').forEach((m) => markRead(cid, m).catch(() => {}));
     } else {
       haptic.soft();
-      toast(`A love note from ${partnerName} ♥`);
+      toast(`Surat cinta daripada ${partnerName} ♥`);
     }
   }, [messages, ready, cid, uid, partnerName, toast]);
 
@@ -289,7 +289,7 @@ export function SurpriseWatcher() {
           <Button
             testID="surprise-go"
             small
-            label="Open Love Notes"
+            label="Open Surat Cinta"
             style={{ flex: 1 }}
             onPress={() => {
               setDismissed(true);

@@ -27,7 +27,7 @@ export function configureNotifications() {
       vibrationPattern: [0, 180, 140, 260, 220, 400],
     }).catch(() => {});
     Notifications.setNotificationChannelAsync('love-notes', {
-      name: 'Love notes',
+      name: 'Surat cinta',
       importance: AndroidImportance.DEFAULT,
       vibrationPattern: [0, 120],
     }).catch(() => {});

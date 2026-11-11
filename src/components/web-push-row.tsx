@@ -14,8 +14,8 @@ const LINE: Record<WebPushState, string> = {
   'not-ready': 'Notifications for the web app are being set up. They’ll appear here soon.',
   unsupported: 'This browser can’t show notifications. Chrome, Edge, Firefox and Safari can.',
   'needs-install': 'On iPhone, add KiTA to your Home Screen first (Share → Add to Home Screen), then open it from there.',
-  off: 'Love notes, hugs and today’s question can reach this device even when KiTA is closed.',
-  on: 'On for this device. Love notes, hugs and today’s question will reach you here.',
+  off: 'Surat cinta, hugs and today’s question can reach this device even when KiTA is closed.',
+  on: 'On for this device. Surat cinta, hugs and today’s question will reach you here.',
   blocked: 'Notifications are blocked for KiTA in this browser. Allow them in the browser’s site settings, then come back.',
 };
 

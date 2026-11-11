@@ -284,6 +284,31 @@ async function main() {
   await afiq.locator(tid('note-input')).waitFor();
   log('Notes: full screen with a back arrow; live "is typing" for the partner');
 
+  // Wallpaper: little hearts, then your own photo, behind the notes (only on your screen).
+  await afiq.locator(tid('open-filter')).click();
+  await afiq.locator(tid('open-wallpaper')).click();
+  await afiq.locator(tid('wallpaper-picker')).waitFor();
+  await shot(afiq, '04f1-wallpaper-picker');
+  await afiq.locator(tid('wallpaper-hearts')).click();
+  await afiq.locator(tid('notes-wallpaper')).waitFor({ timeout: 10000 });
+  await afiq.waitForTimeout(500);
+  await shot(afiq, '04f2-wallpaper-hearts');
+  assert.equal(await aina.locator(tid('notes-wallpaper')).count(), 0, 'wallpaper is only on your own screen');
+  await afiq.locator(tid('open-filter')).click();
+  await afiq.locator(tid('open-wallpaper')).click();
+  await afiq.locator(tid('wallpaper-picker')).waitFor();
+  const [wpChooser] = await Promise.all([afiq.waitForEvent('filechooser'), afiq.locator(tid('wallpaper-photo')).click()]);
+  await wpChooser.setFiles(path.join(__dirname, '..', 'public', 'icons', 'icon-512.png'));
+  await afiq.locator(tid('wallpaper-picker')).waitFor({ state: 'detached', timeout: 20000 });
+  await afiq.locator(tid('notes-wallpaper')).locator('img').first().waitFor({ timeout: 15000 });
+  await afiq.waitForTimeout(800);
+  await shot(afiq, '04f3-wallpaper-photo');
+  await afiq.locator(tid('open-filter')).click();
+  await afiq.locator(tid('open-wallpaper')).click();
+  await afiq.locator(tid('wallpaper-none')).click();
+  await afiq.locator(tid('notes-wallpaper')).waitFor({ state: 'detached', timeout: 10000 });
+  log('Notes: wallpaper (preset and own photo), only on your screen');
+
   // Status: Afiq posts a photo; Aina sees a ring and a number, watches it, and it's in Love Notes too.
   await afiq.goto(BASE);
   await afiq.locator(tid('status-add')).click();

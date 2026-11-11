@@ -197,7 +197,7 @@ export default function Settings() {
           value={!!profile?.notificationsPaused}
           onChange={(v) => uid && setNotificationsPaused(uid, v).catch(() => toast(gentleError.save))}
         />
-        {Platform.OS !== 'web' ? <Button small kind="soft" label="Turn on hug & love note alerts" onPress={enablePush} style={{ marginTop: space.sm }} /> : <WebPushRow />}
+        {Platform.OS !== 'web' ? <Button small kind="soft" label="Turn on hug & surat cinta alerts" onPress={enablePush} style={{ marginTop: space.sm }} /> : <WebPushRow />}
       </Card>
 
       <Gap />

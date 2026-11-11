@@ -41,7 +41,7 @@ export function useWelcomed(): [boolean | undefined, () => void] {
 type Page = { title: string; line: string; art: 'couple' | [LucideIcon, VividName][] };
 
 const PAGES: Page[] = [
-  { title: 'Your little world for two', line: 'Love notes, hugs and a daily question, just between you and your partner.', art: 'couple' },
+  { title: 'Your little world for two', line: 'Surat cinta, hugs and a daily question, just between you and your partner.', art: 'couple' },
   {
     title: 'Look after yourselves',
     line: 'Steps, moods and meals. Private by default; you choose what your partner sees.',

@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import { CalendarClock, Camera, Check, ChevronLeft, Clock, ListFilter, Copy, Gift, Heart, ImagePlus, Images, ListTodo, Mail, Mic, Plus, Send, Star, Trash, Video, X, type LucideIcon } from 'lucide-react-native';
+import { CalendarClock, Camera, Check, ChevronLeft, Clock, Copy, Ellipsis, Gift, Heart, ImagePlus, Images, ListTodo, Mail, Mic, Palette, Plus, Send, Star, Trash, Video, X, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { Animated, Easing, FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCelebrate } from '@/components/celebrate';
 import { Sheet, useFeedback } from '@/components/feedback';
 import { MediaById } from '@/components/media-view';
+import { WallpaperLayer, WallpaperPicker } from '@/components/notes-wallpaper';
 import { OutboxRow, useOutbox } from '@/components/outbox-row';
 import { NoteMedia, ViewOnceNote } from '@/components/rich-media';
 import { Button, EmptyState, Gap, IconButton, Row, Segmented, T, ToggleRow, useInputStyle } from '@/components/ui';
@@ -20,11 +21,12 @@ import { haptic } from '@/lib/haptics';
 import { showTimeFlags } from '@/lib/note-groups';
 import { LIMITS, type PreparedImage } from '@/lib/media';
 import { deleteMessage, isFaded, markRead, sendText, starredNotes, toggleFavorite, toggleImportant, useMessages } from '@/lib/messages';
-import { usePaired } from '@/lib/session';
+import { usePaired, useSession } from '@/lib/session';
 import { usePartnerTyping, useTypingSignal } from '@/lib/typing';
 import { cancelScheduled, openSurprise, toggleScheduledFavorite, useDeliveredToMe, useMyScheduled, type ScheduledNote } from '@/lib/together-data';
 import { addTodo, dueDateFor, useTodos } from '@/lib/todos';
 import type { Message } from '@/lib/types';
+import { parseWallpaper } from '@/lib/wallpaper';
 import { radius, space, useTheme } from '@/theme';
 
 type Draft =
@@ -97,6 +99,8 @@ export default function LoveNotes() {
   const pending = useOutbox((j) => j.uid === uid && j.cid === cid && j.target.kind === 'message');
   const [filter, setFilter] = useState<'all' | 'starred' | 'saved'>('all');
   const [filterOpen, setFilterOpen] = useState(false);
+  const [wallpaperOpen, setWallpaperOpen] = useState(false);
+  const hasWallpaper = !!parseWallpaper(useSession().profile?.notesWallpaper);
   const [text, setText] = useState('');
   const [attachOpen, setAttachOpen] = useState(false);
   const [inputH, setInputH] = useState(COMPOSER_MIN);
@@ -228,15 +232,15 @@ export default function LoveNotes() {
                   <ChevronLeft color={c.text} size={30} strokeWidth={2.2} />
                 </Pressable>
               ) : null}
-              <T variant="display" accessibilityRole="header" numberOfLines={1} style={[{ flexShrink: 1 }, fullScreen && { fontSize: 26, lineHeight: 32 }]}>
-                Love Notes
+              <T variant="display" accessibilityRole="header" numberOfLines={1} style={[{ flexShrink: 1 }, fullScreen && { fontSize: 24, lineHeight: 30 }]}>
+                Surat Cinta
               </T>
             </Row>
             <Row gap={space.sm}>
               <IconButton
                 testID="open-filter"
-                icon={ListFilter}
-                label={filter === 'all' ? 'Show starred or saved notes' : `Showing ${filter} notes. Change`}
+                icon={Ellipsis}
+                label={filter === 'all' ? 'More: starred or saved notes, wallpaper' : `Showing ${filter} notes. More options`}
                 active={filter !== 'all'}
                 onPress={() => setFilterOpen(true)}
               />
@@ -310,57 +314,62 @@ export default function LoveNotes() {
           ) : null}
         </View>
 
-        <FlatList
-          testID="notes-list"
-          inverted={shown.length > 0}
-          data={shown}
-          keyExtractor={(f) => f.key}
-          contentContainerStyle={{ paddingHorizontal: space.md, paddingVertical: space.md, gap: 3, flexGrow: 1, width: '100%', maxWidth: 560, alignSelf: 'center' }}
-          ListHeaderComponent={
-            shown.length > 0 && pending.length && filter === 'all' ? (
-              <View style={{ gap: space.sm }}>
-                {pending.map((j) => (
-                  <OutboxRow key={j.id} job={j} />
-                ))}
-              </View>
-            ) : undefined
-          }
-          ListEmptyComponent={
-            ready ? (
-              <View style={{ gap: space.md }}>
-                {pending.map((j) => (
-                  <OutboxRow key={j.id} job={j} />
-                ))}
-                <EmptyState
-                  icon={filter === 'saved' ? Heart : filter === 'starred' ? Star : Mail}
-                  line={error ? gentleError.load : filter === 'saved' ? empty.favorites : filter === 'starred' ? empty.starred : empty.notes}
+        {/* The notes, with your wallpaper (if any) behind them. */}
+        <View style={{ flex: 1 }}>
+          <WallpaperLayer />
+          <FlatList
+            testID="notes-list"
+            inverted={shown.length > 0}
+            data={shown}
+            keyExtractor={(f) => f.key}
+            contentContainerStyle={{ paddingHorizontal: space.md, paddingVertical: space.md, gap: 3, flexGrow: 1, width: '100%', maxWidth: 560, alignSelf: 'center' }}
+            ListHeaderComponent={
+              shown.length > 0 && pending.length && filter === 'all' ? (
+                <View style={{ gap: space.sm }}>
+                  {pending.map((j) => (
+                    <OutboxRow key={j.id} job={j} />
+                  ))}
+                </View>
+              ) : undefined
+            }
+            ListEmptyComponent={
+              ready ? (
+                <View style={{ gap: space.md }}>
+                  {pending.map((j) => (
+                    <OutboxRow key={j.id} job={j} />
+                  ))}
+                  <EmptyState
+                    icon={filter === 'saved' ? Heart : filter === 'starred' ? Star : Mail}
+                    line={error ? gentleError.load : filter === 'saved' ? empty.favorites : filter === 'starred' ? empty.starred : empty.notes}
+                  />
+                </View>
+              ) : undefined
+            }
+            renderItem={({ item }) => (
+              <View style={{ paddingBottom: flagFor.get(item.key) ? 10 : 0 }}>
+              {item.m ? (
+                <Bubble
+                  m={item.m}
+                  showTime={flagFor.get(item.key) ?? true}
+                onWallpaper={hasWallpaper}
+                  mine={item.m.fromUid === uid}
+                  uid={uid}
+                  cid={cid}
+                  partnerName={partnerName}
+                  onOptions={() => {
+                    haptic.tap();
+                    setOptionsFor(item.m!);
+                  }}
                 />
+              ) : (
+                <ScheduledBubble n={item.s!} uid={uid} cid={cid} partnerName={partnerName} />
+              )}
               </View>
-            ) : undefined
-          }
-          renderItem={({ item }) => (
-            <View style={{ paddingBottom: flagFor.get(item.key) ? 10 : 0 }}>
-            {item.m ? (
-              <Bubble
-                m={item.m}
-                showTime={flagFor.get(item.key) ?? true}
-                mine={item.m.fromUid === uid}
-                uid={uid}
-                cid={cid}
-                partnerName={partnerName}
-                onOptions={() => {
-                  haptic.tap();
-                  setOptionsFor(item.m!);
-                }}
-              />
-            ) : (
-              <ScheduledBubble n={item.s!} uid={uid} cid={cid} partnerName={partnerName} />
             )}
-            </View>
-          )}
-        />
+          />
 
-        {partnerTyping ? <TypingLine name={partnerName} /> : null}
+          {partnerTyping ? <TypingLine name={partnerName} /> : null}
+        </View>
 
         <View style={{ borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.surface, padding: space.md, gap: space.sm }}>
           {text.trim() ? (
@@ -524,6 +533,10 @@ export default function LoveNotes() {
       </Sheet>
 
       {/* Which notes to show: all, starred or saved. */}
+      <Sheet visible={wallpaperOpen} onClose={() => setWallpaperOpen(false)}>
+        {wallpaperOpen ? <WallpaperPicker onDone={() => setWallpaperOpen(false)} /> : null}
+      </Sheet>
+
       <Sheet visible={filterOpen} onClose={() => setFilterOpen(false)}>
         <View style={{ gap: space.xs }}>
           <T variant="small" muted center style={{ marginBottom: space.sm }}>
@@ -548,6 +561,17 @@ export default function LoveNotes() {
               }}
             />
           ))}
+          <View style={{ height: 1, backgroundColor: c.border, marginVertical: space.sm }} />
+          <OptionRow
+            testID="open-wallpaper"
+            icon={Palette}
+            label="Wallpaper"
+            onPress={() => {
+              setFilterOpen(false);
+              // Let the first sheet slide away before the next one opens.
+              setTimeout(() => setWallpaperOpen(true), 250);
+            }}
+          />
         </View>
       </Sheet>
 
@@ -748,6 +772,11 @@ function fadesIn(m: Message): string | null {
   return h >= 1 ? `fades in ${h}h` : 'fading soon';
 }
 
+/** A soft pill behind a note's small labels when there's a wallpaper. */
+function pill(bg: string, mine: boolean) {
+  return { alignSelf: mine ? ('flex-end' as const) : ('flex-start' as const), backgroundColor: bg, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1, opacity: 0.92 };
+}
+
 function Bubble({
   m,
   mine,
@@ -756,9 +785,12 @@ function Bubble({
   partnerName,
   onOptions,
   showTime,
+  onWallpaper,
 }: {
   m: Message;
   mine: boolean;
+  /** A wallpaper is behind the notes: small labels sit on a soft pill so they stay readable. */
+  onWallpaper?: boolean;
   /** Only the newest note of a burst (same person, within an hour) shows the time. */
   showTime: boolean;
   uid: string;
@@ -838,7 +870,7 @@ function Bubble({
         {body}
       </Pressable>
       {m.important && canStar ? (
-        <Row gap={4} style={{ marginTop: 2 }}>
+        <Row gap={4} style={[{ marginTop: 2 }, onWallpaper && pill(c.surface, mine)]}>
           <Star color={c.onButter} fill={c.onButter} size={11} />
           <T testID="important-badge" variant="small" color={c.onButter}>
             Important
@@ -846,7 +878,7 @@ function Bubble({
         </Row>
       ) : null}
       {showTime || fade || fav ? (
-        <Row gap={space.xs} style={{ marginTop: 2, flexWrap: 'wrap', justifyContent: mine ? 'flex-end' : 'flex-start' }}>
+        <Row gap={space.xs} style={[{ marginTop: 2, flexWrap: 'wrap', justifyContent: mine ? 'flex-end' : 'flex-start' }, onWallpaper && pill(c.surface, mine)]}>
           {fade ? <Clock color={c.textMuted} size={12} accessibilityLabel="Disappearing note" /> : null}
           {showTime || fade ? (
             <T testID={showTime ? 'note-time' : undefined} variant="small" muted style={{ fontSize: Math.round(12 * textScale), lineHeight: Math.round(16 * textScale) }}>

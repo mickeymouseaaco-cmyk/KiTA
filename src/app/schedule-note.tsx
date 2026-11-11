@@ -84,7 +84,7 @@ export default function ScheduleNote() {
       <Gap h={space.sm} />
       <T variant="small" muted>
         {mode === 'later'
-          ? `Arrives as a normal love note at the time you choose.`
+          ? `Arrives as a normal surat cinta at the time you choose.`
           : mode === 'surprise-date'
             ? `Stays hidden until the day you choose, then ${partnerName} gets to unwrap it.`
             : `${partnerName} will find it waiting next time they open the app.`}

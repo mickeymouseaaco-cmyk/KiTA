@@ -69,7 +69,7 @@ export function notificationFor(msg: Message, fromName: string): { title: string
     case 'quick':
     case 'text':
     default:
-      return { title: `A love note from ${fromName}`, body: (msg.text ?? '').slice(0, 120) || 'Open to read it.' };
+      return { title: `Surat cinta daripada ${fromName}`, body: (msg.text ?? '').slice(0, 120) || 'Open to read it.' };
   }
 }
 
@@ -286,7 +286,7 @@ export const deliverScheduledNotes = onSchedule('every 10 minutes', async () => 
     if (couple?.status === 'ended') continue;
     const name = couple?.names?.[n.fromUid] ?? 'Your partner';
     if (n.surprise === 'date') await pushTo(n.toUid, `${name} left you a surprise`, 'It just unlocked. Open it when you’re ready.', '/notes');
-    else await pushTo(n.toUid, `A love note from ${name}`, (n.text ?? '').slice(0, 120) || 'Open to read it.', '/notes');
+    else await pushTo(n.toUid, `Surat cinta daripada ${name}`, (n.text ?? '').slice(0, 120) || 'Open to read it.', '/notes');
   }
 });
 

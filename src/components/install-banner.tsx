@@ -127,7 +127,7 @@ export function InstallBanner() {
             ) : (
               <T variant="small" muted>
                 {nudge === 'notifications'
-                  ? 'Turn on notifications so love notes, hugs and today’s question reach you, even when KiTA is closed.'
+                  ? 'Turn on notifications so surat cinta, hugs and today’s question reach you, even when KiTA is closed.'
                   : 'It opens full screen like an app, starts faster, and can show notifications.'}
               </T>
             )}
