@@ -112,15 +112,22 @@ export function Welcome({ onDone }: { onDone: (mode: 'new' | 'returning') => voi
   const pageW = Math.min(width, 560);
   const scroller = useRef<ComponentRef<typeof ScrollView>>(null);
   const [at, setAt] = useState(0);
+  // While we scroll to a page ourselves, don't let the in-between positions change the page.
+  const target = useRef<number | null>(null);
   const last = at === PAGES.length - 1;
 
   const go = (i: number) => {
     haptic.tap();
+    target.current = i;
     scroller.current?.scrollTo({ x: i * pageW, animated: true });
     setAt(i);
   };
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const i = Math.round(e.nativeEvent.contentOffset.x / pageW);
+    if (target.current !== null) {
+      if (Math.abs(e.nativeEvent.contentOffset.x - target.current * pageW) < 2) target.current = null;
+      return;
+    }
     if (i !== at && i >= 0 && i < PAGES.length) setAt(i);
   };
 

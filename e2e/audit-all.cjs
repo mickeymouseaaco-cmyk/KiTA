@@ -97,6 +97,7 @@ async function main() {
   await a.waitForTimeout(700);
   await shot(a, '00b-welcome-2');
   await a.locator(tid('welcome-next')).click();
+  await a.waitForTimeout(700);
   await a.locator(tid('welcome-next')).click();
   await a.locator(tid('welcome-start')).waitFor();
   await a.waitForTimeout(700);
