@@ -10,6 +10,8 @@ export type UserProfile = {
   lastCoupleId?: string | null;
   /** My profile picture: users/{uid}/avatar/{avatarId}.jpg. Only me and my partner can open it. */
   avatarId?: string | null;
+  /** What I see behind my notes: 'preset:<id>' or 'photo:<id>' (see lib/wallpaper). */
+  notesWallpaper?: string | null;
   notificationsPaused: boolean;
   /** Opt-in: transcribe my own voice notes so my partner can read them too. */
   transcribeVoice?: boolean;

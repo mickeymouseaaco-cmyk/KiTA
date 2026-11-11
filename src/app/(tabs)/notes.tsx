@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import { CalendarClock, Camera, Check, ChevronLeft, Clock, ListFilter, Copy, Gift, Heart, ImagePlus, Images, ListTodo, Mail, Mic, Plus, Send, Star, Trash, Video, X, type LucideIcon } from 'lucide-react-native';
+import { CalendarClock, Camera, Check, ChevronLeft, Clock, ListFilter, Copy, Gift, Heart, ImagePlus, Images, ListTodo, Mail, Mic, Palette, Plus, Send, Star, Trash, Video, X, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { Animated, Easing, FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCelebrate } from '@/components/celebrate';
 import { Sheet, useFeedback } from '@/components/feedback';
 import { MediaById } from '@/components/media-view';
+import { WallpaperLayer, WallpaperPicker } from '@/components/notes-wallpaper';
 import { OutboxRow, useOutbox } from '@/components/outbox-row';
 import { NoteMedia, ViewOnceNote } from '@/components/rich-media';
 import { Button, EmptyState, Gap, IconButton, Row, Segmented, T, ToggleRow, useInputStyle } from '@/components/ui';
@@ -97,6 +98,7 @@ export default function LoveNotes() {
   const pending = useOutbox((j) => j.uid === uid && j.cid === cid && j.target.kind === 'message');
   const [filter, setFilter] = useState<'all' | 'starred' | 'saved'>('all');
   const [filterOpen, setFilterOpen] = useState(false);
+  const [wallpaperOpen, setWallpaperOpen] = useState(false);
   const [text, setText] = useState('');
   const [attachOpen, setAttachOpen] = useState(false);
   const [inputH, setInputH] = useState(COMPOSER_MIN);
@@ -240,6 +242,7 @@ export default function LoveNotes() {
                 active={filter !== 'all'}
                 onPress={() => setFilterOpen(true)}
               />
+              <IconButton testID="open-wallpaper" icon={Palette} label="Change the wallpaper behind your notes" onPress={() => setWallpaperOpen(true)} />
               <IconButton testID="open-media" icon={Images} label="Photos, videos and voice notes" onPress={() => router.push('/notes-media')} />
               <IconButton testID="open-schedule" icon={CalendarClock} label="Schedule a note or hide a surprise" onPress={() => router.push('/schedule-note')} />
             </Row>
@@ -310,57 +313,61 @@ export default function LoveNotes() {
           ) : null}
         </View>
 
-        <FlatList
-          testID="notes-list"
-          inverted={shown.length > 0}
-          data={shown}
-          keyExtractor={(f) => f.key}
-          contentContainerStyle={{ paddingHorizontal: space.md, paddingVertical: space.md, gap: 3, flexGrow: 1, width: '100%', maxWidth: 560, alignSelf: 'center' }}
-          ListHeaderComponent={
-            shown.length > 0 && pending.length && filter === 'all' ? (
-              <View style={{ gap: space.sm }}>
-                {pending.map((j) => (
-                  <OutboxRow key={j.id} job={j} />
-                ))}
-              </View>
-            ) : undefined
-          }
-          ListEmptyComponent={
-            ready ? (
-              <View style={{ gap: space.md }}>
-                {pending.map((j) => (
-                  <OutboxRow key={j.id} job={j} />
-                ))}
-                <EmptyState
-                  icon={filter === 'saved' ? Heart : filter === 'starred' ? Star : Mail}
-                  line={error ? gentleError.load : filter === 'saved' ? empty.favorites : filter === 'starred' ? empty.starred : empty.notes}
+        {/* The notes, with your wallpaper (if any) behind them. */}
+        <View style={{ flex: 1 }}>
+          <WallpaperLayer />
+          <FlatList
+            testID="notes-list"
+            inverted={shown.length > 0}
+            data={shown}
+            keyExtractor={(f) => f.key}
+            contentContainerStyle={{ paddingHorizontal: space.md, paddingVertical: space.md, gap: 3, flexGrow: 1, width: '100%', maxWidth: 560, alignSelf: 'center' }}
+            ListHeaderComponent={
+              shown.length > 0 && pending.length && filter === 'all' ? (
+                <View style={{ gap: space.sm }}>
+                  {pending.map((j) => (
+                    <OutboxRow key={j.id} job={j} />
+                  ))}
+                </View>
+              ) : undefined
+            }
+            ListEmptyComponent={
+              ready ? (
+                <View style={{ gap: space.md }}>
+                  {pending.map((j) => (
+                    <OutboxRow key={j.id} job={j} />
+                  ))}
+                  <EmptyState
+                    icon={filter === 'saved' ? Heart : filter === 'starred' ? Star : Mail}
+                    line={error ? gentleError.load : filter === 'saved' ? empty.favorites : filter === 'starred' ? empty.starred : empty.notes}
+                  />
+                </View>
+              ) : undefined
+            }
+            renderItem={({ item }) => (
+              <View style={{ paddingBottom: flagFor.get(item.key) ? 10 : 0 }}>
+              {item.m ? (
+                <Bubble
+                  m={item.m}
+                  showTime={flagFor.get(item.key) ?? true}
+                  mine={item.m.fromUid === uid}
+                  uid={uid}
+                  cid={cid}
+                  partnerName={partnerName}
+                  onOptions={() => {
+                    haptic.tap();
+                    setOptionsFor(item.m!);
+                  }}
                 />
+              ) : (
+                <ScheduledBubble n={item.s!} uid={uid} cid={cid} partnerName={partnerName} />
+              )}
               </View>
-            ) : undefined
-          }
-          renderItem={({ item }) => (
-            <View style={{ paddingBottom: flagFor.get(item.key) ? 10 : 0 }}>
-            {item.m ? (
-              <Bubble
-                m={item.m}
-                showTime={flagFor.get(item.key) ?? true}
-                mine={item.m.fromUid === uid}
-                uid={uid}
-                cid={cid}
-                partnerName={partnerName}
-                onOptions={() => {
-                  haptic.tap();
-                  setOptionsFor(item.m!);
-                }}
-              />
-            ) : (
-              <ScheduledBubble n={item.s!} uid={uid} cid={cid} partnerName={partnerName} />
             )}
-            </View>
-          )}
-        />
+          />
 
-        {partnerTyping ? <TypingLine name={partnerName} /> : null}
+          {partnerTyping ? <TypingLine name={partnerName} /> : null}
+        </View>
 
         <View style={{ borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.surface, padding: space.md, gap: space.sm }}>
           {text.trim() ? (
@@ -524,6 +531,10 @@ export default function LoveNotes() {
       </Sheet>
 
       {/* Which notes to show: all, starred or saved. */}
+      <Sheet visible={wallpaperOpen} onClose={() => setWallpaperOpen(false)}>
+        {wallpaperOpen ? <WallpaperPicker onDone={() => setWallpaperOpen(false)} /> : null}
+      </Sheet>
+
       <Sheet visible={filterOpen} onClose={() => setFilterOpen(false)}>
         <View style={{ gap: space.xs }}>
           <T variant="small" muted center style={{ marginBottom: space.sm }}>
