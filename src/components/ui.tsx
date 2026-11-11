@@ -75,11 +75,12 @@ export function Screen({
   contentStyle?: StyleProp<ViewStyle>;
   footer?: ReactNode;
 }) {
-  const { c } = useTheme();
+  const { c, look } = useTheme();
   const inner = [styles.screenContent, contentStyle];
   return (
     <SafeAreaView edges={edges} style={{ flex: 1, backgroundColor: c.bg }}>
-      <PageWash />
+      {/* Modern look: the ambient light belongs to top-level pages; pages under a title bar stay plain. */}
+      {look.flat && !edges.includes('top') ? null : <PageWash />}
       {scroll ? (
         <ScrollView contentContainerStyle={inner} keyboardShouldPersistTaps="handled">
           <PageEnter style={styles.maxWidth}>{children}</PageEnter>

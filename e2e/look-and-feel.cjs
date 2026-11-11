@@ -157,6 +157,15 @@ async function main() {
   assert.ok(box && box.height < 50, `greeting should be one line (height ${box && box.height})`);
   log(`Greeting is one line (${Math.round(box.height)}px tall)`);
 
+  // 1b. The modern look in dark mode (it follows the phone).
+  await afiq.emulateMedia({ colorScheme: 'dark' });
+  await afiq.waitForTimeout(600);
+  await shot(afiq, '01b-home-dark', true);
+  await afiq.goto(BASE + '/together');
+  await afiq.waitForTimeout(1200);
+  await shot(afiq, '01c-together-dark');
+  await afiq.emulateMedia({ colorScheme: 'light' });
+
   // 2. Love-note box: wide, grows with the text, attachments behind +.
   await afiq.goto(BASE + '/notes');
   await afiq.locator(tid('note-input')).waitFor();
