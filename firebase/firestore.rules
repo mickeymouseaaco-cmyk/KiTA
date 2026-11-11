@@ -352,6 +352,18 @@ service cloud.firestore {
           allow delete: if isMember(cid);
         }
 
+        // Flights to follow on this trip: just the flight number and a label.
+        match /flights/{flightId} {
+          allow read: if isMember(cid);
+          allow create: if isMember(cid)
+            && incoming().keys().hasOnly(['flight', 'label', 'addedBy', 'createdAt'])
+            && incoming().addedBy == me()
+            && incoming().createdAt == request.time
+            && incoming().flight is string && incoming().flight.matches('^[A-Z0-9]{3,8}$')
+            && optStr(incoming(), 'label', 60);
+          allow delete: if isMember(cid);
+        }
+
         // Travel journal entries: photos, videos, voice diary, notes.
         match /entries/{entryId} {
           allow read: if isMember(cid);

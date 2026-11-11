@@ -28,6 +28,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 // Auth deletion triggers only exist in the 1st-gen API.
 import * as functionsV1 from 'firebase-functions/v1';
 
+import { normalizeFlight, pickAircraft, toPosition, toRoute, type FlightPosition, type FlightRoute, type RawAircraft } from './flight-pure';
 import { hashStepsToken, newStepsToken, parseCoord, parseSteps, syncDay } from './steps-pure';
 
 /**
@@ -784,4 +785,92 @@ export const syncLocation = onRequest({ cors: false }, async (req, res) => {
   }
   await db.doc(`couples/${cid}/locations/${uid}`).set({ lat, lng, accuracy: 0, at: FieldValue.serverTimestamp(), source: 'shortcut' });
   res.status(200).send('Location shared with KiTA ♡');
+});
+
+// ------------------------------------------------------------ flight tracking
+// Trips → Track a flight. Looks a flight up in free, community-run live aircraft
+// data (airplanes.live, then adsb.fi) and its usual route (adsbdb.com).
+// Nothing is stored; answers are remembered for a few seconds so we stay polite
+// to those services (they ask for at most one request a second).
+
+type FlightAnswer = {
+  flight: string;
+  found: boolean;
+  position: FlightPosition | null;
+  route: FlightRoute | null;
+  source: string | null;
+  at: number;
+};
+
+const flightAnswers = new Map<string, FlightAnswer>();
+const flightRoutes = new Map<string, { at: number; route: FlightRoute | null }>();
+const FLIGHT_TTL_MS = 12_000;
+const ROUTE_TTL_MS = 6 * 3600_000;
+
+async function getJson(url: string, ms = 7000): Promise<unknown> {
+  const stop = new AbortController();
+  const timer = setTimeout(() => stop.abort(), ms);
+  try {
+    const res = await fetch(url, { signal: stop.signal, headers: { accept: 'application/json', 'user-agent': 'KiTA couples app (personal, non-commercial)' } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function routeFor(callsigns: string[]): Promise<FlightRoute | null> {
+  const key = callsigns[0];
+  const kept = flightRoutes.get(key);
+  if (kept && Date.now() - kept.at < ROUTE_TTL_MS) return kept.route;
+  let route: FlightRoute | null = null;
+  for (const cs of callsigns.slice(0, 2)) {
+    try {
+      route = toRoute(await getJson(`https://api.adsbdb.com/v0/callsign/${encodeURIComponent(cs)}`, 5000));
+    } catch {
+      route = null; // unknown callsign (404) or the service is away: the live position still works
+    }
+    if (route) break;
+  }
+  if (flightRoutes.size > 500) flightRoutes.clear();
+  flightRoutes.set(key, { at: Date.now(), route });
+  return route;
+}
+
+async function liveAircraft(callsigns: string[]): Promise<{ list: RawAircraft[]; source: string } | null> {
+  const q = callsigns.map(encodeURIComponent).join(',');
+  const sources: [string, string][] = [
+    ['airplanes.live', `https://api.airplanes.live/v2/callsign/${q}`],
+    ['adsb.fi', `https://opendata.adsb.fi/api/v2/callsign/${encodeURIComponent(callsigns[0])}`],
+  ];
+  for (const [source, url] of sources) {
+    try {
+      const j = (await getJson(url)) as { ac?: RawAircraft[]; aircraft?: RawAircraft[] } | null;
+      const list = j?.ac ?? j?.aircraft;
+      if (Array.isArray(list)) {
+        if (pickAircraft(list, callsigns) || source === 'adsb.fi') return { list, source };
+      }
+    } catch (e) {
+      logger.warn('flight lookup failed', { source, error: String(e) });
+    }
+  }
+  return null;
+}
+
+export const trackFlight = onCall(async (req) => {
+  caller(req);
+  const q = normalizeFlight(typeof req.data?.flight === 'string' ? req.data.flight : '');
+  if (!q) throw new HttpsError('invalid-argument', 'That doesn’t look like a flight number.');
+  const kept = flightAnswers.get(q.flight);
+  if (kept && Date.now() - kept.at < FLIGHT_TTL_MS) return kept;
+
+  const route = await routeFor(q.callsigns);
+  const callsigns = route?.callsign && !q.callsigns.includes(route.callsign) ? [route.callsign, ...q.callsigns] : q.callsigns;
+  const live = await liveAircraft(callsigns);
+  if (!live) throw new HttpsError('unavailable', 'Live flight data isn’t answering right now.');
+  const ac = pickAircraft(live.list, callsigns);
+  const answer: FlightAnswer = { flight: q.flight, found: !!ac, position: ac ? toPosition(ac) : null, route, source: live.source, at: Date.now() };
+  if (flightAnswers.size > 500) flightAnswers.clear();
+  flightAnswers.set(q.flight, answer);
+  return answer;
 });

@@ -627,6 +627,22 @@ describe('love languages, plant, trips', () => {
     await assertFails(getDoc(doc(db(EVE), at('s1'))));
     await assertFails(setDoc(doc(db(EVE), at('s9')), { ...stop, addedBy: EVE }));
   });
+
+  test('trips: either of you can save a flight to follow; outsiders cannot', async () => {
+    await seedCouple();
+    await assertSucceeds(
+      setDoc(doc(db(A), `couples/${CID}/trips/t1`), { title: 'Penang', startDate: '2026-12-01', endDate: '2026-12-05', createdBy: A, createdAt: serverTimestamp() }),
+    );
+    const at = (n: string) => `couples/${CID}/trips/t1/flights/${n}`;
+    const flight = { flight: 'MH2520', label: 'Aina to Penang', addedBy: A, createdAt: serverTimestamp() };
+    await assertSucceeds(setDoc(doc(db(A), at('f1')), flight));
+    await assertSucceeds(getDoc(doc(db(B), at('f1'))));
+    await assertFails(setDoc(doc(db(A), at('f2')), { ...flight, flight: 'not a flight!' }));
+    await assertFails(setDoc(doc(db(A), at('f3')), { ...flight, label: 'x'.repeat(61) }));
+    await assertFails(setDoc(doc(db(B), at('f4')), flight));
+    await assertFails(getDoc(doc(db(EVE), at('f1'))));
+    await assertSucceeds(deleteDoc(doc(db(B), at('f1'))));
+  });
 });
 
 describe('starred notes, shared to-dos and the weekend planner', () => {

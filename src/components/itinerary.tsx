@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { Linking, Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import { Sheet, useFeedback } from '@/components/feedback';
+import { FlightsCard } from '@/components/flights-card';
 import { Button, Card, Chip, Gap, Row, T, useInputStyle } from '@/components/ui';
 import { gentleError } from '@/lib/copy';
 import { dayKey, fromDayKey } from '@/lib/dates';
@@ -32,6 +33,7 @@ export function Itinerary({ trip }: { trip: Trip }) {
 
   return (
     <View style={{ gap: space.md }}>
+      <FlightsCard tripId={trip.id} />
       <T muted>
         {planned
           ? `${planned} ${planned === 1 ? 'plan' : 'plans'} across ${days.length} ${days.length === 1 ? 'day' : 'days'}. Tap a plan to change it.`

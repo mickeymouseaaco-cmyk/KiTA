@@ -71,6 +71,35 @@ function mockWeather(ctx) {
     },
   ];
   ctx.route('https://api.open-meteo.com/**', (r) => r.fulfill({ json: forecast }));
+  // Flight tracking: the server asks live aircraft services; here we answer for it.
+  ctx.route('**/trackFlight', (r) => {
+    const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, OPTIONS' };
+    if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: cors });
+    const flight = String(JSON.parse(r.request().postData() || '{}').data?.flight || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const found = flight === 'MH2520';
+    r.fulfill({
+      headers: cors,
+      json: {
+        result: {
+          flight,
+          found,
+          position: found
+            ? { callsign: 'MAS2520', lat: 4.02, lon: 100.99, altFt: 30000, onGround: false, speedKts: 420, heading: 330, climbFpm: 0, seenSec: 2, reg: '9M-MXA', type: 'B738', typeName: 'BOEING 737-800' }
+            : null,
+          route: found
+            ? {
+                airline: 'Malaysia Airlines',
+                callsign: 'MAS2520',
+                from: { code: 'KUL', city: 'Kuala Lumpur', name: 'Kuala Lumpur International', lat: 2.7456, lon: 101.7099 },
+                to: { code: 'PEN', city: 'Penang', name: 'Penang International', lat: 5.2971, lon: 100.2769 },
+              }
+            : null,
+          source: 'airplanes.live',
+          at: Date.now(),
+        },
+      },
+    });
+  });
   ctx.route('https://api.data.gov.my/weather/warning**', (r) => r.fulfill({ json: warnings }));
   ctx.route('https://api.data.gov.my/flood-warning**', (r) =>
     r.fulfill({
@@ -348,6 +377,36 @@ async function main() {
   await afiq.locator(tid('stop-Street art walk')).waitFor({ state: 'detached', timeout: 10000 });
   await shot(aina, '07o-itinerary-partner');
   log('Itinerary: add with friendly times, sorted by time, partner edits live, remove');
+
+  // 4b5. Track a flight from the trip: saved for both, live map, route and landing guess.
+  await afiq.locator(tid('flight-input')).fill('mh 2520');
+  await afiq.locator(tid('flight-label')).fill('Aina to Penang');
+  await afiq.locator(tid('flight-track')).click();
+  await afiq.locator(tid('flight-status')).filter({ hasText: 'Cruising' }).waitFor({ timeout: 15000 });
+  assert.equal((await afiq.locator(tid('flight-no')).innerText()).trim(), 'MH 2520');
+  await afiq.locator(tid('flight-route')).waitFor();
+  assert.match(await afiq.locator(tid('flight-eta')).innerText(), /km to go · lands in about \d+ min/);
+  await afiq.locator(tid('flight-map')).waitFor();
+  await afiq.getByText('30,000 ft').waitFor();
+  await afiq.waitForTimeout(1500);
+  await shot(afiq, '07p-flight-live', true);
+  // Aina finds the saved flight on the trip and opens it too.
+  await aina.locator(tid('flight-row-MH2520')).waitFor({ timeout: 10000 });
+  await aina.getByText('Aina to Penang').waitFor();
+  await shot(aina, '07q-flight-saved');
+  await aina.locator(tid('flight-row-MH2520')).click();
+  await aina.locator(tid('flight-status')).filter({ hasText: 'Cruising' }).waitFor({ timeout: 15000 });
+  // A flight that isn't in the air says so kindly, and still offers Flightradar24.
+  await afiq.goto(BASE + '/flight?no=AK%206124');
+  await afiq.locator(tid('flight-missing')).waitFor({ timeout: 15000 });
+  await afiq.locator(tid('flight-fr24')).waitFor();
+  await shot(afiq, '07r-flight-not-flying');
+  // A quick one-off look from the Trips tab.
+  await afiq.goto(BASE + '/trip');
+  await afiq.locator(tid('flight-input')).fill('MH2520');
+  await afiq.locator(tid('flight-track')).click();
+  await afiq.locator(tid('flight-status')).filter({ hasText: 'Cruising' }).waitFor({ timeout: 15000 });
+  log('Flights: saved on the trip for both, live map with route and landing guess, kind when not flying');
 
   // 4c. Installable: manifest, icons and the service worker are served.
   const manifest = await (await fetch(BASE + '/manifest.json')).json();

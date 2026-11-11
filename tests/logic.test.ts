@@ -7,6 +7,8 @@ import { QUICK_MESSAGES, empty, summaryLine } from '../src/lib/copy';
 import { dayKey, lastNDays } from '../src/lib/dates';
 import { projectDay } from '../src/lib/projection';
 import { CHEERS, DEFAULT_TARGET, NAME_MAX, cheerFor, nameSize, stressAfter, targetName } from '../src/lib/smash-pure';
+import { normalizeFlight, pickAircraft, toPosition, toRoute } from '../functions/src/flight-pure';
+import { cleanFlightNo, compass, etaWords, fr24Url, mapSpan, phaseWord, prettyFlightNo, routeProgress } from '../src/lib/flight-pure';
 import { mapsUrl, parseTime, sortStops, stopsByDay, timeLabel } from '../src/lib/itinerary-pure';
 import { showTimeFlags } from '../src/lib/note-groups';
 import { gentleAlert, isHighSteps, suggestionsFor } from '../src/lib/suggestions';
@@ -620,4 +622,77 @@ test('itinerary: stops sorted by day and time, any-time ones last, others kept a
   assert.deepEqual(other.map((s) => s.id), ['old']);
   assert.equal(mapsUrl('Time Out Market', 'Lisbon'), 'https://www.google.com/maps/search/?api=1&query=Time%20Out%20Market%2C%20Lisbon');
   assert.equal(mapsUrl('Belém, Lisbon', 'Lisbon'), 'https://www.google.com/maps/search/?api=1&query=Bel%C3%A9m%2C%20Lisbon');
+});
+
+// ------------------------------------------------------------ Flight tracking
+test('flights: what you type becomes the callsign the plane broadcasts', () => {
+  assert.deepEqual(normalizeFlight('mh 2520'), { flight: 'MH2520', callsigns: ['MAS2520', 'MH2520'] });
+  assert.deepEqual(normalizeFlight('AK-6124')!.callsigns, ['AXM6124', 'AK6124']);
+  assert.deepEqual(normalizeFlight('D7 0237')!.callsigns, ['XAX237', 'D7237', 'D70237']);
+  assert.deepEqual(normalizeFlight('MAS2520')!.callsigns, ['MAS2520']);
+  assert.deepEqual(normalizeFlight('ZZ12')!.callsigns, ['ZZ12']); // unknown airline: try it as typed
+  assert.equal(normalizeFlight('hello'), null);
+  assert.equal(normalizeFlight(''), null);
+  assert.equal(normalizeFlight('MH 2520; DROP'), null);
+  assert.equal(cleanFlightNo(' mh 2520 '), 'MH2520');
+  assert.equal(cleanFlightNo('12345'), null);
+  assert.equal(cleanFlightNo('penang'), null);
+  assert.equal(prettyFlightNo('MH2520'), 'MH 2520');
+  assert.equal(prettyFlightNo('MAS2520'), 'MAS 2520');
+  assert.equal(prettyFlightNo('D7237'), 'D7 237');
+});
+
+test('flights: picks the right plane and tidies its position', () => {
+  const list = [
+    { flight: 'MAS2521 ', lat: 3, lon: 101 },
+    { flight: 'MAS2520 ', r: '9M-MXA', t: 'B738', desc: 'BOEING 737-800', lat: 4.123456, lon: 100.987654, alt_baro: 36000, gs: 455.4, track: 44.6, baro_rate: 0, seen_pos: 2.2 },
+    { flight: 'MAS2520 ' }, // no position: ignored
+  ];
+  const ac = pickAircraft(list, ['MAS2520', 'MH2520'])!;
+  assert.deepEqual(toPosition(ac), {
+    callsign: 'MAS2520', lat: 4.1235, lon: 100.9877, altFt: 36000, onGround: false, speedKts: 455, heading: 45, climbFpm: 0, seenSec: 2, reg: '9M-MXA', type: 'B738', typeName: 'BOEING 737-800',
+  });
+  assert.equal(pickAircraft(list, ['SIA1']), null);
+  const ground = toPosition({ flight: 'AXM1', lat: 5.3, lon: 100.27, alt_baro: 'ground', gs: 12 });
+  assert.equal(ground.onGround, true);
+  assert.equal(ground.altFt, 0);
+  assert.equal(phaseWord(ground), 'On the ground');
+  assert.equal(phaseWord({ onGround: false, climbFpm: 1800, altFt: 9000, speedKts: 280 }), 'Climbing');
+  assert.equal(phaseWord({ onGround: false, climbFpm: -1200, altFt: 9000, speedKts: 280 }), 'Descending');
+  assert.equal(phaseWord({ onGround: false, climbFpm: 0, altFt: 36000, speedKts: 450 }), 'Cruising');
+});
+
+test('flights: route, progress and a rough landing time', () => {
+  const route = toRoute({
+    response: {
+      flightroute: {
+        callsign: 'MAS2520', callsign_icao: 'MAS2520', airline: { name: 'Malaysia Airlines' },
+        origin: { iata_code: 'KUL', municipality: 'Kuala Lumpur', name: 'KLIA', latitude: 2.7456, longitude: 101.7099 },
+        destination: { iata_code: 'PEN', municipality: 'Penang', name: 'Penang Intl', latitude: 5.2971, longitude: 100.2769 },
+      },
+    },
+  })!;
+  assert.equal(route.airline, 'Malaysia Airlines');
+  assert.equal(route.from!.code, 'KUL');
+  assert.equal(route.to!.city, 'Penang');
+  assert.equal(toRoute({ response: 'unknown callsign' }), null);
+  assert.equal(toRoute(null), null);
+
+  const pos = { callsign: 'MAS2520', lat: 4.02, lon: 100.99, altFt: 30000, onGround: false, speedKts: 420, heading: 330, climbFpm: 0, seenSec: 1, reg: null, type: null, typeName: null };
+  const pr = routeProgress(route, pos)!;
+  assert.ok(pr.fraction > 0.4 && pr.fraction < 0.6, `about halfway (${pr.fraction})`);
+  assert.ok(pr.remainingKm > 130 && pr.remainingKm < 190, `km left (${pr.remainingKm})`);
+  assert.ok(pr.etaMin! >= 18 && pr.etaMin! <= 24, `eta (${pr.etaMin})`);
+  // Nowhere near the route: no progress shown.
+  assert.equal(routeProgress(route, { ...pos, lat: 35, lon: 139 }), null);
+  assert.equal(routeProgress(null, pos), null);
+
+  assert.equal(etaWords(25), 'about 25 min');
+  assert.equal(etaWords(135), 'about 2 h 15 min');
+  assert.equal(compass(0), 'north');
+  assert.equal(compass(225), 'south-west');
+  assert.equal(compass(359), 'north');
+  assert.equal(fr24Url('MH2520', 'MAS2520'), 'https://www.flightradar24.com/MAS2520');
+  assert.equal(fr24Url('MH2520'), 'https://www.flightradar24.com/data/flights/mh2520');
+  assert.ok(mapSpan({ altFt: 36000, onGround: false }) > mapSpan({ altFt: 2000, onGround: false }));
 });
