@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import { CalendarClock, Camera, Check, Clock, Copy, Gift, Heart, ImagePlus, Images, ListTodo, Mail, Mic, Plus, Send, Star, Trash, Video, X, type LucideIcon } from 'lucide-react-native';
+import { CalendarClock, Camera, Check, Clock, ListFilter, Copy, Gift, Heart, ImagePlus, Images, ListTodo, Mail, Mic, Plus, Send, Star, Trash, Video, X, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +17,7 @@ import { empty, gentleError } from '@/lib/copy';
 import { pickPhoto, pickVideo, queuePhotoNote, queueVideoNote, queueVoiceNote, type NoteOptions, type PickedVideo } from '@/lib/compose';
 import { relativeTime } from '@/lib/dates';
 import { haptic } from '@/lib/haptics';
+import { showTimeFlags } from '@/lib/note-groups';
 import { LIMITS, type PreparedImage } from '@/lib/media';
 import { deleteMessage, isFaded, markRead, sendText, starredNotes, toggleFavorite, toggleImportant, useMessages } from '@/lib/messages';
 import { usePaired } from '@/lib/session';
@@ -90,6 +91,7 @@ export default function LoveNotes() {
   const { messages, ready, error } = useMessages(cid);
   const pending = useOutbox((j) => j.uid === uid && j.cid === cid && j.target.kind === 'message');
   const [filter, setFilter] = useState<'all' | 'starred' | 'saved'>('all');
+  const [filterOpen, setFilterOpen] = useState(false);
   const [text, setText] = useState('');
   const [attachOpen, setAttachOpen] = useState(false);
   const [inputH, setInputH] = useState(COMPOSER_MIN);
@@ -132,6 +134,9 @@ export default function LoveNotes() {
         ? feed.filter((f) => f.m?.important && !f.m.viewOnce)
         : feed;
   const pinned = starredNotes(visible).slice(0, 3);
+  // One time per burst of notes (same person, within an hour).
+  const timeFlags = showTimeFlags(shown.map((f) => ({ from: f.m ? f.m.fromUid : `scheduled-${f.key}`, at: f.at })));
+  const flagFor = new Map(shown.map((f, i) => [f.key, timeFlags[i]]));
 
   async function noteToTodo(m: Message) {
     if (todoFrom.has(m.id)) return router.push('/todos');
@@ -215,6 +220,13 @@ export default function LoveNotes() {
               Love Notes
             </T>
             <Row gap={space.sm}>
+              <IconButton
+                testID="open-filter"
+                icon={ListFilter}
+                label={filter === 'all' ? 'Show starred or saved notes' : `Showing ${filter} notes. Change`}
+                active={filter !== 'all'}
+                onPress={() => setFilterOpen(true)}
+              />
               <IconButton testID="open-media" icon={Images} label="Photos, videos and voice notes" onPress={() => router.push('/notes-media')} />
               <IconButton testID="open-schedule" icon={CalendarClock} label="Schedule a note or hide a surprise" onPress={() => router.push('/schedule-note')} />
             </Row>
@@ -270,15 +282,19 @@ export default function LoveNotes() {
               ))}
             </Pressable>
           ) : null}
-          <Segmented
-            value={filter}
-            onChange={setFilter}
-            options={[
-              { value: 'all', label: 'All notes' },
-              { value: 'starred', label: 'Starred' },
-              { value: 'saved', label: 'Saved' },
-            ]}
-          />
+          {filter !== 'all' ? (
+            <Row gap={space.sm} style={{ backgroundColor: filter === 'starred' ? c.butter : c.heartSoft, borderRadius: radius.md, paddingVertical: space.sm, paddingHorizontal: space.md }}>
+              {filter === 'starred' ? <Star color={c.onButter} fill={c.onButter} size={16} /> : <Heart color={c.heart} fill={c.heart} size={16} />}
+              <T variant="bodyStrong" style={{ flex: 1 }} color={filter === 'starred' ? c.onButter : c.text}>
+                {filter === 'starred' ? 'Starred notes' : 'Saved notes'}
+              </T>
+              <Pressable testID="filter-clear" accessibilityRole="button" accessibilityLabel="Show all notes" hitSlop={8} onPress={() => setFilter('all')} style={{ paddingVertical: 4, paddingHorizontal: 6 }}>
+                <T variant="small" color={filter === 'starred' ? c.onButter : c.primary} style={{ fontFamily: 'Raleway_600SemiBold' }}>
+                  Show all
+                </T>
+              </Pressable>
+            </Row>
+          ) : null}
         </View>
 
         <FlatList
@@ -286,7 +302,7 @@ export default function LoveNotes() {
           inverted={shown.length > 0}
           data={shown}
           keyExtractor={(f) => f.key}
-          contentContainerStyle={{ padding: space.lg, gap: space.md, flexGrow: 1, width: '100%', maxWidth: 560, alignSelf: 'center' }}
+          contentContainerStyle={{ padding: space.lg, gap: space.xs, flexGrow: 1, width: '100%', maxWidth: 560, alignSelf: 'center' }}
           ListHeaderComponent={
             shown.length > 0 && pending.length && filter === 'all' ? (
               <View style={{ gap: space.sm }}>
@@ -309,10 +325,12 @@ export default function LoveNotes() {
               </View>
             ) : undefined
           }
-          renderItem={({ item }) =>
-            item.m ? (
+          renderItem={({ item }) => (
+            <View style={{ paddingBottom: flagFor.get(item.key) ? space.sm : 0 }}>
+            {item.m ? (
               <Bubble
                 m={item.m}
+                showTime={flagFor.get(item.key) ?? true}
                 mine={item.m.fromUid === uid}
                 uid={uid}
                 cid={cid}
@@ -324,8 +342,9 @@ export default function LoveNotes() {
               />
             ) : (
               <ScheduledBubble n={item.s!} uid={uid} cid={cid} partnerName={partnerName} />
-            )
-          }
+            )}
+            </View>
+          )}
         />
 
         <View style={{ borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.surface, padding: space.md, gap: space.sm }}>
@@ -483,6 +502,34 @@ export default function LoveNotes() {
             <VoiceRecorder testID="record" maxMs={draft.hug ? LIMITS.voiceHugMs : LIMITS.voiceMaxMs} onDone={sendVoice} />
           </View>
         ) : null}
+      </Sheet>
+
+      {/* Which notes to show: all, starred or saved. */}
+      <Sheet visible={filterOpen} onClose={() => setFilterOpen(false)}>
+        <View style={{ gap: space.xs }}>
+          <T variant="small" muted center style={{ marginBottom: space.sm }}>
+            Show
+          </T>
+          {(
+            [
+              { value: 'all', icon: Mail, label: 'All notes' },
+              { value: 'starred', icon: Star, label: 'Starred (to remember)' },
+              { value: 'saved', icon: Heart, label: 'Saved (loved)' },
+            ] as const
+          ).map((o) => (
+            <OptionRow
+              key={o.value}
+              testID={`filter-${o.value}`}
+              icon={filter === o.value ? Check : o.icon}
+              label={o.label}
+              onPress={() => {
+                haptic.tap();
+                setFilter(o.value);
+                setFilterOpen(false);
+              }}
+            />
+          ))}
+        </View>
       </Sheet>
 
       {/* Long-press a note for its options (like Messages and WhatsApp). */}
@@ -689,9 +736,12 @@ function Bubble({
   cid,
   partnerName,
   onOptions,
+  showTime,
 }: {
   m: Message;
   mine: boolean;
+  /** Only the newest note of a burst (same person, within an hour) shows the time. */
+  showTime: boolean;
   uid: string;
   cid: string;
   partnerName: string;
@@ -761,15 +811,17 @@ function Bubble({
           </T>
         </Row>
       ) : null}
-      <Row gap={space.xs} style={{ marginTop: 2, flexWrap: 'wrap', justifyContent: mine ? 'flex-end' : 'flex-start' }}>
-        {fade ? <Clock color={c.textMuted} size={13} accessibilityLabel="Disappearing note" /> : null}
-        <T variant="small" muted>
-          {when}
-          {fade ? ` · ${fade}` : ''}
-          {mine && m.readAt ? ' · seen' : ''}
-        </T>
-        {fav ? <Heart color={c.heart} fill={c.heart} size={13} accessibilityLabel="Saved" /> : null}
-      </Row>
+      {showTime || fade || fav ? (
+        <Row gap={space.xs} style={{ marginTop: 2, flexWrap: 'wrap', justifyContent: mine ? 'flex-end' : 'flex-start' }}>
+          {fade ? <Clock color={c.textMuted} size={13} accessibilityLabel="Disappearing note" /> : null}
+          {showTime || fade ? (
+            <T testID={showTime ? 'note-time' : undefined} variant="small" muted>
+              {[showTime ? when : null, fade, showTime && mine && m.readAt ? 'seen' : null].filter(Boolean).join(' · ')}
+            </T>
+          ) : null}
+          {fav ? <Heart color={c.heart} fill={c.heart} size={13} accessibilityLabel="Saved" /> : null}
+        </Row>
+      ) : null}
     </View>
   );
 }

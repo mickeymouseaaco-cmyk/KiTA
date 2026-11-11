@@ -7,6 +7,8 @@ import { QUICK_MESSAGES, empty, summaryLine } from '../src/lib/copy';
 import { dayKey, lastNDays } from '../src/lib/dates';
 import { projectDay } from '../src/lib/projection';
 import { CHEERS, DEFAULT_TARGET, NAME_MAX, cheerFor, nameSize, stressAfter, targetName } from '../src/lib/smash-pure';
+import { mapsUrl, parseTime, sortStops, stopsByDay, timeLabel } from '../src/lib/itinerary-pure';
+import { showTimeFlags } from '../src/lib/note-groups';
 import { gentleAlert, isHighSteps, suggestionsFor } from '../src/lib/suggestions';
 import { DEFAULT_SHARE, type DailyLog } from '../src/lib/types';
 import { dayKeyIn, hashStepsToken, newStepsToken, parseSteps, syncDay } from '../functions/src/steps-pure';
@@ -565,4 +567,57 @@ test('Stress Smash: the meter drops to zero over the bonks, and replays get a ne
   assert.notEqual(cheerFor(0), cheerFor(1));
   assert.equal(cheerFor(CHEERS.length), cheerFor(0));
   assert.equal(cheerFor(-1), CHEERS[CHEERS.length - 1]);
+});
+
+// ------------------------------------------------------------ Love Notes times
+test('Love Notes: one time per burst from the same person within an hour', () => {
+  const t = (h: number, m = 0) => new Date(2026, 10, 11, h, m).getTime();
+  // Newest first, as the list shows them.
+  const items = [
+    { from: 'a', at: t(10, 40) }, // newest of a burst → time
+    { from: 'a', at: t(10, 5) },
+    { from: 'a', at: t(9, 50) },
+    { from: 'b', at: t(9, 45) }, // other person → time
+    { from: 'b', at: t(8, 0) }, // more than an hour before → its own time
+  ];
+  assert.deepEqual(showTimeFlags(items), [true, false, false, true, true]);
+  // A new day always starts a new burst.
+  assert.deepEqual(showTimeFlags([{ from: 'a', at: t(0, 10) }, { from: 'a', at: new Date(2026, 10, 10, 23, 50).getTime() }]), [true, true]);
+  assert.deepEqual(showTimeFlags([]), []);
+});
+
+// ------------------------------------------------------------ Trip itinerary
+test('itinerary: friendly time typing', () => {
+  assert.equal(parseTime(''), null);
+  assert.equal(parseTime('9'), '09:00');
+  assert.equal(parseTime('930'), '09:30');
+  assert.equal(parseTime('9:30'), '09:30');
+  assert.equal(parseTime('9.30pm'), '21:30');
+  assert.equal(parseTime('2 PM'), '14:00');
+  assert.equal(parseTime('12am'), '00:00');
+  assert.equal(parseTime('12pm'), '12:00');
+  assert.equal(parseTime('1430'), '14:30');
+  assert.equal(parseTime('25:00'), 'invalid');
+  assert.equal(parseTime('9:75'), 'invalid');
+  assert.equal(parseTime('13pm'), 'invalid');
+  assert.equal(parseTime('lunch'), 'invalid');
+  assert.equal(timeLabel('14:30', 'en-US'), '2:30 PM');
+});
+
+test('itinerary: stops sorted by day and time, any-time ones last, others kept aside', () => {
+  const at = (n: number) => ({ toMillis: () => n });
+  const stops = [
+    { id: 'lunch', day: '2026-12-01', time: '13:00', createdAt: at(1) },
+    { id: 'anytime', day: '2026-12-01', time: null, createdAt: at(0) },
+    { id: 'breakfast', day: '2026-12-01', time: '08:30', createdAt: at(2) },
+    { id: 'day2', day: '2026-12-02', time: '10:00', createdAt: at(3) },
+    { id: 'old', day: '2026-11-20', time: null, createdAt: at(4) },
+  ];
+  assert.deepEqual(sortStops(stops).map((s) => s.id), ['old', 'breakfast', 'lunch', 'anytime', 'day2']);
+  const { byDay, other } = stopsByDay(stops, ['2026-12-01', '2026-12-02', '2026-12-03']);
+  assert.deepEqual(byDay.get('2026-12-01')!.map((s) => s.id), ['breakfast', 'lunch', 'anytime']);
+  assert.deepEqual(byDay.get('2026-12-03'), []);
+  assert.deepEqual(other.map((s) => s.id), ['old']);
+  assert.equal(mapsUrl('Time Out Market', 'Lisbon'), 'https://www.google.com/maps/search/?api=1&query=Time%20Out%20Market%2C%20Lisbon');
+  assert.equal(mapsUrl('Belém, Lisbon', 'Lisbon'), 'https://www.google.com/maps/search/?api=1&query=Bel%C3%A9m%2C%20Lisbon');
 });

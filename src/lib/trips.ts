@@ -16,6 +16,7 @@ import {
 import { useEffect, useState } from 'react';
 
 import { db } from './firebase';
+import { STOP_LIMITS } from './itinerary-pure';
 import { STARTER_ITEMS, type ItemCategory, type WeatherSummary } from './trip-logic';
 
 export type Trip = {
@@ -53,6 +54,19 @@ export type TripEntry = {
   date: string;
   createdAt: Timestamp | null;
 };
+
+export type TripStop = {
+  id: string;
+  day: string;
+  time: string | null;
+  title: string;
+  place: string | null;
+  note: string | null;
+  addedBy: string;
+  createdAt: Timestamp | null;
+};
+
+export type StopInput = { day: string; time: string | null; title: string; place?: string; note?: string };
 
 export type BucketPin = {
   id: string;
@@ -108,6 +122,33 @@ export function useTripItems(cid: string, tripId: string) {
 
 export function useTripEntries(cid: string, tripId: string) {
   return useCollection<TripEntry>(['couples', cid, 'trips', tripId, 'entries'], 'createdAt');
+}
+
+export function useTripStops(cid: string, tripId: string) {
+  return useCollection<TripStop>(['couples', cid, 'trips', tripId, 'stops'], 'day');
+}
+
+function cleanStop(s: StopInput) {
+  const opt = (v: string | undefined, max: number) => (v?.trim() ? v.trim().slice(0, max) : null);
+  return {
+    day: s.day,
+    time: s.time,
+    title: s.title.trim().slice(0, STOP_LIMITS.title),
+    place: opt(s.place, STOP_LIMITS.place),
+    note: opt(s.note, STOP_LIMITS.note),
+  };
+}
+
+export async function addStop(cid: string, tripId: string, uid: string, s: StopInput) {
+  await addDoc(collection(db, 'couples', cid, 'trips', tripId, 'stops'), { ...cleanStop(s), addedBy: uid, createdAt: serverTimestamp() });
+}
+
+export async function updateStop(cid: string, tripId: string, id: string, s: StopInput) {
+  await updateDoc(doc(db, 'couples', cid, 'trips', tripId, 'stops', id), { ...cleanStop(s), updatedAt: serverTimestamp() });
+}
+
+export async function removeStop(cid: string, tripId: string, id: string) {
+  await deleteDoc(doc(db, 'couples', cid, 'trips', tripId, 'stops', id));
 }
 
 export function useBucket(cid: string | null) {

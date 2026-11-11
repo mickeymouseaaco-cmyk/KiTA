@@ -1,6 +1,6 @@
 /**
  * One trip: the shared plan (countdown, stress check, weather packing,
- * checklist, rest days) and the travel journal.
+ * checklist, rest days), the day-by-day itinerary, and the travel journal.
  */
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Check, CloudSun, ImagePlus, Mic, NotebookPen, Play, Plus, Trash, Video } from 'lucide-react-native';
@@ -9,6 +9,7 @@ import { ActivityIndicator, Pressable, TextInput, View } from 'react-native';
 
 import { useCelebrate } from '@/components/celebrate';
 import { useFeedback } from '@/components/feedback';
+import { Itinerary } from '@/components/itinerary';
 import { MediaById } from '@/components/media-view';
 import { OutboxRow, useOutbox } from '@/components/outbox-row';
 import { VideoNote } from '@/components/rich-media';
@@ -61,7 +62,7 @@ export default function TripScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { cid } = usePaired();
   const trip = useTrip(cid, id);
-  const [tab, setTab] = useState<'plan' | 'journal'>('plan');
+  const [tab, setTab] = useState<'plan' | 'itinerary' | 'journal'>('plan');
   const phaseIsAfter = trip ? tripPhase(trip.startDate, trip.endDate) === 'after' : false;
   const [touched, setTouched] = useState(false);
   const current = touched ? tab : phaseIsAfter ? 'journal' : tab;
@@ -90,11 +91,12 @@ export default function TripScreen() {
         }}
         options={[
           { value: 'plan', label: 'Plan' },
+          { value: 'itinerary', label: 'Itinerary' },
           { value: 'journal', label: 'Journal' },
         ]}
       />
       <Gap />
-      {current === 'plan' ? <Plan trip={trip} /> : <Journal trip={trip} />}
+      {current === 'plan' ? <Plan trip={trip} /> : current === 'itinerary' ? <Itinerary trip={trip} /> : <Journal trip={trip} />}
     </Screen>
   );
 }

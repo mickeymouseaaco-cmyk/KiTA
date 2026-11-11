@@ -49,6 +49,17 @@ service cloud.firestore {
     function str(v, max) {
       return v is string && v.size() <= max;
     }
+    function optStr(d, key, max) {
+      return !(key in d) || d[key] == null || str(d[key], max);
+    }
+    // One itinerary stop: a day, an optional time (24h), a title, and an optional place and note.
+    function validStop(d) {
+      return d.day is string && d.day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && str(d.title, 120) && d.title.size() > 0
+        && (!('time' in d) || d.time == null || (d.time is string && d.time.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$')))
+        && optStr(d, 'place', 200)
+        && optStr(d, 'note', 500);
+    }
 
     // ---------------------------------------------------------------- users
     // Profile, settings, private daily logs, vault. Owner only.
@@ -323,6 +334,21 @@ service cloud.firestore {
             && incoming().category in ['documents', 'bookings', 'packing', 'other']
             && incoming().done is bool;
           allow update: if isMember(cid) && changed().hasOnly(['done', 'doneBy', 'text']);
+          allow delete: if isMember(cid);
+        }
+
+        // Itinerary: the day-by-day plan, which both of you can add to and change.
+        match /stops/{stopId} {
+          allow read: if isMember(cid);
+          allow create: if isMember(cid)
+            && incoming().keys().hasOnly(['day', 'time', 'title', 'place', 'note', 'addedBy', 'createdAt'])
+            && incoming().addedBy == me()
+            && incoming().createdAt == request.time
+            && validStop(incoming());
+          allow update: if isMember(cid)
+            && changed().hasOnly(['day', 'time', 'title', 'place', 'note', 'updatedAt'])
+            && incoming().updatedAt == request.time
+            && validStop(incoming());
           allow delete: if isMember(cid);
         }
 

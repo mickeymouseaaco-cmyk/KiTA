@@ -158,6 +158,27 @@ async function main() {
   await afiq.locator(tid('opt-star')).click();
   await afiq.locator(tid('pinned-notes')).waitFor({ timeout: 10000 });
   log('Long-press opens note options; starring pins it for both');
+  // One time per burst: three quick notes from the same person share one time.
+  for (const t of ['On my way 🚗', 'Bringing nasi lemak']) {
+    await afiq.locator(tid('note-input')).fill(t);
+    await afiq.locator(tid('send-note')).click();
+    await afiq.getByText(t).first().waitFor({ timeout: 10000 });
+  }
+  await afiq.waitForTimeout(500);
+  assert.equal(await afiq.locator(tid('note-text')).count(), 3, 'three notes');
+  assert.equal(await afiq.locator(tid('note-time')).count(), 1, 'one time for a burst of notes');
+  await shot(afiq, '04c-notes-one-time');
+  // No more All / Starred / Saved bar: it's behind the filter button now.
+  assert.equal(await afiq.getByText('All notes', { exact: true }).count(), 0, 'no filter tabs');
+  await afiq.locator(tid('open-filter')).click();
+  await afiq.locator(tid('filter-starred')).click();
+  await afiq.locator(tid('filter-clear')).waitFor();
+  await afiq.getByText('Bringing nasi lemak').waitFor({ state: 'detached', timeout: 5000 });
+  await afiq.getByText('Don’t forget your umbrella').first().waitFor();
+  await shot(afiq, '04d-notes-starred');
+  await afiq.locator(tid('filter-clear')).click();
+  await afiq.getByText('Bringing nasi lemak').waitFor();
+  log('Notes: one time per burst; starred/saved behind a filter button');
   log(`Love-note box is ${Math.round(w)}px wide, grows to ${Math.round(grown)}px, and sends`);
 
   // 3. Weather at a glance.
@@ -282,6 +303,50 @@ async function main() {
   afiq.off('request', watchLeak);
   assert.deepEqual(leaks, [], 'the name is never sent anywhere');
   log('Stress Smash: bonks, replays, bonus bonk, mute, desktop, reduced motion; the name never leaves the page');
+
+  // 4b4. Trip itinerary: both add and change plans for each day, live.
+  await afiq.goto(BASE + '/trip-new');
+  await afiq.locator(tid('trip-title')).fill('Penang getaway');
+  await afiq.locator(tid('save-trip')).click();
+  await afiq.getByText('Itinerary', { exact: true }).click();
+  const addFirst = afiq.locator('[data-testid^="add-stop-"]').first();
+  await addFirst.waitFor({ timeout: 15000 });
+  await shot(afiq, '07l-itinerary-empty');
+  await addFirst.click();
+  await afiq.locator(tid('stop-title')).fill('Breakfast at Toh Soon Cafe');
+  await afiq.locator(tid('stop-time')).fill('25:00');
+  assert.match(await afiq.locator(tid('stop-time-hint')).innerText(), /Try something like/);
+  await afiq.locator(tid('stop-time')).fill('9.30am');
+  assert.match(await afiq.locator(tid('stop-time-hint')).innerText(), /9:30/);
+  await afiq.locator(tid('stop-place')).fill('Toh Soon Cafe, George Town');
+  await afiq.locator(tid('stop-note')).fill('Get the kaya toast');
+  await shot(afiq, '07m-itinerary-add');
+  await afiq.locator(tid('stop-save')).click();
+  await afiq.locator(tid('stop-Breakfast at Toh Soon Cafe')).waitFor({ timeout: 10000 });
+  await addFirst.click();
+  await afiq.locator(tid('stop-title')).fill('Street art walk');
+  await afiq.locator(tid('stop-time')).fill('8');
+  await afiq.locator(tid('stop-save')).click();
+  await afiq.locator(tid('stop-Street art walk')).waitFor({ timeout: 10000 });
+  const yWalk = (await afiq.locator(tid('stop-Street art walk')).boundingBox()).y;
+  const yBreakfast = (await afiq.locator(tid('stop-Breakfast at Toh Soon Cafe')).boundingBox()).y;
+  assert.ok(yWalk < yBreakfast, '8:00 comes before 9:30');
+  await shot(afiq, '07n-itinerary-day');
+  // Aina sees it, and moves breakfast to 10am; Afiq sees the change.
+  const tripUrl = afiq.url();
+  await aina.goto(tripUrl);
+  await aina.getByText('Itinerary', { exact: true }).click();
+  await aina.locator(tid('stop-Breakfast at Toh Soon Cafe')).click();
+  await aina.locator(tid('stop-time')).fill('10am');
+  await aina.locator(tid('stop-save')).click();
+  await afiq.getByText('10:00', { exact: false }).first().waitFor({ timeout: 10000 });
+  await aina.getByText(/Added by/).first().waitFor();
+  // Afiq removes the walk.
+  await afiq.locator(tid('stop-Street art walk')).click();
+  await afiq.locator(tid('stop-remove')).click();
+  await afiq.locator(tid('stop-Street art walk')).waitFor({ state: 'detached', timeout: 10000 });
+  await shot(aina, '07o-itinerary-partner');
+  log('Itinerary: add with friendly times, sorted by time, partner edits live, remove');
 
   // 4c. Installable: manifest, icons and the service worker are served.
   const manifest = await (await fetch(BASE + '/manifest.json')).json();
