@@ -5,7 +5,7 @@
  */
 import type { LucideIcon } from 'lucide-react-native';
 import { forwardRef, useImperativeHandle, useState, type ReactNode } from 'react';
-import { Animated, Easing, Platform, Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, Easing, Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
 import { haptic } from '@/lib/haptics';
@@ -125,7 +125,7 @@ export const VividAction = forwardRef<
         onPress();
       }}
       hitSlop={4}
-      style={({ focused }: { focused?: boolean }) => [{ alignItems: 'center', gap: 7, borderRadius: 18 }, focusRing(focused, c.primary)]}>
+      style={({ pressed, focused }: { pressed: boolean; focused?: boolean }) => [styles.action, pressed && styles.pressed, focusRing(focused, c.primary)]}>
       <Animated.View style={{ transform: [{ scale }, { translateY: bounce.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }) }] }}>
         <VividSquare color={color} size={size} radius={Math.round(size * 0.31)}>
           <Icon color="#FFFFFF" size={Math.round(size * 0.44)} strokeWidth={2.3} />
@@ -138,4 +138,9 @@ export const VividAction = forwardRef<
     </Pressable>
     </View>
   );
+});
+
+const styles = StyleSheet.create({
+  action: { alignItems: 'center', gap: 7, borderRadius: 18 },
+  pressed: { opacity: 0.96 },
 });
