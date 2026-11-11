@@ -51,7 +51,7 @@ async function signUp(page, name) {
   await page.locator(tid('submit')).click();
 }
 
-const TAB_PATHS = { Today: '/', Home: '/', 'Their Day': '/their-day', 'Love Notes': '/notes', Notes: '/notes', Together: '/together', Trip: '/trip', Trips: '/trip' };
+const TAB_PATHS = { Today: '/', Home: '/', 'Their Day': '/their-day', 'Love Notes': '/notes', Notes: '/notes', Surat: '/notes', Together: '/together', Trip: '/trip', Trips: '/trip' };
 
 /** Switch tabs; if a stack screen is covering the tab bar, navigate directly instead. */
 async function tab(page, label) {
@@ -170,7 +170,7 @@ async function main() {
   await alex.locator(tid('hug-overlay')).click();
 
   await blair.locator(tid('quick-Proud of you')).click();
-  await tab(alex, 'Love Notes');
+  await tab(alex, 'Surat');
   await alex.getByText('Proud of you').first().waitFor({ timeout: 10000 });
   log('Blair’s quick message arrives in Alex’s Love Notes');
 
@@ -201,7 +201,7 @@ async function main() {
   await alex.mouse.up();
   log('Alex records a 2-second voice note by holding the mic');
 
-  await tab(blair, 'Love Notes');
+  await tab(blair, 'Surat');
   await blair.getByText('Sunset from our walk').waitFor({ timeout: 20000 });
   await blair.getByText('Thank you, love.', { exact: false }).waitFor();
   await blair.locator('[aria-label="Play voice note"]').first().waitFor({ timeout: 20000 });
@@ -334,7 +334,7 @@ async function main() {
   await alex.goBack();
 
   // ------------------------------------------------------------- view-once photo
-  await tab(alex, 'Love Notes');
+  await tab(alex, 'Surat');
   await alex.locator(tid('attach-toggle')).click();
   const [chooser3] = await Promise.all([alex.waitForEvent('filechooser'), alex.locator(tid('attach-photo')).click()]);
   await chooser3.setFiles(PHOTO);
@@ -342,7 +342,7 @@ async function main() {
   await shot(alex, '23-view-once-options');
   await alex.locator(tid('send-photo')).click();
   await alex.locator(tid('view-once-status')).filter({ hasText: 'not opened yet' }).waitFor({ timeout: 20000 });
-  await tab(blair, 'Love Notes');
+  await tab(blair, 'Surat');
   await blair.locator(tid('view-once-open')).waitFor({ timeout: 20000 });
   await blair.locator(tid('view-once-open')).click();
   await blair.locator(tid('view-once-close')).waitFor();
@@ -480,7 +480,7 @@ async function main() {
   await alex.locator(tid('idea-title')).waitFor();
   await shot(alex, '31-date-night');
   await alex.locator(tid('send-idea')).click();
-  await tab(blair, 'Love Notes');
+  await tab(blair, 'Surat');
   await blair.getByText(/Date idea:/).first().waitFor({ timeout: 10000 });
   log('Date Night Generator picks a free idea; Alex sends it to Blair');
   await alex.goBack();
@@ -505,7 +505,7 @@ async function main() {
   await alex.getByText('Next open', { exact: true }).click();
   await alex.locator(tid('sched-text')).fill('I hid this here just to say: I adore you.');
   await alex.locator(tid('sched-send')).click();
-  await tab(alex, 'Love Notes');
+  await tab(alex, 'Surat');
   await alex.locator(tid('waiting-toggle')).filter({ hasText: '1 note is waiting' }).waitFor({ timeout: 10000 });
   log('Alex schedules a note for tomorrow and hides a "next open" surprise');
 

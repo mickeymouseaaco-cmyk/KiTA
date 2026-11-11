@@ -53,7 +53,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="notes"
         options={{
-          title: 'Notes',
+          title: 'Surat',
           tabBarBadge: unreadNotes ? (unreadNotes > 99 ? '99+' : unreadNotes) : undefined,
           tabBarBadgeStyle: { backgroundColor: c.heart, color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
           tabBarIcon: ({ color, focused }) => <Mail color={color} size={22} strokeWidth={look.flat ? (focused ? 2.4 : 1.7) : 2} />,

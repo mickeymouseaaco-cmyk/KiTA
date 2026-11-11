@@ -163,7 +163,7 @@ function Slide({
     try {
       await deleteMessage(cid, m);
       haptic.success();
-      toast('Status removed. It’s gone from Love Notes too.');
+      toast('Status removed. It’s gone from Surat Cinta too.');
     } catch {
       toast(gentleError.save);
     }
@@ -245,7 +245,7 @@ function Slide({
             style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', paddingHorizontal: 18, paddingVertical: 10 }}>
             <MessageCircleHeart color="#FFFFFF" size={18} />
             <T variant="bodyStrong" color="#FFFFFF">
-              Reply in Love Notes
+              Reply in Surat Cinta
             </T>
           </Pressable>
         )}

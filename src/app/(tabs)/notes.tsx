@@ -231,7 +231,7 @@ export default function LoveNotes() {
                 </Pressable>
               ) : null}
               <T variant="display" accessibilityRole="header" numberOfLines={1} style={[{ flexShrink: 1 }, fullScreen && { fontSize: 26, lineHeight: 32 }]}>
-                Love Notes
+                Surat Cinta
               </T>
             </Row>
             <Row gap={space.sm}>

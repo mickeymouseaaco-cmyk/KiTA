@@ -143,7 +143,7 @@ export default function Storage() {
               <Row key={m.id} gap={space.md} style={{ minHeight: 48 }}>
                 {m.type === 'photo' ? <ImageIcon color={c.textMuted} size={18} /> : m.type === 'voice' ? <Mic color={c.textMuted} size={18} /> : <Video color={c.textMuted} size={18} />}
                 <T style={{ flex: 1 }}>
-                  {m.type === 'photo' ? 'Photo' : m.type === 'voice' ? 'Voice note' : 'Video'} in {m.parent?.kind === 'memory' ? 'Memory Jar' : m.parent?.kind === 'trip' ? 'a trip' : 'Love Notes'}
+                  {m.type === 'photo' ? 'Photo' : m.type === 'voice' ? 'Voice note' : 'Video'} in {m.parent?.kind === 'memory' ? 'Memory Jar' : m.parent?.kind === 'trip' ? 'a trip' : 'Surat Cinta'}
                 </T>
                 <T muted>{formatBytes(m.bytes ?? 0)}</T>
                 <Pressable accessibilityRole="button" accessibilityLabel="Remove this" hitSlop={8} onPress={() => setConfirm(m)} style={{ padding: 6 }}>

@@ -24,7 +24,7 @@ export const PRIVACY_POLICY: LegalSection[] = [
     body: [
       'Your account: your first name, email address, and (if you add one) a profile photo. Your password is handled by Firebase Authentication; we never see it.',
       'What you log: steps, moods, meals, evening check-ins, cycle days (only if you turn cycle tracking on), gratitude, to-dos, answers to the question of the day, trips, itineraries, journal entries and saved flight numbers.',
-      'What you send: love notes, hugs, photos, videos and voice notes, and their transcripts if you turn transcription on.',
+      'What you send: surat cinta, hugs, photos, videos and voice notes, and their transcripts if you turn transcription on.',
       'Your location, only if you turn on Find my partner. We keep only your latest location (never a history), and delete it as soon as you turn sharing off.',
       'Notification tokens for your devices, so hugs and notes can reach you, and your Look & feel choices.',
       'Error reports: when something breaks, a short technical note (what went wrong, which screen, browser or phone type, app version). It never includes your notes, logs, photos or name.',

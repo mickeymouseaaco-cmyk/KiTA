@@ -201,7 +201,7 @@ export function StatusStack({ only }: { only?: 'partner' }) {
       <View>
         <T variant="heading">Share a moment with {partnerName}</T>
         <T variant="small" muted>
-          A photo or video for 24 hours. It stays in Love Notes too.
+          A photo or video for 24 hours. It stays in Surat Cinta too.
         </T>
       </View>
     </Pressable>
@@ -283,7 +283,7 @@ function AddStatus({ onDone }: { onDone: () => void }) {
     try {
       await queueStatus(who, picked, caption.trim());
       haptic.success();
-      toast(`Status shared with ${who.partnerName}. It’s in Love Notes too.`);
+      toast(`Status shared with ${who.partnerName}. It’s in Surat Cinta too.`);
       onDone();
     } catch {
       toast(gentleError.send);
@@ -303,7 +303,7 @@ function AddStatus({ onDone }: { onDone: () => void }) {
           <VividAction testID="status-video" icon={Video} label="Video" color="orange" onPress={() => choose('video')} />
         </Row>
         <T variant="small" muted center>
-          {who.partnerName} sees it for 24 hours. It also stays in Love Notes so you can look back.
+          {who.partnerName} sees it for 24 hours. It also stays in Surat Cinta so you can look back.
         </T>
       </View>
     );

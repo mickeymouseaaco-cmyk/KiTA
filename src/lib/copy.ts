@@ -34,7 +34,7 @@ export const QUICK_MESSAGES = [
 export const empty = {
   theirDayUnpaired: 'Once you two are connected, the little things they share will appear here.',
   theirDayNothing: (name: string) => `Nothing shared from ${name} yet today. A gentle hello is always welcome.`,
-  notes: 'No love notes here yet. Let’s send the first one.',
+  notes: 'No surat cinta here yet. Let’s send the first one.',
   favorites: 'Tap the heart on any note to keep it here.',
   starred: 'Nothing starred yet. Tap the star on anything you both need to remember.',
   todos: 'Nothing on the list. Enjoy the space.',
@@ -90,7 +90,7 @@ export const permissionCopy = {
   },
   notifications: {
     title: 'Hear from each other?',
-    body: 'Get a gentle nudge when a hug or love note arrives. You can pause all notifications with one tap, any time.',
+    body: 'Get a gentle nudge when a hug or surat cinta arrives. You can pause all notifications with one tap, any time.',
   },
   denied: 'No problem. You can turn this on later in your phone’s settings.',
 } as const;
