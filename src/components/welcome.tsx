@@ -112,6 +112,7 @@ export function Welcome({ onDone }: { onDone: (mode: 'new' | 'returning') => voi
   const pageW = Math.min(width, 560);
   const scroller = useRef<ComponentRef<typeof ScrollView>>(null);
   const [at, setAt] = useState(0);
+  const [pageH, setPageH] = useState(0);
   // While we scroll to a page ourselves, don't let the in-between positions change the page.
   const target = useRef<number | null>(null);
   const last = at === PAGES.length - 1;
@@ -152,10 +153,11 @@ export function Welcome({ onDone }: { onDone: (mode: 'new' | 'returning') => voi
           showsHorizontalScrollIndicator={false}
           onScroll={onScroll}
           scrollEventThrottle={32}
+          onLayout={(e) => setPageH(e.nativeEvent.layout.height)}
           style={{ flex: 1 }}
           contentContainerStyle={{ alignItems: 'stretch' }}>
           {PAGES.map((p, i) => (
-            <View key={p.title} testID={`welcome-page-${i}`} style={{ width: pageW, paddingHorizontal: space.xl, justifyContent: 'center', alignItems: 'center', gap: space.xl }}>
+            <View key={p.title} testID={`welcome-page-${i}`} style={{ width: pageW, height: pageH || undefined, paddingHorizontal: space.xl, justifyContent: 'center', alignItems: 'center', gap: space.xl }}>
               <View style={{ height: 180, justifyContent: 'center' }}>
                 <Art art={p.art} active={i === at} />
               </View>
