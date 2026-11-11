@@ -4,7 +4,7 @@
  */
 import { Eye, Lightbulb, Send } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { Animated, Easing, Platform, Pressable, View } from 'react-native';
+import { Animated, Platform, Pressable, View } from 'react-native';
 
 import { useFeedback } from '@/components/feedback';
 import { gentleError } from '@/lib/copy';

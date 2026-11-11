@@ -33,7 +33,8 @@ export function unreadNotes<T extends Pick<Message, 'fromUid' | 'readAt' | 'kind
 }
 
 /** "2h ago", "just now". */
-export function statusAge(createdMs: number, nowMs = Date.now()): string {
+export function statusAge(createdMs: number | undefined, nowMs = Date.now()): string {
+  if (createdMs === undefined) return 'just now';
   const min = Math.max(0, Math.floor((nowMs - createdMs) / 60_000));
   if (min < 1) return 'just now';
   if (min < 60) return `${min}m ago`;

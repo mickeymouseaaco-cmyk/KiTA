@@ -6,7 +6,7 @@
  */
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useVideoPlayer, VideoView } from 'expo-video';
+import { useVideoPlayer, VideoView, type VideoPlayer } from 'expo-video';
 import { Check, MessageCircleHeart, Trash, Volume2, VolumeX, X } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, Pressable, View } from 'react-native';
@@ -31,32 +31,17 @@ export default function StatusViewer() {
   const { mine, theirs } = useStatuses(cid, uid, partnerId);
   const own = who === 'me';
   const list = own ? mine : theirs;
-  const [at, setAt] = useState<number | null>(null);
   const insets = useSafeAreaInsets();
-
-  // Start at the first one not yet watched (once the list has loaded).
-  useEffect(() => {
-    if (at === null && list.length) setAt(own ? 0 : startIndex(list));
-  }, [at, list, own]);
-
   const close = () => (router.canGoBack() ? router.back() : router.replace('/'));
-  const i = at ?? 0;
-  const m = list[i];
-
-  // Nothing (left) to watch: it expired or was taken back.
-  useEffect(() => {
-    if (at !== null && !list.length) close();
-  }, [at, list.length]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const next = () => (i + 1 < list.length ? setAt(i + 1) : close());
-  const prev = () => setAt(Math.max(0, i - 1));
 
   return (
     <View testID="status-viewer" style={{ flex: 1, backgroundColor: '#000' }}>
-      {m && cid ? (
+      {list.length && cid ? (
+        <Watching list={list} own={own} onClose={close}>
+          {(m, i, next, prev) => (
         <Slide
           key={m.id}
-          cid={cid}
+          cid={cid!}
           m={m}
           index={i}
           count={list.length}
@@ -78,7 +63,7 @@ export default function StatusViewer() {
                   {own ? 'My status' : partnerName}
                 </T>
                 <T variant="small" color="rgba(255,255,255,0.75)" style={{ fontSize: 12, lineHeight: 16 }}>
-                  {statusAge(m.createdAt?.toMillis?.() ?? Date.now())}
+                  {statusAge(m.createdAt?.toMillis?.())}
                 </T>
               </View>
             </View>
@@ -87,11 +72,35 @@ export default function StatusViewer() {
           insetsBottom={insets.bottom}
           partnerName={partnerName}
         />
+          )}
+        </Watching>
       ) : (
         <ActivityIndicator color="#FFFFFF" style={{ flex: 1 }} />
       )}
     </View>
   );
+}
+
+/**
+ * Which status is showing. It starts at the first one not yet watched, decided
+ * once when the viewer opens (watching marks it seen, which mustn't move us on).
+ */
+function Watching({
+  list,
+  own,
+  onClose,
+  children,
+}: {
+  list: Message[];
+  own: boolean;
+  onClose: () => void;
+  children: (m: Message, i: number, next: () => void, prev: () => void) => React.ReactNode;
+}) {
+  const [at, setAt] = useState(() => (own ? 0 : startIndex(list)));
+  const i = Math.min(at, list.length - 1);
+  const next = () => (i + 1 < list.length ? setAt(i + 1) : onClose());
+  const prev = () => setAt(Math.max(0, i - 1));
+  return <>{children(list[i], i, next, prev)}</>;
 }
 
 function Slide({
@@ -256,15 +265,18 @@ function StatusMedia({ media, muted, paused, onReady }: { media: Media; muted: b
   return <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} contentFit="contain" onLoad={onReady} onError={onReady} accessibilityLabel="Status photo" />;
 }
 
+/** Outside the component: the player is a native object we tell what to do. */
+function setPlayerMuted(p: VideoPlayer, muted: boolean) {
+  p.muted = muted;
+}
+
 function StatusVideo({ url, muted, paused, onReady }: { url: string; muted: boolean; paused: boolean; onReady: () => void }) {
   const player = useVideoPlayer(url, (p) => {
     p.loop = false;
     p.muted = true;
     p.play();
   });
-  useEffect(() => {
-    player.muted = muted;
-  }, [muted, player]);
+  useEffect(() => setPlayerMuted(player, muted), [muted, player]);
   useEffect(() => {
     if (paused) player.pause();
     else player.play();
