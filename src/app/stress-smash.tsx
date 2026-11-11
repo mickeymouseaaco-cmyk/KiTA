@@ -39,8 +39,14 @@ const STRIKE = 50;
 
 // Cartoon colours that stay bright in light and dark mode.
 const INK = '#24304A';
-const HERO = '#FFC9A8';
-const HERO_INK = '#5A3420';
+const SKIN = '#F9D2B5';
+const HERO_INK = '#4A2C22';
+const HAIR = '#3B2A2A';
+const SHIRT = '#F08BA0';
+const PANTS = '#3E4C7A';
+const FEET = { x: 92, y: 258 }; // she leans from her feet
+const LW = 240; // half the lean layer (it turns around its middle: her feet)
+const LH = 280;
 const DUMMY_FILL = '#8FCBEA';
 const DUMMY_BELLY = '#C9E8F8';
 const TOY_RED = '#E5566B';
@@ -48,6 +54,7 @@ const TOY_YELLOW = '#FFCB4C';
 
 type Phase = 'ready' | 'smashing' | 'done';
 type Face = 'happy' | 'squish' | 'dizzy';
+type Mood = 'ready' | 'fierce' | 'proud';
 
 const play = (a: Animated.CompositeAnimation) => new Promise<void>((done) => a.start(() => done()));
 const wait = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
@@ -132,6 +139,7 @@ export default function StressSmash() {
   const [burst] = useState(() => new Animated.Value(0));
   const [wordV] = useState(() => new Animated.Value(1));
   const [dizzy] = useState(() => new Animated.Value(0));
+  const [hop] = useState(() => new Animated.Value(0));
   const [stress] = useState(() => new Animated.Value(100)); // drives a width, so never on the native driver
 
   const target = targetName(name);
@@ -246,6 +254,11 @@ export default function StressSmash() {
     setFace('dizzy');
     setRound((r) => r + 1);
     setPhase('done');
+    if (!reduced)
+      Animated.sequence([
+        Animated.timing(hop, { toValue: -16, duration: 170, easing: Easing.out(Easing.quad), useNativeDriver: ND }),
+        Animated.spring(hop, { toValue: 0, friction: 4, tension: 140, useNativeDriver: ND }),
+      ]).start();
     sound(sfx.tada);
     haptic.success();
   }
@@ -424,22 +437,37 @@ export default function StressSmash() {
               </Pressable>
             </Animated.View>
 
-            <HeroArt />
-
-            {/* The toy hammer turns around the hand. */}
+            {/* Our girl: she leans back to wind up and forward into each bonk (from her feet). */}
             <Animated.View
               style={{
                 position: 'absolute',
-                left: PIVOT.x - HS,
-                top: PIVOT.y - HS,
-                width: HS * 2,
-                height: HS * 2,
+                left: FEET.x - LW,
+                top: FEET.y - LH,
+                width: LW * 2,
+                height: LH * 2,
                 pointerEvents: 'none',
-                transform: [{ rotate: swing.interpolate(DEG) }],
+                transform: [
+                  { translateY: hop },
+                  { rotate: swing.interpolate({ inputRange: [WINDUP_BIG, WINDUP, REST, STRIKE], outputRange: ['-8deg', '-6deg', '0deg', '7deg'], extrapolate: 'clamp' }) },
+                ],
               }}>
-              <HammerArt />
+              <View style={{ position: 'absolute', left: LW - FEET.x, top: LH - FEET.y, width: SCENE_W, height: SCENE_H }}>
+                {/* The toy hammer turns around her hand, behind her as she winds up. */}
+                <Animated.View
+                  style={{
+                    position: 'absolute',
+                    left: PIVOT.x - HS,
+                    top: PIVOT.y - HS,
+                    width: HS * 2,
+                    height: HS * 2,
+                    transform: [{ rotate: swing.interpolate(DEG) }],
+                  }}>
+                  <HammerArt />
+                </Animated.View>
+                <GirlArt mood={phase === 'smashing' ? 'fierce' : phase === 'done' ? 'proud' : 'ready'} />
+                <View style={{ position: 'absolute', left: PIVOT.x - 9, top: PIVOT.y - 9, width: 18, height: 18, borderRadius: 9, backgroundColor: SKIN, borderWidth: 2.5, borderColor: HERO_INK }} />
+              </View>
             </Animated.View>
-            <View style={{ position: 'absolute', left: PIVOT.x - 10, top: PIVOT.y - 10, width: 20, height: 20, borderRadius: 10, backgroundColor: HERO, borderWidth: 3, borderColor: HERO_INK, pointerEvents: 'none' }} />
 
             {/* Stars and confetti */}
             {STARS.map((s, i) => {
@@ -711,32 +739,65 @@ function DummyArt({ face }: { face: Face }) {
   );
 }
 
-/** Our hero: a cheerful round friend with a bow, ready to bonk. */
-function HeroArt() {
+/** Our hero: a cheerful cartoon girl with a ponytail and a bow, ready to bonk. */
+function GirlArt({ mood }: { mood: Mood }) {
+  const line = { stroke: HERO_INK, strokeWidth: 2.5, strokeLinejoin: 'round' as const };
   return (
-    <Svg width={130} height={124} viewBox="0 0 130 124" style={{ position: 'absolute', left: 22, top: 140 }}>
-      {/* feet */}
-      <Ellipse cx={46} cy={114} rx={12} ry={6} fill={HERO} stroke={HERO_INK} strokeWidth={2.5} />
-      <Ellipse cx={80} cy={114} rx={12} ry={6} fill={HERO} stroke={HERO_INK} strokeWidth={2.5} />
-      {/* arm up to the hammer */}
-      <Path d="M94 70 Q108 58 118 52" stroke={HERO_INK} strokeWidth={13} strokeLinecap="round" fill="none" />
-      <Path d="M94 70 Q108 58 118 52" stroke={HERO} strokeWidth={8} strokeLinecap="round" fill="none" />
-      {/* body */}
-      <Circle cx={62} cy={70} r={44} fill={HERO} stroke={HERO_INK} strokeWidth={3} />
-      {/* bow */}
-      <Path d="M40 28 L26 18 L28 38 Z" fill={TOY_RED} stroke={HERO_INK} strokeWidth={2.5} strokeLinejoin="round" />
-      <Path d="M40 28 L54 16 L54 36 Z" fill={TOY_RED} stroke={HERO_INK} strokeWidth={2.5} strokeLinejoin="round" />
-      <Circle cx={40} cy={28} r={5} fill={TOY_RED} stroke={HERO_INK} strokeWidth={2.5} />
-      {/* determined but sweet */}
-      <Path d="M42 52 L56 57" stroke={HERO_INK} strokeWidth={3.5} strokeLinecap="round" />
-      <Path d="M86 52 L72 57" stroke={HERO_INK} strokeWidth={3.5} strokeLinecap="round" />
-      <Circle cx={50} cy={66} r={4.5} fill={HERO_INK} />
-      <Circle cx={78} cy={66} r={4.5} fill={HERO_INK} />
-      <Circle cx={51.5} cy={64.5} r={1.4} fill="#FFFFFF" />
-      <Circle cx={79.5} cy={64.5} r={1.4} fill="#FFFFFF" />
-      <Path d="M52 82 Q64 94 76 82 Z" fill={HERO_INK} stroke={HERO_INK} strokeWidth={2.5} strokeLinejoin="round" />
-      <Circle cx={38} cy={80} r={6} fill="#F7A8B8" opacity={0.8} />
-      <Circle cx={90} cy={80} r={6} fill="#F7A8B8" opacity={0.8} />
+    <Svg width={120} height={162} viewBox="0 0 120 162" style={{ position: 'absolute', left: PIVOT.x - 108, top: PIVOT.y - 94 }}>
+      {/* ponytail, behind */}
+      <Path d="M32 40 C8 46 6 84 20 100 C22 86 28 68 42 54 Z" fill={HAIR} {...line} />
+      {/* legs and shoes */}
+      <Rect x={46} y={126} width={11} height={24} rx={5} fill={PANTS} {...line} />
+      <Rect x={63} y={126} width={11} height={24} rx={5} fill={PANTS} {...line} />
+      <Ellipse cx={50} cy={152} rx={10} ry={6} fill="#FFFFFF" {...line} />
+      <Ellipse cx={70} cy={152} rx={10} ry={6} fill="#FFFFFF" {...line} />
+      {/* other hand on her hip */}
+      <Path d="M46 104 Q30 112 36 124" stroke={HERO_INK} strokeWidth={11} strokeLinecap="round" fill="none" />
+      <Path d="M46 104 Q30 112 36 124" stroke={SKIN} strokeWidth={6} strokeLinecap="round" fill="none" />
+      {/* neck and T-shirt with a little heart */}
+      <Rect x={54} y={86} width={12} height={14} fill={SKIN} {...line} />
+      <Path d="M42 100 Q60 93 78 100 L84 132 Q60 138 36 132 Z" fill={SHIRT} {...line} />
+      <Path d="M60 122 C54 116 54 111 58 111 C59.5 111 60 112 60 113 C60 112 60.5 111 62 111 C66 111 66 116 60 122 Z" fill="#FFFFFF" />
+      {/* head and hair */}
+      <Circle cx={60} cy={60} r={32} fill={SKIN} {...line} />
+      <Path d="M27 64 C24 34 44 22 62 23 C82 24 96 38 93 64 C88 54 80 46 70 44 C66 52 52 56 40 52 C36 56 30 60 27 64 Z" fill={HAIR} {...line} />
+      <Path d="M28 58 C26 72 28 82 33 90 C35 80 35 70 35 60 Z" fill={HAIR} {...line} />
+      <Path d="M92 58 C94 72 92 82 87 90 C85 80 85 70 85 60 Z" fill={HAIR} {...line} />
+      <Path d="M32 38 L18 28 L20 48 Z" fill={TOY_RED} {...line} />
+      <Path d="M32 38 L46 26 L46 46 Z" fill={TOY_RED} {...line} />
+      <Circle cx={32} cy={38} r={5} fill={TOY_RED} {...line} />
+      {/* face */}
+      <Ellipse cx={42} cy={76} rx={5} ry={3.5} fill="#F7A8B8" opacity={0.85} />
+      <Ellipse cx={78} cy={76} rx={5} ry={3.5} fill="#F7A8B8" opacity={0.85} />
+      {mood === 'proud' ? (
+        <>
+          <Path d="M44 67 Q49 61 54 67" stroke={HERO_INK} strokeWidth={3} strokeLinecap="round" fill="none" />
+          <Path d="M66 67 Q71 61 76 67" stroke={HERO_INK} strokeWidth={3} strokeLinecap="round" fill="none" />
+          <Path d="M50 76 Q60 90 70 76 Z" fill={HERO_INK} {...line} />
+          <Path d="M55 82 Q60 86 65 82" stroke="#F27B92" strokeWidth={3} strokeLinecap="round" fill="none" />
+        </>
+      ) : (
+        <>
+          <Path d={mood === 'fierce' ? 'M41 54 L55 60' : 'M42 56 L54 59'} stroke={HERO_INK} strokeWidth={3} strokeLinecap="round" />
+          <Path d={mood === 'fierce' ? 'M79 54 L65 60' : 'M78 56 L66 59'} stroke={HERO_INK} strokeWidth={3} strokeLinecap="round" />
+          <Ellipse cx={49} cy={67} rx={4} ry={5.5} fill={HERO_INK} />
+          <Ellipse cx={71} cy={67} rx={4} ry={5.5} fill={HERO_INK} />
+          <Circle cx={50.5} cy={65} r={1.6} fill="#FFFFFF" />
+          <Circle cx={72.5} cy={65} r={1.6} fill="#FFFFFF" />
+          {mood === 'fierce' ? (
+            <>
+              <Path d="M52 77 Q60 73 68 77 Q66 89 60 89 Q54 89 52 77 Z" fill={HERO_INK} {...line} />
+              <Ellipse cx={60} cy={85} rx={4} ry={2.5} fill="#F27B92" />
+            </>
+          ) : (
+            <Path d="M52 78 Q60 85 68 78" stroke={HERO_INK} strokeWidth={3} strokeLinecap="round" fill="none" />
+          )}
+        </>
+      )}
+      {/* the arm holding the hammer (her hand is drawn on top of the handle) */}
+      <Path d="M76 104 Q92 104 106 95" stroke={HERO_INK} strokeWidth={12} strokeLinecap="round" fill="none" />
+      <Path d="M76 104 Q92 104 106 95" stroke={SKIN} strokeWidth={7} strokeLinecap="round" fill="none" />
+      <Circle cx={77} cy={103} r={8} fill={SHIRT} {...line} />
     </Svg>
   );
 }
