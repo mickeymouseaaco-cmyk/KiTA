@@ -68,7 +68,7 @@ export type NoteOptions = {
   disappearing?: boolean;
 };
 
-function noteJob(who: Who, file: OutboxFile, msgKind: 'photo' | 'voice' | 'video', opts: NoteOptions, extra: { text?: string; voiceHug?: boolean } = {}) {
+function noteJob(who: Who, file: OutboxFile, msgKind: 'photo' | 'voice' | 'video', opts: NoteOptions, extra: { text?: string; voiceHug?: boolean; status?: boolean } = {}) {
   return outbox.enqueue({
     id: newId(),
     uid: who.uid,
@@ -285,4 +285,26 @@ export async function queueScheduledMedia(
     files: [file],
     target: { kind: 'scheduled', noteId: newId(), toUid: who.partnerId, msgKind: media.kind, text, surprise, deliverAtMs },
   });
+}
+
+/**
+ * Post a status: a photo or video your partner sees in the status ring for 24
+ * hours. It's also a love note, so it stays in Notes (and its photos and
+ * videos page) to look back on.
+ */
+export async function queueStatus(who: Who, media: { kind: 'photo'; photo: PreparedImage } | { kind: 'video'; video: PickedVideo }, caption: string) {
+  const opts: NoteOptions = { allowSave: true };
+  if (media.kind === 'photo') {
+    const p = media.photo;
+    await noteJob(who, { mediaId: newId(), localUri: p.uri, type: 'photo', contentType: 'image/jpeg', ext: 'jpg', width: p.width, height: p.height }, 'photo', opts, { text: caption, status: true });
+  } else {
+    const v = media.video;
+    await noteJob(
+      who,
+      { mediaId: newId(), localUri: v.uri, type: 'video', contentType: v.contentType, ext: v.ext, width: v.width, height: v.height, durationMs: v.durationMs, thumbUri: v.thumbUri },
+      'video',
+      opts,
+      { text: caption, status: true },
+    );
+  }
 }

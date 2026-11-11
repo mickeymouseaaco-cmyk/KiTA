@@ -791,6 +791,14 @@ function Bubble({
   } else if (m.mediaId) {
     body = (
       <View style={{ gap: 6, width: 232, maxWidth: '100%' }}>
+        {m.status ? (
+          <Row gap={6} style={{ paddingHorizontal: 6, paddingTop: 2 }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF5C8D' }} />
+            <T variant="small" color={mine ? c.onPrimary : c.textMuted} style={{ fontSize: 12, lineHeight: 16, fontWeight: '600' }}>
+              Status
+            </T>
+          </Row>
+        ) : null}
         <NoteMedia cid={cid} m={m} mine={mine} />
         {m.text ? (
           <T color={fg} style={[msg, { paddingHorizontal: 6, paddingBottom: 2 }]}>

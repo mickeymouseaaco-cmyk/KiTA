@@ -480,7 +480,7 @@ export function Segmented<V extends string>({
   value,
   onChange,
 }: {
-  options: { value: V; label: string }[];
+  options: { value: V; label: string; badge?: number }[];
   value: V;
   onChange: (v: V) => void;
 }) {
@@ -511,6 +511,13 @@ export function Segmented<V extends string>({
             <T variant={look.flat ? 'small' : 'bodyStrong'} color={on ? c.primary : c.textMuted} style={look.flat ? { fontFamily: 'Raleway_600SemiBold' } : undefined}>
               {o.label}
             </T>
+            {o.badge ? (
+              <View style={{ marginLeft: 6, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, backgroundColor: c.heart, alignItems: 'center', justifyContent: 'center' }}>
+                <T variant="small" color="#FFFFFF" style={{ fontSize: 11, lineHeight: 14, fontWeight: '700' }}>
+                  {o.badge}
+                </T>
+              </View>
+            ) : null}
           </Pressable>
         );
       })}
@@ -582,5 +589,5 @@ const styles = StyleSheet.create({
   toggleRow: { flexDirection: 'row', alignItems: 'center', minHeight: touch.comfy, paddingVertical: space.sm },
   empty: { alignItems: 'center', gap: space.md, paddingVertical: space.xxl },
   segment: { flexDirection: 'row', borderRadius: radius.pill, padding: 4 },
-  segmentItem: { flex: 1, minHeight: 44, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+  segmentItem: { flex: 1, minHeight: 44, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
 });

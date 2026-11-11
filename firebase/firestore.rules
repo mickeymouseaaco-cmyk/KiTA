@@ -187,7 +187,9 @@ service cloud.firestore {
 
         allow create: if isMember(cid)
           && incoming().keys().hasOnly(['fromUid', 'toUid', 'kind', 'text', 'mediaId', 'voiceHug', 'viewOnce', 'expiresAt', 'favoriteBy',
-               'important', 'importantBy', 'createdAt'])
+               'important', 'importantBy', 'status', 'createdAt'])
+          // A status is a photo or video note (shown in the status ring for a day, kept in Notes).
+          && (!('status' in incoming()) || (incoming().status == true && incoming().kind in ['photo', 'video'] && 'mediaId' in incoming()))
           && incoming().fromUid == me()
           && (!('important' in incoming()) || (incoming().important is bool && incoming().importantBy == me()))
           && incoming().toUid != me()

@@ -41,7 +41,7 @@ export type OutboxFile = {
 };
 
 export type OutboxTarget =
-  | { kind: 'message'; messageId: string; toUid: string; msgKind: MessageKind; text?: string; voiceHug?: boolean }
+  | { kind: 'message'; messageId: string; toUid: string; msgKind: MessageKind; text?: string; voiceHug?: boolean; status?: boolean }
   | { kind: 'memory'; memoryId: string; caption: string; date: string }
   | { kind: 'gratitude'; toUid: string; date: string; text?: string }
   /** Private: uploaded to users/{uid}/private/, never to the couple space. */
@@ -379,6 +379,7 @@ async function processJob(job: OutboxJob) {
     };
     if (t.text?.trim()) msg.text = t.text.trim();
     if (t.voiceHug) msg.voiceHug = true;
+    if (t.status) msg.status = true;
     if (job.visibility === 'viewOnce') msg.viewOnce = true;
     if (expiresAt) msg.expiresAt = expiresAt;
     batch.set(doc(db, 'couples', job.cid, 'messages', t.messageId), msg);

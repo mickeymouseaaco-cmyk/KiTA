@@ -9,6 +9,8 @@ import { useFeedback } from '@/components/feedback';
 import { InstallBanner } from '@/components/install-banner';
 import { FoodCardBody, MealSheet, mealNow } from '@/components/food-card';
 import { LiveSky } from '@/components/live-sky';
+import { StatusRow } from '@/components/status-row';
+import { TekaTekiCard } from '@/components/teka-teki-card';
 import { VividAction, type BurstHandle } from '@/components/vivid';
 import { StoredPrivateImage, StoredPrivateVoice } from '@/components/media-view';
 import { TodoRow } from '@/components/todo-row';
@@ -146,6 +148,7 @@ export default function Today() {
         title={greeting(myName, timeOfDay()) + (look.emoji ? ` ${{ morning: '☀️', afternoon: '🌤️', evening: '🌙' }[timeOfDay()]}` : '')}
       />
       <DaySwitch value="mine" />
+      <StatusRow />
       <InstallBanner />
 
       {/* A warm hello: how today is going, and a word from your partner. */}
@@ -221,6 +224,10 @@ export default function Today() {
           </T>
         </Card>
       </Pressable>
+      <Gap />
+
+      {/* A Malay riddle, new every 30 minutes. */}
+      <TekaTekiCard />
       <Gap />
 
       <Card>

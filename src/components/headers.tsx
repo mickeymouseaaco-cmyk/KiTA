@@ -5,6 +5,7 @@ import { Pressable, View } from 'react-native';
 import { gentleError } from '@/lib/copy';
 import { setNotificationsPaused } from '@/lib/notifications';
 import { useSession } from '@/lib/session';
+import { useStatuses } from '@/lib/status';
 import { space } from '@/theme';
 
 import { CoupleAvatars } from './avatar';
@@ -69,7 +70,9 @@ export function TopBar({ title, subtitle }: { title: string; subtitle?: string }
 }
 
 export function DaySwitch({ value }: { value: 'mine' | 'theirs' }) {
-  const { partnerName } = useSession();
+  const { partnerName, cid, uid, partnerId } = useSession();
+  // New statuses from my partner show as a number on their day, like WhatsApp.
+  const { unseen } = useStatuses(cid, uid, partnerId);
   return (
     <View style={{ marginBottom: space.lg }}>
       <Segmented
@@ -80,7 +83,7 @@ export function DaySwitch({ value }: { value: 'mine' | 'theirs' }) {
         }}
         options={[
           { value: 'mine', label: 'My Day' },
-          { value: 'theirs', label: partnerName === 'your partner' ? 'Their Day' : `${partnerName}’s Day` },
+          { value: 'theirs', label: partnerName === 'your partner' ? 'Their Day' : `${partnerName}’s Day`, badge: unseen },
         ]}
       />
     </View>
