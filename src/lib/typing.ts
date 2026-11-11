@@ -17,11 +17,11 @@ export * from './typing-pure';
 const ref = (cid: string, uid: string) => doc(db, 'couples', cid, 'typing', uid);
 
 /** Call `typed()` on every change of the box and `stopped()` when sending or leaving. */
-export function useTypingSignal(cid: string, uid: string) {
+export function useTypingSignal(cid: string | null | undefined, uid: string | null | undefined) {
   const last = useRef(0);
   const on = useRef(false);
   const stopped = useCallback(() => {
-    if (!on.current) return;
+    if (!on.current || !cid || !uid) return;
     on.current = false;
     last.current = 0;
     deleteDoc(ref(cid, uid)).catch(() => {});
@@ -29,6 +29,8 @@ export function useTypingSignal(cid: string, uid: string) {
   const typed = useCallback(
     (text: string) => {
       if (!text.trim()) return stopped();
+      // Still finding your couple (e.g. right after opening the page): nothing to signal yet.
+      if (!cid || !uid) return;
       const now = Date.now();
       if (now - last.current < TYPING_REFRESH_MS) return;
       last.current = now;
@@ -43,11 +45,11 @@ export function useTypingSignal(cid: string, uid: string) {
 }
 
 /** Whether my partner is writing to me right now. */
-export function usePartnerTyping(cid: string, partnerId: string | null | undefined): boolean {
+export function usePartnerTyping(cid: string | null | undefined, partnerId: string | null | undefined): boolean {
   const [atMs, setAtMs] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    if (!partnerId) return;
+    if (!cid || !partnerId) return;
     return onSnapshot(
       ref(cid, partnerId),
       (s) => {
