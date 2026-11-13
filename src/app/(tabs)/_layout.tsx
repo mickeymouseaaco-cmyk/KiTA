@@ -5,6 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { haptic } from '@/lib/haptics';
 import { useSession } from '@/lib/session';
+import { GossipPrompt } from '@/components/gossip-prompt';
+import { glassStyle } from '@/components/widgets';
 import { useStatuses } from '@/lib/status';
 import { fonts, useTheme } from '@/theme';
 
@@ -17,7 +19,7 @@ const SIDEBAR_FROM = 900;
  * old link keeps working.
  */
 export default function TabsLayout() {
-  const { c, look } = useTheme();
+  const { c, dark, look } = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const sidebar = width >= SIDEBAR_FROM;
@@ -25,6 +27,7 @@ export default function TabsLayout() {
   const { cid, uid, partnerId } = useSession();
   const { unreadNotes } = useStatuses(cid, uid, partnerId);
   return (
+    <>
     <Tabs
       screenListeners={{ tabPress: () => haptic.tap() }}
       screenOptions={{
@@ -37,9 +40,11 @@ export default function TabsLayout() {
         tabBarPosition: sidebar ? 'left' : 'bottom',
         tabBarVariant: sidebar ? 'material' : 'uikit',
         tabBarStyle: sidebar
-          ? { backgroundColor: look.flat ? c.bg : c.surface, borderRightColor: c.border, minWidth: 220, paddingTop: 24 }
+          ? { ...(look.flat ? glassStyle(dark) : { backgroundColor: c.surface }),
+              ...(look.flat ? { backgroundColor: dark ? 'rgba(22,20,30,0.86)' : 'rgba(255,255,255,0.86)' } : null), borderRightColor: c.border, minWidth: 220, paddingTop: 24 }
           : {
-              backgroundColor: look.flat ? c.bg : c.surface,
+              ...(look.flat ? glassStyle(dark) : { backgroundColor: c.surface }),
+              ...(look.flat ? { backgroundColor: dark ? 'rgba(22,20,30,0.86)' : 'rgba(255,255,255,0.86)' } : null),
               borderTopColor: c.border,
               height: 54 + Math.max(insets.bottom, 6),
               paddingTop: 4,
@@ -68,5 +73,7 @@ export default function TabsLayout() {
         options={{ title: 'Their day', tabBarItemStyle: { display: 'none' }, tabBarIcon: ({ color }) => <HeartHandshake color={color} size={24} /> }}
       />
     </Tabs>
+    <GossipPrompt />
+    </>
   );
 }

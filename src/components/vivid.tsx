@@ -12,6 +12,7 @@ import { haptic } from '@/lib/haptics';
 import { useTheme, vivid, type VividName } from '@/theme';
 
 import { T, focusRing } from './ui';
+import { glassStyle, tintOf } from './widgets';
 
 const ND = Platform.OS !== 'web';
 
@@ -93,7 +94,7 @@ export const VividAction = forwardRef<
   BurstHandle,
   { icon: LucideIcon; label: string; color: VividName; onPress: () => void; testID?: string; size?: number; style?: StyleProp<ViewStyle>; detail?: string }
 >(function VividAction({ icon: Icon, label, color, onPress, testID, size = 58, style, detail }, ref) {
-  const { c, motion } = useTheme();
+  const { c, dark, motion } = useTheme();
   const [scale] = useState(() => new Animated.Value(1));
   const [bounce] = useState(() => new Animated.Value(0));
   const [hearts, setHearts] = useState<BurstHandle | null>(null);
@@ -127,11 +128,28 @@ export const VividAction = forwardRef<
       hitSlop={4}
       style={({ pressed, focused }: { pressed: boolean; focused?: boolean }) => [styles.action, pressed && styles.pressed, focusRing(focused, c.primary)]}>
       <Animated.View style={{ transform: [{ scale }, { translateY: bounce.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }) }] }}>
-        <VividSquare color={color} size={size} radius={Math.round(size * 0.31)}>
-          <Icon color="#FFFFFF" size={Math.round(size * 0.44)} strokeWidth={2.3} />
-        </VividSquare>
+        {/* Glass with a pastel tint of its colour, like an iOS 26 tinted icon. */}
+        <View
+          style={[
+            glassStyle(dark),
+            {
+              width: size,
+              height: size,
+              borderRadius: Math.round(size * 0.32),
+              borderCurve: 'continuous',
+              overflow: 'hidden',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: dark ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.9)',
+              boxShadow: dark ? '0px 6px 16px rgba(0,0,0,0.35)' : '0px 6px 16px rgba(72,52,110,0.10)',
+            },
+          ]}>
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: vivid[color][0], opacity: dark ? 0.16 : 0.2 }} />
+          <Icon color={tintOf(color, dark)} size={Math.round(size * 0.42)} strokeWidth={2.2} />
+        </View>
       </Animated.View>
-      <T variant="small" numberOfLines={1} style={{ fontFamily: 'Raleway_600SemiBold', fontSize: 13 }}>
+      <T variant="bodyStrong" numberOfLines={1} style={{ fontSize: 12, lineHeight: 16 }}>
         {label}
       </T>
       <HeartBurst ref={setHearts} color={vivid[color][1]} />

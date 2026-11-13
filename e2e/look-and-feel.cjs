@@ -217,6 +217,17 @@ async function main() {
   await afiq.locator(tid('open-calm')).scrollIntoViewIfNeeded();
   await afiq.waitForTimeout(300);
   await shot(afiq, '01a6-home-widgets-bottom');
+  // "Any gossip today?" pop-up (tests normally skip it; ?gossip=1 shows it).
+  await afiq.goto(BASE + '/?gossip=1');
+  await afiq.locator(tid('gossip-prompt')).waitFor({ timeout: 15000 });
+  await afiq.waitForTimeout(800);
+  await shot(afiq, '01a7-gossip-prompt');
+  await afiq.locator(tid('gossip-text')).fill('Guess who I bumped into at the mamak');
+  await shot(afiq, '01a8-gossip-typed');
+  // Close it (sending would add a note and change the notes counted below).
+  await afiq.locator(tid('gossip-later')).click();
+  await afiq.locator(tid('gossip-prompt')).waitFor({ state: 'detached', timeout: 15000 });
+  log('Home: "Any gossip today?" pop-up opens and closes');
   log('Home: bright shortcuts, Meal sheet instead of water, live sky card');
 
   // 1b. The modern look in dark mode (it follows the phone).

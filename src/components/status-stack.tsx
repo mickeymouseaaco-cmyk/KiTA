@@ -116,16 +116,16 @@ export function PartnerStatusPage({ prefix = '' }: { prefix?: string }) {
       <StackPage fill="pink" testID={`${prefix}status-partner-empty`}>
         <Row gap={space.sm}>
           <Avatar uid={partnerId} avatarId={couple?.avatars?.[partnerId]} name={partnerName} size={36} tone="sage" />
-          <T variant="label" color="rgba(255,255,255,0.9)" style={{ flex: 1 }}>
+          <T variant="label" color={c.textMuted} style={{ flex: 1 }}>
             {partnerName.toUpperCase()}’S STATUS
           </T>
         </Row>
         <View style={{ flex: 1 }} />
         <View style={{ paddingRight: 44 }}>
-          <T variant="heading" color="#FFFFFF">
+          <T variant="heading" color={c.text}>
             Nothing from {partnerName} yet today
           </T>
-          <T variant="small" color="rgba(255,255,255,0.85)" style={small}>
+          <T variant="small" color={c.textMuted} style={small}>
             Photos and videos show here for 24 hours.
           </T>
         </View>
@@ -180,6 +180,7 @@ export function PartnerStatusPage({ prefix = '' }: { prefix?: string }) {
 
 /** Your own status, as a widget page: who has seen it, or a nudge to share one. */
 export function MyStatusPage({ prefix = '' }: { prefix?: string }) {
+  const { c } = useTheme();
   const { uid, cid, partnerId, partnerName } = usePaired();
   const { profile, myName } = useSession();
   const { mine } = useStatuses(cid, uid, partnerId);
@@ -218,16 +219,16 @@ export function MyStatusPage({ prefix = '' }: { prefix?: string }) {
         <StackPage fill="violet" testID={`${prefix}status-mine-empty`} onPress={() => setAdding(true)} accessibilityLabel="Add a status">
           <Row gap={space.sm}>
             <Avatar uid={uid} avatarId={profile?.avatarId} name={myName || 'Me'} size={36} />
-            <T variant="label" color="rgba(255,255,255,0.9)" style={{ flex: 1 }}>
+            <T variant="label" color={c.textMuted} style={{ flex: 1 }}>
               MY STATUS
             </T>
           </Row>
           <View style={{ flex: 1 }} />
           <View style={{ paddingRight: 44 }}>
-            <T variant="heading" color="#FFFFFF">
+            <T variant="heading" color={c.text}>
               Share a moment with {partnerName}
             </T>
-            <T variant="small" color="rgba(255,255,255,0.85)" style={small}>
+            <T variant="small" color={c.textMuted} style={small}>
               A photo or video for 24 hours. It stays in Surat Cinta too.
             </T>
           </View>
