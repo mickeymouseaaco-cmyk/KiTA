@@ -27,6 +27,7 @@ import { useEffect, useState } from 'react';
 
 import { dayKey } from './dates';
 import { db } from './firebase';
+import { localFirst } from './offline';
 import { deleteMedia } from './media';
 import { care } from './together-data';
 import { projectDay } from './projection';
@@ -71,38 +72,58 @@ async function reproject(ctx: LogCtx, date: string) {
 }
 
 export async function saveSteps(ctx: LogCtx, steps: number, stepGoal: number, date = dayKey()) {
-  await setDoc(
-    dayRef(ctx.uid, date),
-    { date, steps: Math.max(0, Math.round(steps)), stepGoal, updatedAt: serverTimestamp() },
-    { merge: true },
+  // Saved on the phone first; syncs when online (see lib/offline).
+  await localFirst(
+    (async () => {
+      await setDoc(
+        dayRef(ctx.uid, date),
+        { date, steps: Math.max(0, Math.round(steps)), stepGoal, updatedAt: serverTimestamp() },
+        { merge: true },
+      );
+      await reproject(ctx, date);
+      void care(ctx);
+    })(),
   );
-  await reproject(ctx, date);
-  void care(ctx);
 }
 
 export async function saveMood(ctx: LogCtx, mood: Omit<MoodEntry, 'at'>, date = dayKey()) {
-  const entry: Record<string, unknown> = { emoji: mood.emoji, label: mood.label, stress: mood.stress, at: serverTimestamp() };
-  if (mood.note?.trim()) entry.note = mood.note.trim();
-  await setDoc(dayRef(ctx.uid, date), { date, mood: entry, updatedAt: serverTimestamp() }, { merge: true });
-  await reproject(ctx, date);
-  void care(ctx);
+  // Saved on the phone first; syncs when online (see lib/offline).
+  await localFirst(
+    (async () => {
+      const entry: Record<string, unknown> = { emoji: mood.emoji, label: mood.label, stress: mood.stress, at: serverTimestamp() };
+      if (mood.note?.trim()) entry.note = mood.note.trim();
+      await setDoc(dayRef(ctx.uid, date), { date, mood: entry, updatedAt: serverTimestamp() }, { merge: true });
+      await reproject(ctx, date);
+      void care(ctx);
+    })(),
+  );
 }
 
 // ------------------------------------------------------------------ food
 
 export async function addMeal(ctx: LogCtx, kind: MealKind, text: string, date = dayKey()) {
-  const meal: Meal = { id: Math.random().toString(36).slice(2, 10), kind, text: text.trim().slice(0, 200), at: Date.now() };
-  await setDoc(dayRef(ctx.uid, date), { date, food: { meals: arrayUnion(meal) }, updatedAt: serverTimestamp() }, { merge: true });
-  await reproject(ctx, date);
+  // Saved on the phone first; syncs when online (see lib/offline).
+  await localFirst(
+    (async () => {
+      const meal: Meal = { id: Math.random().toString(36).slice(2, 10), kind, text: text.trim().slice(0, 200), at: Date.now() };
+      await setDoc(dayRef(ctx.uid, date), { date, food: { meals: arrayUnion(meal) }, updatedAt: serverTimestamp() }, { merge: true });
+      await reproject(ctx, date);
+    })(),
+  );
 }
 
 export async function removeMeal(ctx: LogCtx, meals: Meal[], id: string, date = dayKey()) {
-  await setDoc(
-    dayRef(ctx.uid, date),
-    { date, food: { meals: meals.filter((m) => m.id !== id) }, updatedAt: serverTimestamp() },
-    { merge: true },
+  // Saved on the phone first; syncs when online (see lib/offline).
+  await localFirst(
+    (async () => {
+      await setDoc(
+        dayRef(ctx.uid, date),
+        { date, food: { meals: meals.filter((m) => m.id !== id) }, updatedAt: serverTimestamp() },
+        { merge: true },
+      );
+      await reproject(ctx, date);
+    })(),
   );
-  await reproject(ctx, date);
 }
 
 /** Water is a gentle counter: no targets, never below zero. */
@@ -153,9 +174,14 @@ export function useCycleSettings(uid: string | null): CycleSettings | null {
 
 /** Evening check-in. Private: it lives only in my own day log. */
 export async function saveCheckIn(uid: string, patch: Omit<CheckIn, 'at'>, date = dayKey()) {
-  const clean: Record<string, unknown> = { at: serverTimestamp() };
-  Object.entries(patch).forEach(([k, v]) => v !== undefined && v !== '' && (clean[k] = v));
-  await setDoc(dayRef(uid, date), { date, checkIn: clean, updatedAt: serverTimestamp() }, { merge: true });
+  // Saved on the phone first; syncs when online (see lib/offline).
+  await localFirst(
+    (async () => {
+      const clean: Record<string, unknown> = { at: serverTimestamp() };
+      Object.entries(patch).forEach(([k, v]) => v !== undefined && v !== '' && (clean[k] = v));
+      await setDoc(dayRef(uid, date), { date, checkIn: clean, updatedAt: serverTimestamp() }, { merge: true });
+    })(),
+  );
 }
 
 /**

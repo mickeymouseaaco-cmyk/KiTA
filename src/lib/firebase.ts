@@ -13,7 +13,7 @@ import {
   type Persistence,
 } from 'firebase/auth';
 import { ReCaptchaEnterpriseProvider, initializeAppCheck } from 'firebase/app-check';
-import { connectFirestoreEmulator, getFirestore, initializeFirestore, type Firestore } from 'firebase/firestore';
+import { connectFirestoreEmulator, getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, type Firestore, type FirestoreSettings } from 'firebase/firestore';
 import { connectFunctionsEmulator, getFunctions, type Functions } from 'firebase/functions';
 import { connectStorageEmulator, getStorage, type FirebaseStorage } from 'firebase/storage';
 import { Platform } from 'react-native';
@@ -74,12 +74,19 @@ if (isFirebaseConfigured) {
     // traffic on one HTTPS origin (see scripts/demo-gateway.cjs).
     const sameOrigin = useEmulators && emulatorHost === 'same-origin' && typeof window !== 'undefined';
     const origin = sameOrigin ? window.location : null;
-    db = initializeFirestore(
-      app,
-      origin
-        ? { host: origin.host, ssl: origin.protocol === 'https:', experimentalForceLongPolling: true, ignoreUndefinedProperties: true }
-        : { experimentalAutoDetectLongPolling: true, ignoreUndefinedProperties: true },
-    );
+    const settings: FirestoreSettings = origin
+      ? { host: origin.host, ssl: origin.protocol === 'https:', experimentalForceLongPolling: true, ignoreUndefinedProperties: true }
+      : { experimentalAutoDetectLongPolling: true, ignoreUndefinedProperties: true };
+    // Offline: on the web, keep a copy of what you've seen (and changes made
+    // offline) on the device, shared across open tabs, so KiTA opens with your
+    // notes and days even with no signal. Where the browser can't (some
+    // private modes), it quietly falls back to memory.
+    const canPersist = Platform.OS === 'web' && typeof indexedDB !== 'undefined';
+    try {
+      db = initializeFirestore(app, canPersist ? { ...settings, localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) } : settings);
+    } catch {
+      db = initializeFirestore(app, settings);
+    }
     storage = getStorage(app);
     functions = getFunctions(app, FUNCTIONS_REGION);
     // App Check (web): proves calls come from your real site. Native apps need a

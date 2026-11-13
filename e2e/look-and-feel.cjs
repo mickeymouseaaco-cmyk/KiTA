@@ -612,6 +612,36 @@ async function main() {
   assert.ok(swReady, 'service worker is running');
   log('Installable: manifest, icons and service worker are in place');
 
+  // Offline: the pill shows, a note sends straight away and arrives once back online.
+  await afiq.goto(BASE + '/notes');
+  await afiq.locator(tid('note-input')).waitFor();
+  await aina.goto(BASE + '/notes');
+  await aina.locator(tid('note-input')).waitFor();
+  await afiq.context().setOffline(true);
+  await afiq.locator(tid('offline-pill')).waitFor({ timeout: 10000 });
+  const offlineNote = `Sent with no signal ${run}`;
+  await afiq.locator(tid('note-input')).fill(offlineNote);
+  await afiq.locator(tid('send-note')).click();
+  await afiq.getByText(offlineNote).first().waitFor({ timeout: 8000 });
+  assert.equal(await afiq.locator(tid('note-input')).inputValue(), '', 'the box clears while offline');
+  await afiq.waitForTimeout(400);
+  await shot(afiq, '14-offline-note');
+  assert.equal(await aina.getByText(offlineNote).count(), 0, 'not delivered while offline');
+  await afiq.context().setOffline(false);
+  await afiq.locator(tid('offline-pill')).waitFor({ state: 'detached', timeout: 10000 });
+  await aina.getByText(offlineNote).first().waitFor({ timeout: 20000 });
+  log('Offline: pill shows, a note sends at once and arrives when back online');
+  for (const [path, name, id] of [
+    ['/together', '15-glass-together', null],
+    ['/trip', '15-glass-trips', null],
+    ['/settings', '15-glass-settings', null],
+    ['/their-day', '15-glass-their-day', null],
+  ]) {
+    await afiq.goto(BASE + path);
+    await afiq.waitForTimeout(1800);
+    await shot(afiq, name);
+  }
+
   // 5. Look & feel: every style, a few colours, light and dark.
   await afiq.goto(BASE + '/appearance');
   await afiq.locator(tid('look-soft')).waitFor();
