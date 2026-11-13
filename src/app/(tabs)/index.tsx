@@ -1,23 +1,23 @@
 import { router } from 'expo-router';
-import { CalendarHeart, ChevronRight, MapPin, UtensilsCrossed, MessageCircleHeart, Eye, Footprints, Heart, Lock, Mail, Moon, Pencil, Smile, Smartphone, Wind, type LucideIcon } from 'lucide-react-native';
+import { CalendarHeart, Circle, Eye, Footprints, Heart, ListChecks, Lock, Mail, MapPin, MessageCircleHeart, Moon, Navigation, Plus, Smile, UtensilsCrossed, Wind } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { CoupleArt } from '@/components/art';
-import { ProgressRing, WeekBars } from '@/components/charts';
 import { useFeedback } from '@/components/feedback';
 import { InstallBanner } from '@/components/install-banner';
-import { FoodCardBody, MealSheet, mealNow } from '@/components/food-card';
+import { MealSheet, mealNow } from '@/components/food-card';
 import { LiveSky } from '@/components/live-sky';
-import { StatusStack } from '@/components/status-stack';
+import { MyStatusPage, PartnerStatusPage } from '@/components/status-stack';
 import { TekaTekiCard } from '@/components/teka-teki-card';
 import { VividAction, type BurstHandle } from '@/components/vivid';
-import { StoredPrivateImage, StoredPrivateVoice } from '@/components/media-view';
-import { TodoRow } from '@/components/todo-row';
+import { StoredPrivateImage } from '@/components/media-view';
+import { SmartStack, StackPage, WIDGET_GAP, Widget, WidgetCaption, WidgetRing, WidgetRow, WidgetValue } from '@/components/widgets';
 import { DaySwitch, TopBar } from '@/components/headers';
-import { Button, Card, Gap, Row, Screen, SectionTitle, T } from '@/components/ui';
-import { STRESS_LABELS, empty, gentleError, greeting, streakLine, summaryLine } from '@/lib/copy';
+import { Button, Row, Screen, T } from '@/components/ui';
+import { STRESS_LABELS, gentleError, greeting, streakLine, summaryLine } from '@/lib/copy';
 import { dayKey, lastNDays, timeOfDay } from '@/lib/dates';
+import { useStatuses } from '@/lib/status';
 import { PHASE_LABEL, cycleToday, predictionLine } from '@/lib/cycle';
 import { syncCycleDay, useCycleSettings, useMyDays, usePartnerDays, useShareSettings } from '@/lib/logs';
 import { haptic } from '@/lib/haptics';
@@ -28,7 +28,7 @@ import { todayList, useTodos } from '@/lib/todos';
 import { AREAS, LEVEL_LABEL, skyKind, useFloodWatch, weatherWords } from '@/lib/flood';
 import { placeLabel, temp, todFor, usePlaceWeather, useUnits, useWeatherPlace } from '@/lib/places';
 import { hourInMalaysia, timeOfDay as skyTime } from '@/lib/sky-pure';
-import { radius, space, useTheme, vivid } from '@/theme';
+import { space, useTheme, vivid } from '@/theme';
 
 /** Consecutive days (ending today or yesterday) with any check-in. Celebration only. */
 function streak(days: Record<string, unknown>, keys: string[]): number {
@@ -42,58 +42,12 @@ function streak(days: Record<string, unknown>, keys: string[]): number {
   return n;
 }
 
-function ShareNote({ shared, partnerName }: { shared: boolean; partnerName: string }) {
-  const { c } = useTheme();
-  const Icon = shared ? Eye : Lock;
-  return (
-    <Pressable
-      accessibilityRole="link"
-      accessibilityLabel={shared ? `Shared with ${partnerName}. Change in privacy settings` : 'Just for you. Change in privacy settings'}
-      onPress={() => router.push('/privacy')}
-      hitSlop={8}
-      style={{ minHeight: 32, justifyContent: 'center' }}>
-      <Row gap={6}>
-        <Icon color={c.textMuted} size={14} />
-        <T variant="small" muted>
-          {shared ? `Shared with ${partnerName}` : 'Just for you'}
-        </T>
-      </Row>
-    </Pressable>
-  );
-}
-
-/** A tidy, tappable one-line card: icon, a few words, and an arrow. */
-function LinkCard({ icon: Icon, title, detail, onPress, testID, tone = 'surface', color }: { icon: LucideIcon; title: string; detail?: string; onPress: () => void; testID?: string; tone?: 'surface' | 'sky' | 'butter' | 'peach' | 'sage' | 'lavender'; color?: string }) {
-  const { c } = useTheme();
-  return (
-    <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={detail ? `${title}. ${detail}` : title} onPress={onPress}>
-      <Card tone={tone} style={{ paddingVertical: space.md }}>
-        <Row gap={space.md}>
-          <Icon color={color ?? c.primary} size={24} />
-          <View style={{ flex: 1 }}>
-            <T variant="bodyStrong" color={color}>
-              {title}
-            </T>
-            {detail ? (
-              <T variant="small" color={color} muted={!color} numberOfLines={2}>
-                {detail}
-              </T>
-            ) : null}
-          </View>
-          <ChevronRight color={color ?? c.textMuted} size={20} />
-        </Row>
-      </Card>
-    </Pressable>
-  );
-}
-
 export default function Today() {
   const { c, look } = useTheme();
   const who = usePaired();
   const { uid, cid, partnerId, myName, partnerName, profile } = who;
   const { toast } = useFeedback();
   const month = useMemo(() => lastNDays(30), []);
-  const week = month.slice(-7);
   const today = dayKey();
   const { days, ready } = useMyDays(uid, month[0]);
   const share = useShareSettings(uid);
@@ -124,6 +78,7 @@ export default function Today() {
   const question = questionFor(today, cid);
   const qDay = useQuestionDay(cid, today);
   const myAnswer = useAnswer(cid, today, uid);
+  const { unseen } = useStatuses(cid, uid, partnerId);
   const qStatus = questionStatus(!!myAnswer, !!qDay?.answered?.includes(partnerId));
   const answered = !!(day?.checkIn && (day.checkIn.text || day.checkIn.voicePath || day.checkIn.memoryId));
   const partnerLine = partner
@@ -141,6 +96,15 @@ export default function Today() {
     if (needsCycleSync && cycleSettings) syncCycleDay({ uid, cid }, cycleSettings, undefined).catch(() => {});
   }, [needsCycleSync, cycleSettings, uid, cid]);
 
+  const weatherNow = skyNow ? temp(skyNow.tempC, units) : todayRain ? temp(todayRain.maxC, units) : place === null ? '' : '–';
+  const weatherWord = skyNow ? weatherWords(skyNow.code) : todayRain ? weatherWords(todayRain.code) : place === null ? 'Tap to choose your place' : 'Checking…';
+  const stepsPct = goal > 0 ? (day?.steps ?? 0) / goal : 0;
+  const mealsToday = day?.food?.meals ?? [];
+  const lastMeal = mealsToday[mealsToday.length - 1];
+  const openTodos = myToday;
+  // Smart Rotate, like iOS: open the stack on what matters most right now.
+  const stackStart = unseen > 0 ? 0 : qStatus === 'partner-waiting' ? 2 : 1;
+
   return (
     <Screen>
       <TopBar
@@ -148,36 +112,72 @@ export default function Today() {
         title={greeting(myName, timeOfDay()) + (look.emoji ? ` ${{ morning: '☀️', afternoon: '🌤️', evening: '🌙' }[timeOfDay()]}` : '')}
       />
       <DaySwitch value="mine" />
-      <StatusStack />
       <InstallBanner />
 
-      {/* A warm hello: how today is going, and a word from your partner. */}
-      <Card tone="peach">
-        <Row gap={space.md} style={{ alignItems: 'center' }}>
-          <View style={{ flex: 1, gap: space.xs }}>
-            <T testID="summary-line" variant="heading" color={c.onPeach}>
-              {ready ? summaryLine(day?.steps, day?.mood?.stress) : ' '}
-            </T>
-            {streakText ? (
-              <T variant="small" color={c.onPeach}>
-                {streakText}
-              </T>
-            ) : null}
-            <T testID="partner-line" variant="small" color={c.onPeach} style={{ fontFamily: 'Raleway_600SemiBold' }}>
-              {partnerLine ? `${partnerName}: ${partnerLine}` : `Nothing from ${partnerName} yet today.`}
+      {/* Smart stack: their status, your sky, today's question, your status. Swipe through. */}
+      <SmartStack testID="home-stack" height={176} start={stackStart}>
+        <PartnerStatusPage />
+        <Pressable
+          testID="open-weather"
+          accessibilityRole="button"
+          accessibilityLabel={place ? `Weather in ${skyPlace}: ${weatherNow}, ${weatherWord}.${floodArea ? ` Flood watch: ${LEVEL_LABEL[floodLevel]}.` : ''} Open the weather` : 'Choose a place for your weather'}
+          onPress={() => router.push('/weather')}
+          style={{ flex: 1 }}>
+          <LiveSky kind={skyNow ? skyKind(skyNow.code) : todayRain ? skyKind(todayRain.code) : 'partly'} tod={skyTod} height={176} radius={0}>
+            <View style={{ flex: 1, padding: 16, paddingRight: 22, justifyContent: 'space-between' }}>
+              <Row gap={6}>
+                <MapPin color="#FFFFFF" size={14} strokeWidth={2.6} />
+                <T numberOfLines={1} color="#FFFFFF" style={{ flex: 1, fontSize: 13, lineHeight: 17, fontWeight: '700' }}>
+                  {skyPlace}
+                </T>
+                {floodArea ? (
+                  <View style={{ backgroundColor: floodLevel === 'calm' ? 'rgba(255,255,255,0.22)' : floodLevel === 'watch' ? '#FFCE52' : '#FF6136', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 2 }}>
+                    <T color={floodLevel === 'watch' ? '#3A2A00' : '#FFFFFF'} style={{ fontSize: 11, lineHeight: 15, fontWeight: '700' }}>
+                      {floodLevel === 'calm' ? 'No floods' : floodLevel === 'watch' ? 'Flood watch' : 'Flood warning'}
+                    </T>
+                  </View>
+                ) : null}
+              </Row>
+              <View>
+                <WidgetValue color="#FFFFFF" size={46}>
+                  {weatherNow}
+                </WidgetValue>
+                <T variant="bodyStrong" color="#FFFFFF" numberOfLines={1}>
+                  {weatherWord}
+                  {todayRain ? `  ·  H:${temp(todayRain.maxC, units)} L:${temp(todayRain.minC, units)}` : ''}
+                </T>
+              </View>
+            </View>
+          </LiveSky>
+        </Pressable>
+        <StackPage fill="amber" testID="open-question" onPress={() => router.push('/question')} accessibilityLabel={`Question of the day: ${question.text}`}>
+          <WidgetCaption icon={MessageCircleHeart} label="Question of the day" fill="amber" />
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <T variant="heading" color="#FFFFFF" numberOfLines={3} style={{ fontSize: 19, lineHeight: 24 }}>
+              {question.text}
             </T>
           </View>
-          <CoupleArt size={104} />
-        </Row>
-      </Card>
-      <Gap h={space.lg} />
+          <Row style={{ alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 }}>
+            <T testID="question-status" color="#FFFFFF" style={{ fontSize: 13, lineHeight: 17, fontWeight: '700' }}>
+              {qStatus === 'both'
+                ? 'You both answered. Tap to see.'
+                : qStatus === 'partner-waiting'
+                  ? `${partnerName} answered. Your turn!`
+                  : qStatus === 'waiting-for-partner'
+                    ? `Waiting for ${partnerName}…`
+                    : 'Tap to answer'}
+            </T>
+          </Row>
+        </StackPage>
+        <MyStatusPage />
+      </SmartStack>
 
-      {/* The things you do most, one tap away. */}
-      <Row gap={space.xs} style={{ alignItems: 'flex-start', justifyContent: 'space-between' }}>
+      {/* The things you do most, one tap away (like app icons). */}
+      <Row gap={space.xs} style={{ alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: WIDGET_GAP }}>
         <VividAction testID="qa-steps" icon={Footprints} label="Steps" color="green" style={{ flex: 1 }} onPress={() => router.push('/log-steps')} />
         <VividAction testID="qa-mood" icon={Smile} label="Mood" color="amber" style={{ flex: 1 }} onPress={() => router.push('/log-mood')} />
         <VividAction ref={mealTile} testID="qa-meal" icon={UtensilsCrossed} label="Meal" color="orange" style={{ flex: 1 }} onPress={() => setMealOpen(true)} />
-        <VividAction testID="qa-note" icon={Mail} label="Note" color="blue" style={{ flex: 1 }} onPress={() => router.push('/notes')} />
+        <VividAction testID="qa-note" icon={Mail} label="Surat" color="blue" style={{ flex: 1 }} onPress={() => router.push('/notes')} />
         <VividAction
           ref={hugTile}
           testID="qa-hug"
@@ -197,229 +197,196 @@ export default function Today() {
         />
       </Row>
       <MealSheet ctx={{ uid, cid }} visible={mealOpen} start={mealNow()} onClose={() => setMealOpen(false)} onSaved={() => mealTile.current?.burst()} />
-      <Gap h={space.lg} />
 
-      {/* Question of the day: answer to see your partner's. */}
-      <Pressable testID="open-question" accessibilityRole="button" onPress={() => router.push('/question')}>
-        <Card tone="butter">
-          <Row gap={space.sm}>
-            <MessageCircleHeart color={c.onButter} size={20} />
-            <T variant="label" color={c.onButter} style={{ flex: 1 }}>
-              QUESTION OF THE DAY
+      {/* Steps and mood: two small widgets. */}
+      <WidgetRow>
+        <Widget size="small" fill="green" testID="log-steps" onPress={() => router.push('/log-steps')} accessibilityLabel={`Steps today: ${(day?.steps ?? 0).toLocaleString()} of ${goal.toLocaleString()}. Log steps`}>
+          <WidgetCaption icon={Footprints} label="Steps" fill="green" right={share?.steps ? <Eye color="rgba(255,255,255,0.85)" size={13} /> : <Lock color="rgba(255,255,255,0.85)" size={12} />} />
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <WidgetRing pct={stepsPct} size={58} stroke={8}>
+              <T color="#FFFFFF" style={{ fontSize: 13, lineHeight: 16, fontWeight: '800' }}>
+                {Math.round(Math.min(1, stepsPct) * 100)}%
+              </T>
+            </WidgetRing>
+          </View>
+          <WidgetValue color="#FFFFFF" size={26}>
+            {(day?.steps ?? 0).toLocaleString()}
+          </WidgetValue>
+          <T color="rgba(255,255,255,0.85)" numberOfLines={1} style={{ fontSize: 12, lineHeight: 15, fontWeight: '600' }}>
+            of {goal.toLocaleString()}
+          </T>
+        </Widget>
+        <Widget size="small" fill="amber" testID={day?.mood ? 'open-mood' : 'log-mood'} onPress={() => router.push('/log-mood')} accessibilityLabel={day?.mood ? `Mood: ${day.mood.label}. Update` : 'Check in your mood'}>
+          <WidgetCaption icon={Smile} label="Mood" fill="amber" right={share?.mood ? <Eye color="rgba(255,255,255,0.85)" size={13} /> : <Lock color="rgba(255,255,255,0.85)" size={12} />} />
+          {day?.mood ? (
+            <>
+              <View style={{ flex: 1, justifyContent: 'center' }}>
+                {day.mood.media?.type === 'photo' ? (
+                  <View style={{ width: 58, height: 58, borderRadius: 29, overflow: 'hidden', borderWidth: 2, borderColor: '#FFFFFF' }}>
+                    <StoredPrivateImage path={day.mood.media.path} size={54} alt="Your mood selfie" />
+                  </View>
+                ) : (
+                  <T style={{ fontSize: 46, lineHeight: 56 }} accessibilityElementsHidden>
+                    {day.mood.emoji}
+                  </T>
+                )}
+              </View>
+              <T testID="my-mood" color="#FFFFFF" numberOfLines={1} style={{ fontSize: 20, lineHeight: 24, fontWeight: '800' }}>
+                {day.mood.label}
+              </T>
+              <T color="rgba(255,255,255,0.88)" numberOfLines={1} style={{ fontSize: 12, lineHeight: 15, fontWeight: '600' }}>
+                Stress: {STRESS_LABELS[day.mood.stress].toLowerCase()}
+              </T>
+            </>
+          ) : (
+            <>
+              <View style={{ flex: 1 }} />
+              <T color="#FFFFFF" style={{ fontSize: 20, lineHeight: 24, fontWeight: '800' }}>
+                How are you?
+              </T>
+              <T color="rgba(255,255,255,0.88)" style={{ fontSize: 12, lineHeight: 15, fontWeight: '600' }}>
+                Tap to check in
+              </T>
+            </>
+          )}
+        </Widget>
+      </WidgetRow>
+
+      {/* Us: how today is going, and a word from your partner. */}
+      <Widget fill="surface" style={{ marginBottom: WIDGET_GAP }} onPress={() => router.push('/their-day')} accessibilityLabel={`Today. ${partnerLine ? `${partnerName}: ${partnerLine}` : `Nothing from ${partnerName} yet today.`} Open ${partnerName}’s day`}>
+        <Row gap={space.md} style={{ alignItems: 'center', flex: 1 }}>
+          <View style={{ flex: 1, gap: 4 }}>
+            <WidgetCaption icon={Heart} label="Today" color={c.heart} />
+            <T testID="summary-line" variant="heading" style={{ fontSize: 18, lineHeight: 23 }}>
+              {ready ? summaryLine(day?.steps, day?.mood?.stress) : ' '}
             </T>
-            <ChevronRight color={c.onButter} size={18} />
+            {streakText ? (
+              <T variant="small" muted style={{ fontSize: 13, lineHeight: 17 }}>
+                {streakText}
+              </T>
+            ) : null}
+            <T testID="partner-line" variant="small" style={{ fontSize: 13, lineHeight: 17, fontWeight: '700' }}>
+              {partnerLine ? `${partnerName}: ${partnerLine}` : `Nothing from ${partnerName} yet today.`}
+            </T>
+          </View>
+          <CoupleArt size={92} />
+        </Row>
+      </Widget>
+
+      {/* To-dos and meals. */}
+      <WidgetRow>
+        <Widget size="small" fill="surface" testID="open-todos" onPress={() => router.push('/todos')} accessibilityLabel={`To-dos today: ${openTodos.length} left. Open`}>
+          <WidgetCaption icon={ListChecks} label="To-dos" color={vivid.blue[1]} />
+          <WidgetValue color={c.text} size={30}>
+            {todosReady ? openTodos.length : ' '}
+          </WidgetValue>
+          <View style={{ flex: 1, gap: 5, marginTop: 2 }}>
+            {openTodos.slice(0, 2).map((t) => (
+              <Row key={t.id} gap={6}>
+                <Circle color={vivid.blue[1]} size={13} strokeWidth={2.4} />
+                <T numberOfLines={1} style={{ flex: 1, fontSize: 13, lineHeight: 17 }}>
+                  {t.text}
+                </T>
+              </Row>
+            ))}
+            {todosReady && openTodos.length === 0 ? (
+              <T muted style={{ fontSize: 13, lineHeight: 17 }}>
+                Nothing for today
+              </T>
+            ) : null}
+          </View>
+        </Widget>
+        <Widget size="small" fill="orange" testID="add-meal" onPress={() => setMealOpen(true)} accessibilityLabel={`Meals today: ${mealsToday.length}. Add one`}>
+          <WidgetCaption icon={UtensilsCrossed} label="Meals" fill="orange" right={share?.food ? <Eye color="rgba(255,255,255,0.85)" size={13} /> : <Lock color="rgba(255,255,255,0.85)" size={12} />} />
+          <WidgetValue color="#FFFFFF" size={30}>
+            {mealsToday.length}
+          </WidgetValue>
+          <View style={{ flex: 1 }}>
+            <T color="rgba(255,255,255,0.92)" numberOfLines={3} style={{ fontSize: 13, lineHeight: 17, fontWeight: '600' }}>
+              {lastMeal ? `Last: ${lastMeal.text}` : 'Nothing logged yet. Tap to add.'}
+            </T>
+          </View>
+          <Row style={{ alignSelf: 'flex-end', width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.28)', alignItems: 'center', justifyContent: 'center' }}>
+            <Plus color="#FFFFFF" size={17} strokeWidth={2.8} />
           </Row>
-          <Gap h={space.xs} />
-          <T variant="heading" color={c.onButter}>
-            {question.text}
-          </T>
-          <T testID="question-status" variant="small" color={c.onButter} style={{ marginTop: space.xs, fontFamily: 'Raleway_600SemiBold' }}>
-            {qStatus === 'both'
-              ? 'You both answered. Tap to see.'
-              : qStatus === 'partner-waiting'
-                ? `${partnerName} answered. Your turn!`
-                : qStatus === 'waiting-for-partner'
-                  ? `Waiting for ${partnerName}…`
-                  : 'Tap to answer'}
-          </T>
-        </Card>
-      </Pressable>
-      <Gap />
+        </Widget>
+      </WidgetRow>
 
       {/* A Malay riddle, new every 30 minutes. */}
       <TekaTekiCard />
-      <Gap />
 
-      <Card>
-        <SectionTitle right={<ShareNote shared={!!share?.steps} partnerName={partnerName} />}>Steps</SectionTitle>
-        <Row gap={space.lg} style={{ alignItems: 'center' }}>
-          <ProgressRing value={day?.steps ?? 0} goal={goal} size={112} stroke={12} color={vivid.green[1]} />
-          <View style={{ flex: 1 }}>
-            <WeekBars days={week} values={week.map((k) => days[k]?.steps)} goal={goal} height={72} color={vivid.green[1]} />
-          </View>
-        </Row>
-        <Gap h={space.sm} />
-        <T muted>{day?.steps ? 'Nice and steady. Add more any time.' : empty.steps}</T>
-        <Row gap={space.lg} style={{ marginTop: space.sm, flexWrap: 'wrap' }}>
-          <Pressable testID="log-steps" accessibilityRole="button" onPress={() => router.push('/log-steps')} hitSlop={8} style={{ minHeight: 40, justifyContent: 'center' }}>
-            <Row gap={6}>
-              <Footprints color={c.primary} size={18} />
-              <T variant="bodyStrong" color={c.primary}>
-                Log steps
-              </T>
-            </Row>
-          </Pressable>
-          <Pressable testID="today-steps-sync" accessibilityRole="button" onPress={() => router.push('/steps-sync')} hitSlop={8} style={{ minHeight: 40, justifyContent: 'center' }}>
-            <Row gap={6}>
-              <Smartphone color={c.primary} size={18} />
-              <T variant="bodyStrong" color={c.primary}>
-                Sync from iPhone
-              </T>
-            </Row>
-          </Pressable>
-        </Row>
-      </Card>
-      <Gap />
-
-      <Card>
-        <SectionTitle right={<ShareNote shared={!!share?.mood} partnerName={partnerName} />}>Mood</SectionTitle>
-        {day?.mood ? (
-          <Row gap={space.lg}>
-            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-              {day.mood.media?.type === 'photo' ? (
-                <StoredPrivateImage path={day.mood.media.path} size={64} alt="Your mood selfie" />
-              ) : (
-                <T style={{ fontSize: 36, lineHeight: 44 }} accessibilityElementsHidden>
-                  {day.mood.emoji}
-                </T>
-              )}
+      {/* Find each other, and a calm place. */}
+      <WidgetRow>
+        <Widget size="small" fill="teal" testID="open-find" onPress={() => router.push('/find')} accessibilityLabel={`Find ${partnerName}`}>
+          <WidgetCaption icon={MapPin} label="Find" fill="teal" />
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' }}>
+              <Navigation color="#FFFFFF" fill="#FFFFFF" size={22} />
             </View>
-            <View style={{ flex: 1 }}>
-              <T testID="my-mood" variant="heading">
-                {day.mood.label}
-              </T>
-              <T muted>Stress: {STRESS_LABELS[day.mood.stress].toLowerCase()}</T>
-              {day.mood.media?.type === 'voice' ? (
-                <View style={{ marginTop: space.xs }}>
-                  <StoredPrivateVoice path={day.mood.media.path} durationMs={day.mood.media.durationMs} />
-                </View>
-              ) : null}
-              {day.mood.note ? (
-                <T variant="small" muted numberOfLines={2} style={{ marginTop: 2 }}>
-                  &ldquo;{day.mood.note}&rdquo;
-                </T>
-              ) : null}
-            </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Update mood" onPress={() => router.push('/log-mood')} hitSlop={8} style={{ padding: space.sm }}>
-              <Pencil color={c.primary} size={22} />
-            </Pressable>
-          </Row>
-        ) : (
-          <Pressable testID="log-mood" accessibilityRole="button" onPress={() => router.push('/log-mood')} style={{ minHeight: 44, justifyContent: 'center' }}>
-            <Row gap={space.sm}>
-              <T muted style={{ flex: 1 }}>
-                {empty.mood}
-              </T>
-              <T variant="bodyStrong" color={c.primary}>
-                Check in
-              </T>
-              <ChevronRight color={c.primary} size={18} />
-            </Row>
-          </Pressable>
-        )}
-      </Card>
-      <Gap />
-
-      <LinkCard testID="open-find" icon={MapPin} title={`Find ${partnerName}`} detail="See where you both are, if you each choose to share." onPress={() => router.push('/find')} />
-      <Gap />
-
-      {/* A window onto the sky near home, live. */}
-      <Pressable
-        testID="open-weather"
-        accessibilityRole="button"
-        accessibilityLabel={place ? `Weather in ${skyPlace}: ${skyNow ? `${temp(skyNow.tempC, units)}, ${weatherWords(skyNow.code)}` : todayRain ? weatherWords(todayRain.code) : 'checking'}.${floodArea ? ` Flood watch: ${LEVEL_LABEL[floodLevel]}.` : ''} Open the weather` : 'Choose a place for your weather'}
-        onPress={() => router.push('/weather')}
-        style={({ pressed }) => ({ transform: [{ scale: pressed && look.flat ? 0.985 : 1 }] })}>
-        <LiveSky kind={skyNow ? skyKind(skyNow.code) : todayRain ? skyKind(todayRain.code) : 'partly'} tod={skyTod} height={124} radius={look.cardRadius}>
-          <View style={{ flex: 1, paddingHorizontal: space.lg, paddingVertical: space.md, justifyContent: 'space-between' }}>
-            <Row style={{ justifyContent: 'space-between' }}>
-              <T variant="label" color="#FFFFFF" numberOfLines={1} style={{ flex: 1, opacity: 0.92, letterSpacing: 0.8 }}>
-                {skyPlace.toUpperCase()}
-              </T>
-              {floodArea ? (
-              <Row gap={2} style={{ backgroundColor: floodLevel === 'calm' ? 'rgba(255,255,255,0.22)' : floodLevel === 'watch' ? '#FFCE52' : '#FF6136', borderRadius: 999, paddingLeft: 10, paddingRight: 6, paddingVertical: 3 }}>
-                <T variant="small" color={floodLevel === 'watch' ? '#3A2A00' : '#FFFFFF'} style={{ fontFamily: 'Raleway_700Bold', fontSize: 12, lineHeight: 16 }}>
-                  {floodLevel === 'calm' ? 'No floods' : floodLevel === 'watch' ? 'Flood watch' : 'Flood warning'}
-                </T>
-                <ChevronRight color={floodLevel === 'watch' ? '#3A2A00' : '#FFFFFF'} size={14} />
-              </Row>
-              ) : (
-                <ChevronRight color="#FFFFFF" size={18} />
-              )}
-            </Row>
-            <Row gap={space.sm} style={{ alignItems: 'baseline' }}>
-              <T color="#FFFFFF" style={{ fontSize: 44, lineHeight: 50, fontWeight: '300', letterSpacing: -1.5 }}>
-                {skyNow ? temp(skyNow.tempC, units) : todayRain ? temp(todayRain.maxC, units) : place === null ? '' : '–'}
-              </T>
-              <T variant="bodyStrong" color="#FFFFFF" numberOfLines={1} style={{ flexShrink: 1 }}>
-                {skyNow ? weatherWords(skyNow.code) : todayRain ? weatherWords(todayRain.code) : place === null ? 'Tap to choose your place' : 'Checking…'}
-              </T>
-            </Row>
           </View>
-        </LiveSky>
-      </Pressable>
-      <Gap />
-
-      <Card>
-        <SectionTitle
-          right={
-            <Pressable testID="open-todos" accessibilityRole="link" onPress={() => router.push('/todos')} hitSlop={8} style={{ minHeight: 32, justifyContent: 'center' }}>
-              <T variant="small" color={c.primary} style={{ fontFamily: 'Raleway_600SemiBold' }}>
-                {myToday.length > 3 ? `See all ${myToday.length}` : myToday.length ? 'See all' : 'Add one'}
-              </T>
-            </Pressable>
-          }>
-          Today&apos;s to-dos
-        </SectionTitle>
-        {myToday.slice(0, 3).map((t) => (
-          <TodoRow key={t.id} t={t} uid={uid} cid={cid} partnerName={partnerName} compact />
-        ))}
-        {todosReady && myToday.length === 0 ? <T muted>{empty.todosToday}</T> : null}
-      </Card>
-      <Gap />
-
-      <Card>
-        <SectionTitle right={<ShareNote shared={!!share?.food} partnerName={partnerName} />}>Meals</SectionTitle>
-        <FoodCardBody ctx={{ uid, cid }} food={day?.food} />
-      </Card>
-      <Gap />
+          <T color="#FFFFFF" numberOfLines={1} style={{ fontSize: 18, lineHeight: 22, fontWeight: '800' }}>
+            {partnerName}
+          </T>
+          <T color="rgba(255,255,255,0.88)" numberOfLines={2} style={{ fontSize: 12, lineHeight: 15, fontWeight: '600' }}>
+            See where you both are
+          </T>
+        </Widget>
+        <Widget size="small" fill="violet" testID="open-calm" onPress={() => router.push('/calm')} accessibilityLabel="Calm Corner: breathe, soft sounds, or a private vent">
+          <WidgetCaption icon={Wind} label="Calm Corner" fill="violet" />
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <View style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)', alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.45)' }} />
+            </View>
+          </View>
+          <T color="#FFFFFF" numberOfLines={1} style={{ fontSize: 18, lineHeight: 22, fontWeight: '800' }}>
+            Breathe
+          </T>
+          <T color="rgba(255,255,255,0.88)" numberOfLines={2} style={{ fontSize: 12, lineHeight: 15, fontWeight: '600' }}>
+            Two calm minutes
+          </T>
+        </Widget>
+      </WidgetRow>
 
       {cycleSettings?.enabled && cycle ? (
-        <>
-          <LinkCard
-            icon={CalendarHeart}
-            tone="lavender"
-            color={c.heart}
-            title={`${PHASE_LABEL[cycle.phase]} · day ${cycle.day}`}
-            detail={`${predictionLine(cycle)}${cycle.symptoms.length ? ` · ${cycle.symptoms.join(', ').toLowerCase()}` : ''}`}
-            onPress={() => router.push('/cycle')}
-          />
-          <Gap />
-        </>
+        <Widget fill="pink" style={{ marginBottom: WIDGET_GAP }} onPress={() => router.push('/cycle')} accessibilityLabel={`${PHASE_LABEL[cycle.phase]}, day ${cycle.day}. Open your cycle`}>
+          <WidgetCaption icon={CalendarHeart} label="Cycle" fill="pink" />
+          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+            <WidgetValue color="#FFFFFF" size={28}>
+              Day {cycle.day}
+            </WidgetValue>
+            <T color="#FFFFFF" style={{ fontSize: 15, lineHeight: 19, fontWeight: '700' }}>
+              {PHASE_LABEL[cycle.phase]}
+            </T>
+            <T color="rgba(255,255,255,0.88)" numberOfLines={2} style={{ fontSize: 12, lineHeight: 16, fontWeight: '600' }}>
+              {predictionLine(cycle)}
+              {cycle.symptoms.length ? ` · ${cycle.symptoms.join(', ').toLowerCase()}` : ''}
+            </T>
+          </View>
+        </Widget>
       ) : null}
 
       {/* The evening check-in comes out in the evening (or once you've answered). */}
       {evening || answered ? (
-        <>
-          <Card tone="lavender">
-            <Row gap={space.md} style={{ alignItems: 'flex-start' }}>
-              <Moon color={c.primary} size={24} />
-              <View style={{ flex: 1, gap: space.xs }}>
-                <T variant="heading">Evening check-in</T>
-                {answered ? (
-                  <T testID="checkin-summary" muted numberOfLines={2}>
-                    {day?.checkIn?.text ? `\u201C${day.checkIn.text}\u201D` : 'You saved a voice moment tonight.'}
-                  </T>
-                ) : (
-                  <T muted>What was one good moment today?</T>
-                )}
-              </View>
-            </Row>
-            <Gap h={space.md} />
-            <Button testID="open-checkin" small kind="soft" label={answered ? 'See tonight\u2019s moment' : 'Answer'} onPress={() => router.push('/check-in')} />
-          </Card>
-          <Gap />
-        </>
+        <Widget fill="ink" style={{ marginBottom: WIDGET_GAP }} testID="open-checkin" onPress={() => router.push('/check-in')} accessibilityLabel={answered ? 'See tonight’s moment' : 'Evening check-in: answer'}>
+          <WidgetCaption icon={Moon} label="Evening check-in" fill="ink" color="#C9B8FF" />
+          <View style={{ flex: 1, justifyContent: 'flex-end', gap: 4 }}>
+            {answered ? (
+              <T testID="checkin-summary" color="#FFFFFF" numberOfLines={2} style={{ fontSize: 17, lineHeight: 22, fontWeight: '700' }}>
+                {day?.checkIn?.text ? `\u201C${day.checkIn.text}\u201D` : 'You saved a voice moment tonight.'}
+              </T>
+            ) : (
+              <T color="#FFFFFF" style={{ fontSize: 17, lineHeight: 22, fontWeight: '700' }}>
+                What was one good moment today?
+              </T>
+            )}
+            <T color="rgba(255,255,255,0.7)" style={{ fontSize: 12, lineHeight: 16, fontWeight: '600' }}>
+              {answered ? 'Tap to see tonight’s moment' : 'Tap to answer'}
+            </T>
+          </View>
+        </Widget>
       ) : null}
 
-      <LinkCard testID="open-calm" icon={Wind} tone="sage" color={c.onSage} title="Calm Corner" detail="Breathe for two minutes, soft sounds, or a private vent." onPress={() => router.push('/calm')} />
-
-      {!cycleSettings?.enabled ? (
-        <>
-          <Gap h={space.sm} />
-          <Button kind="ghost" small label="Track your cycle (optional, private)" onPress={() => router.push('/cycle')} />
-        </>
-      ) : null}
+      {!cycleSettings?.enabled ? <Button kind="ghost" small label="Track your cycle (optional, private)" onPress={() => router.push('/cycle')} /> : null}
     </Screen>
   );
 }

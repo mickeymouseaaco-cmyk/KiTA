@@ -14,8 +14,9 @@ import { usePaired } from '@/lib/session';
 import { nextIn, tekaTekiAt } from '@/lib/teka-teki';
 import { space, useTheme } from '@/theme';
 
-import { Button, Card, Row, T } from './ui';
+import { Button, Row, T } from './ui';
 import { VividSquare } from './vivid';
+import { WIDGET_GAP, Widget } from './widgets';
 
 /** The current time, updated each minute (and right on each 30-minute change). */
 function useMinuteClock() {
@@ -58,20 +59,18 @@ export function TekaTekiCard() {
   }
 
   return (
-    <Card>
+    <Widget fill="surface" style={{ marginBottom: WIDGET_GAP }}>
       <View testID="teka-teki" accessibilityLanguage="ms">
         <Row gap={space.sm}>
-          <VividSquare color="amber" size={32} radius={10}>
-            <Lightbulb color="#FFFFFF" size={17} strokeWidth={2.4} />
+          <VividSquare color="violet" size={26} radius={8}>
+            <Lightbulb color="#FFFFFF" size={15} strokeWidth={2.4} />
           </VividSquare>
-          <T variant="label" style={{ flex: 1 }}>
-            TEKA-TEKI
-          </T>
+          <T style={{ flex: 1, fontSize: 13, lineHeight: 17, fontWeight: '700' }}>Teka-teki</T>
           <T testID="teka-teki-next" variant="small" muted style={{ fontSize: 12, lineHeight: 16 }}>
             Baru {nextIn(now, nextAtMs)}
           </T>
         </Row>
-        <T testID="teka-teki-soalan" variant="title" style={{ marginTop: space.sm }}>
+        <T testID="teka-teki-soalan" variant="heading" style={{ marginTop: space.sm, fontSize: 18, lineHeight: 24 }}>
           {item.soalan}
         </T>
         {shown ? (
@@ -98,6 +97,6 @@ export function TekaTekiCard() {
           </Pressable>
         </Row>
       </View>
-    </Card>
+    </Widget>
   );
 }

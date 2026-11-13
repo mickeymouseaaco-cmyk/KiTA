@@ -1,14 +1,13 @@
 /**
- * Status on Home (and on your partner's day): a smart-stack widget with your
+ * Status (like WhatsApp and Instagram) as smart-stack widget pages: your
  * partner's status and yours, a bright ring and a number when there's
- * something new, like WhatsApp and Instagram. Adding a status also saves it to
- * Love Notes.
+ * something new. Adding a status also saves it to Surat Cinta.
  */
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Camera, ImagePlus, Play, Plus, Video } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Pressable, TextInput, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { gentleError } from '@/lib/copy';
@@ -24,6 +23,7 @@ import { Avatar } from './avatar';
 import { Sheet, useFeedback } from './feedback';
 import { Button, Row, T, useInputStyle } from './ui';
 import { VividAction } from './vivid';
+import { SmartStack, StackPage } from './widgets';
 
 const SIZE = 64;
 
@@ -77,177 +77,176 @@ function Backdrop({ cid, m }: { cid: string; m: Message }) {
   );
 }
 
-const WIDGET_H = 168;
-
-/**
- * Status as a smart-stack widget (like the cards below it): swipe between your
- * partner's status and yours. The newest picture fills the card; a bright ring
- * and a number show what's new. Tap to watch; + to add one.
- */
-export function StatusStack({ only }: { only?: 'partner' }) {
-  const { c, look } = useTheme();
-  const { uid, cid, partnerId, partnerName } = usePaired();
-  const { profile, couple, myName } = useSession();
-  const { mine, theirs, unseen } = useStatuses(cid, uid, partnerId);
-  const [adding, setAdding] = useState(false);
-  // Partner's day shows the same widget; its own test ids keep the two apart.
-  const id = (name: string) => (only ? `their-${name}` : name);
-  const [w, setW] = useState(0);
-  const [page, setPage] = useState(0);
-  const pages: ('partner' | 'mine')[] = only ? ['partner'] : ['partner', 'mine'];
-  const latestTheirs = theirs[theirs.length - 1];
-  const latestMine = mine[mine.length - 1];
-
-  const frame = {
-    height: WIDGET_H,
-    borderRadius: look.cardRadius,
-    overflow: 'hidden' as const,
-    borderWidth: look.outlined ? look.cardBorder : 1,
-    borderColor: look.outlined ? c.text : c.border,
-    backgroundColor: c.surface,
-  };
-
-  const partnerPage = latestTheirs ? (
+/** The round + that adds a status, in the corner of a status page. */
+function AddButton({ testID, onPress }: { testID: string; onPress: () => void }) {
+  const { c } = useTheme();
+  return (
     <Pressable
-      testID={id('status-partner')}
+      testID={testID}
       accessibilityRole="button"
-      accessibilityLabel={`${partnerName}’s status: ${theirs.length}${unseen ? `, ${unseen} new` : ''}. Watch`}
-      onPress={() => router.push({ pathname: '/status', params: { who: 'partner' } })}
-      style={{ flex: 1 }}>
-      <Backdrop cid={cid} m={latestTheirs} />
-      <View style={{ flex: 1, padding: space.lg, paddingRight: 60, justifyContent: 'space-between' }}>
+      accessibilityLabel="Add a status"
+      onPress={onPress}
+      hitSlop={8}
+      style={{ position: 'absolute', right: 22, bottom: 14, width: 36, height: 36, borderRadius: 18, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', boxShadow: '0px 4px 12px rgba(0,0,0,0.25)' }}>
+      <Plus color={c.onPrimary} size={20} strokeWidth={2.6} />
+    </Pressable>
+  );
+}
+
+function AddSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <Sheet visible={open} onClose={onClose}>
+      {open ? <AddStatus onDone={onClose} /> : null}
+    </Sheet>
+  );
+}
+
+const small = { fontSize: 12, lineHeight: 16 };
+
+/** Your partner's status, as a widget page: their newest picture fills it; tap to watch. */
+export function PartnerStatusPage({ prefix = '' }: { prefix?: string }) {
+  const { c } = useTheme();
+  const { uid, cid, partnerId, partnerName } = usePaired();
+  const { couple } = useSession();
+  const { theirs, unseen } = useStatuses(cid, uid, partnerId);
+  const [adding, setAdding] = useState(false);
+  const latest = theirs[theirs.length - 1];
+  if (!latest) {
+    return (
+      <StackPage fill="pink" testID={`${prefix}status-partner-empty`}>
         <Row gap={space.sm}>
-          <Ring state={unseen ? 'new' : 'seen'} size={40}>
-            <Avatar uid={partnerId} avatarId={couple?.avatars?.[partnerId]} name={partnerName} size={40} tone="sage" />
-          </Ring>
-          <View style={{ flex: 1 }}>
-            <T variant="bodyStrong" color="#FFFFFF" numberOfLines={1}>
-              {partnerName}
-            </T>
-            <T variant="small" color="rgba(255,255,255,0.85)" style={{ fontSize: 12, lineHeight: 16 }}>
-              {statusAge(latestTheirs.createdAt?.toMillis?.())} · {theirs.length} {theirs.length === 1 ? 'status' : 'statuses'}
-            </T>
-          </View>
-          {unseen ? (
-            <View testID={id('status-unseen')} style={{ backgroundColor: c.heart, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}>
-              <T variant="small" color="#FFFFFF" style={{ fontSize: 12, lineHeight: 16, fontWeight: '700' }}>
-                {unseen} new
-              </T>
-            </View>
-          ) : null}
-        </Row>
-        <Row gap={6}>
-          <Play color="#FFFFFF" fill="#FFFFFF" size={14} />
-          <T variant="bodyStrong" color="#FFFFFF" numberOfLines={1} style={{ flex: 1 }}>
-            {latestTheirs.text || (unseen ? 'Tap to watch' : 'Watch again')}
+          <Avatar uid={partnerId} avatarId={couple?.avatars?.[partnerId]} name={partnerName} size={36} tone="sage" />
+          <T variant="label" color="rgba(255,255,255,0.9)" style={{ flex: 1 }}>
+            {partnerName.toUpperCase()}’S STATUS
           </T>
         </Row>
-      </View>
-    </Pressable>
-  ) : (
-    <View testID={id('status-partner-empty')} style={{ flex: 1, padding: space.lg, paddingRight: 60, justifyContent: 'space-between' }}>
-      <Row gap={space.sm}>
-        <View style={{ opacity: 0.6 }}>
-          <Avatar uid={partnerId} avatarId={couple?.avatars?.[partnerId]} name={partnerName} size={40} tone="sage" />
+        <View style={{ flex: 1 }} />
+        <View style={{ paddingRight: 44 }}>
+          <T variant="heading" color="#FFFFFF">
+            Nothing from {partnerName} yet today
+          </T>
+          <T variant="small" color="rgba(255,255,255,0.85)" style={small}>
+            Photos and videos show here for 24 hours.
+          </T>
         </View>
-        <T variant="label" muted style={{ flex: 1 }}>
-          {partnerName.toUpperCase()}’S STATUS
-        </T>
-      </Row>
-      <View>
-        <T variant="heading">No status from {partnerName} yet today</T>
-        <T variant="small" muted>
-          When they share a photo or video, it shows here for 24 hours.
-        </T>
-      </View>
+        <AddButton testID={`${prefix}status-add`} onPress={() => setAdding(true)} />
+        <AddSheet open={adding} onClose={() => setAdding(false)} />
+      </StackPage>
+    );
+  }
+  return (
+    <View style={{ flex: 1 }}>
+      <Pressable
+        testID={`${prefix}status-partner`}
+        accessibilityRole="button"
+        accessibilityLabel={`${partnerName}’s status: ${theirs.length}${unseen ? `, ${unseen} new` : ''}. Watch`}
+        onPress={() => router.push({ pathname: '/status', params: { who: 'partner' } })}
+        style={{ flex: 1 }}>
+        <Backdrop cid={cid} m={latest} />
+        <View style={{ flex: 1, padding: 16, paddingRight: 22, justifyContent: 'space-between' }}>
+          <Row gap={space.sm}>
+            <Ring state={unseen ? 'new' : 'seen'} size={38}>
+              <Avatar uid={partnerId} avatarId={couple?.avatars?.[partnerId]} name={partnerName} size={38} tone="sage" />
+            </Ring>
+            <View style={{ flex: 1 }}>
+              <T variant="bodyStrong" color="#FFFFFF" numberOfLines={1}>
+                {partnerName}
+              </T>
+              <T variant="small" color="rgba(255,255,255,0.85)" style={small}>
+                {statusAge(latest.createdAt?.toMillis?.())} · {theirs.length} {theirs.length === 1 ? 'status' : 'statuses'}
+              </T>
+            </View>
+            {unseen ? (
+              <View testID={`${prefix}status-unseen`} style={{ backgroundColor: c.heart, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}>
+                <T variant="small" color="#FFFFFF" style={[small, { fontWeight: '700' }]}>
+                  {unseen} new
+                </T>
+              </View>
+            ) : null}
+          </Row>
+          <Row gap={6} style={{ paddingRight: 44 }}>
+            <Play color="#FFFFFF" fill="#FFFFFF" size={14} />
+            <T variant="bodyStrong" color="#FFFFFF" numberOfLines={1} style={{ flex: 1 }}>
+              {latest.text || (unseen ? 'Tap to watch' : 'Watch again')}
+            </T>
+          </Row>
+        </View>
+      </Pressable>
+      <AddButton testID={`${prefix}status-add`} onPress={() => setAdding(true)} />
+      <AddSheet open={adding} onClose={() => setAdding(false)} />
     </View>
   );
+}
 
-  const minePage = latestMine ? (
-    <Pressable
-      testID={id('status-mine')}
-      accessibilityRole="button"
-      accessibilityLabel={`Your status: ${mine.length}. ${latestMine.readAt ? `Seen by ${partnerName}` : 'Not seen yet'}. Watch`}
-      onPress={() => router.push({ pathname: '/status', params: { who: 'me' } })}
-      style={{ flex: 1 }}>
-      <Backdrop cid={cid} m={latestMine} />
-      <View style={{ flex: 1, padding: space.lg, paddingRight: 60, justifyContent: 'space-between' }}>
-        <Row gap={space.sm}>
-          <Ring state="seen" size={40}>
-            <Avatar uid={uid} avatarId={profile?.avatarId} name={myName || 'Me'} size={40} />
-          </Ring>
-          <View style={{ flex: 1 }}>
-            <T variant="bodyStrong" color="#FFFFFF">
-              My status
-            </T>
-            <T variant="small" color="rgba(255,255,255,0.85)" style={{ fontSize: 12, lineHeight: 16 }}>
-              {statusAge(latestMine.createdAt?.toMillis?.())} · {latestMine.readAt ? `Seen by ${partnerName}` : 'Not seen yet'}
-            </T>
-          </View>
-        </Row>
-        <T variant="bodyStrong" color="#FFFFFF" numberOfLines={1}>
-          {latestMine.text || 'Tap to watch'}
-        </T>
-      </View>
-    </Pressable>
-  ) : (
-    <Pressable testID={id('status-mine-empty')} accessibilityRole="button" accessibilityLabel="Add a status" onPress={() => setAdding(true)} style={{ flex: 1, padding: space.lg, paddingRight: 60, justifyContent: 'space-between' }}>
-      <Row gap={space.sm}>
-        <Avatar uid={uid} avatarId={profile?.avatarId} name={myName || 'Me'} size={40} />
-        <T variant="label" muted style={{ flex: 1 }}>
-          MY STATUS
-        </T>
-      </Row>
-      <View>
-        <T variant="heading">Share a moment with {partnerName}</T>
-        <T variant="small" muted>
-          A photo or video for 24 hours. It stays in Surat Cinta too.
-        </T>
-      </View>
-    </Pressable>
-  );
-
+/** Your own status, as a widget page: who has seen it, or a nudge to share one. */
+export function MyStatusPage({ prefix = '' }: { prefix?: string }) {
+  const { uid, cid, partnerId, partnerName } = usePaired();
+  const { profile, myName } = useSession();
+  const { mine } = useStatuses(cid, uid, partnerId);
+  const [adding, setAdding] = useState(false);
+  const latest = mine[mine.length - 1];
   return (
-    <>
-      <View style={[frame, { marginBottom: space.md }]} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
-        {w ? (
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            scrollEventThrottle={32}
-            onScroll={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / w))}>
-            {pages.map((p) => (
-              <View key={p} style={{ width: w - (frame.borderWidth ?? 0) * 2, height: WIDGET_H - (frame.borderWidth ?? 0) * 2 }}>
-                {p === 'partner' ? partnerPage : minePage}
-              </View>
-            ))}
-          </ScrollView>
-        ) : null}
-        {/* Add a status, from either page. */}
+    <View style={{ flex: 1 }}>
+      {latest ? (
         <Pressable
-          testID={id('status-add')}
+          testID={`${prefix}status-mine`}
           accessibilityRole="button"
-          accessibilityLabel="Add a status"
-          onPress={() => setAdding(true)}
-          hitSlop={8}
-          style={{ position: 'absolute', right: space.md, bottom: space.md, width: 36, height: 36, borderRadius: 18, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', boxShadow: '0px 4px 12px rgba(0,0,0,0.25)' }}>
-          <Plus color={c.onPrimary} size={20} strokeWidth={2.6} />
-        </Pressable>
-        {/* Page dots, like a stack of widgets. */}
-        {pages.length > 1 ? (
-          <View style={{ position: 'absolute', right: 8, top: 0, bottom: 0, justifyContent: 'center', gap: 5, pointerEvents: 'none' }}>
-            {pages.map((p, i) => (
-              <View key={p} style={{ width: 5, height: i === page ? 14 : 5, borderRadius: 3, backgroundColor: i === page ? (latestTheirs || latestMine ? '#FFFFFF' : c.text) : 'rgba(128,128,128,0.45)' }} />
-            ))}
+          accessibilityLabel={`Your status: ${mine.length}. ${latest.readAt ? `Seen by ${partnerName}` : 'Not seen yet'}. Watch`}
+          onPress={() => router.push({ pathname: '/status', params: { who: 'me' } })}
+          style={{ flex: 1 }}>
+          <Backdrop cid={cid} m={latest} />
+          <View style={{ flex: 1, padding: 16, paddingRight: 22, justifyContent: 'space-between' }}>
+            <Row gap={space.sm}>
+              <Ring state="seen" size={38}>
+                <Avatar uid={uid} avatarId={profile?.avatarId} name={myName || 'Me'} size={38} />
+              </Ring>
+              <View style={{ flex: 1 }}>
+                <T variant="bodyStrong" color="#FFFFFF">
+                  My status
+                </T>
+                <T variant="small" color="rgba(255,255,255,0.85)" style={small}>
+                  {statusAge(latest.createdAt?.toMillis?.())} · {latest.readAt ? `Seen by ${partnerName}` : 'Not seen yet'}
+                </T>
+              </View>
+            </Row>
+            <T variant="bodyStrong" color="#FFFFFF" numberOfLines={1} style={{ paddingRight: 44 }}>
+              {latest.text || 'Tap to watch'}
+            </T>
           </View>
-        ) : null}
-      </View>
+        </Pressable>
+      ) : (
+        <StackPage fill="violet" testID={`${prefix}status-mine-empty`} onPress={() => setAdding(true)} accessibilityLabel="Add a status">
+          <Row gap={space.sm}>
+            <Avatar uid={uid} avatarId={profile?.avatarId} name={myName || 'Me'} size={36} />
+            <T variant="label" color="rgba(255,255,255,0.9)" style={{ flex: 1 }}>
+              MY STATUS
+            </T>
+          </Row>
+          <View style={{ flex: 1 }} />
+          <View style={{ paddingRight: 44 }}>
+            <T variant="heading" color="#FFFFFF">
+              Share a moment with {partnerName}
+            </T>
+            <T variant="small" color="rgba(255,255,255,0.85)" style={small}>
+              A photo or video for 24 hours. It stays in Surat Cinta too.
+            </T>
+          </View>
+        </StackPage>
+      )}
+      <AddButton testID={`${prefix}status-add-mine`} onPress={() => setAdding(true)} />
+      <AddSheet open={adding} onClose={() => setAdding(false)} />
+    </View>
+  );
+}
 
-      <Sheet visible={adding} onClose={() => setAdding(false)}>
-        {adding ? <AddStatus onDone={() => setAdding(false)} /> : null}
-      </Sheet>
-    </>
+/** Status on its own (your partner's day): their status and yours in one smart stack. */
+export function StatusStack({ only }: { only?: 'partner' }) {
+  const prefix = only ? 'their-' : '';
+  return (
+    <SmartStack testID={`${prefix}status-stack`} height={172}>
+      <PartnerStatusPage prefix={prefix} />
+      {only ? null : <MyStatusPage prefix={prefix} />}
+    </SmartStack>
   );
 }
 
