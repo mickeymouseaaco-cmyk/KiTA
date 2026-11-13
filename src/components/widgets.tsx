@@ -18,8 +18,6 @@ const ND = Platform.OS !== 'web';
 export const WIDGET_RADIUS = 26;
 export const WIDGET_GAP = 14;
 
-/** Rounded numbers, like iOS widgets (SF Pro Rounded where the system has it). */
-export const rounded = Platform.OS === 'web' ? { fontFamily: 'ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif' } : { fontFamily: undefined };
 
 export type WidgetFill = VividName | 'surface' | 'ink';
 
@@ -160,7 +158,7 @@ export function WidgetCaption({ icon: Icon, label, fill = 'surface', color, righ
 /** A big glanceable number or word. */
 export function WidgetValue({ children, color, size = 34, testID, numberOfLines = 1 }: { children: ReactNode; color: string; size?: number; testID?: string; numberOfLines?: number }) {
   return (
-    <T testID={testID} variant="heading" color={color} numberOfLines={numberOfLines} style={[rounded, { fontSize: size, lineHeight: Math.round(size * 1.12), letterSpacing: -0.6, fontVariant: ['tabular-nums'] }]}>
+    <T testID={testID} variant="heading" color={color} numberOfLines={numberOfLines} style={{ fontSize: size, lineHeight: Math.round(size * 1.12), letterSpacing: -0.6, fontVariant: ['tabular-nums'] }}>
       {children}
     </T>
   );
