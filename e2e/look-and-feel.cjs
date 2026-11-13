@@ -202,6 +202,21 @@ async function main() {
   await shot(afiq, '01a1-home-top');
   await afiq.locator(tid('open-weather')).scrollIntoViewIfNeeded();
   await shot(afiq, '01a2-home-meals-sky');
+  await afiq.evaluate(() => window.scrollTo(0, 0));
+  await shot(afiq, '01a3-home-full', true);
+  // Swipe the smart stack to the next widget.
+  await afiq.locator(tid('home-stack')).locator('div').first().evaluate((el) => {
+    const s = [el, ...el.querySelectorAll('div')].find((d) => d.scrollWidth > d.clientWidth + 10);
+    if (s) s.scrollBy({ left: s.clientWidth, behavior: 'instant' });
+  });
+  await afiq.waitForTimeout(500);
+  await shot(afiq, '01a4-home-stack-next');
+  await afiq.locator(tid('open-todos')).scrollIntoViewIfNeeded();
+  await afiq.waitForTimeout(300);
+  await shot(afiq, '01a5-home-widgets-middle');
+  await afiq.locator(tid('open-calm')).scrollIntoViewIfNeeded();
+  await afiq.waitForTimeout(300);
+  await shot(afiq, '01a6-home-widgets-bottom');
   log('Home: bright shortcuts, Meal sheet instead of water, live sky card');
 
   // 1b. The modern look in dark mode (it follows the phone).
