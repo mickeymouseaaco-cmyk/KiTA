@@ -65,7 +65,9 @@ export function TekaTekiCard() {
           <VividSquare color="violet" size={26} radius={8}>
             <Lightbulb color="#FFFFFF" size={15} strokeWidth={2.4} />
           </VividSquare>
-          <T style={{ flex: 1, fontSize: 13, lineHeight: 17, fontWeight: '700' }}>Teka-teki</T>
+          <T variant="bodyStrong" style={{ flex: 1, fontSize: 13, lineHeight: 17 }}>
+            Teka-teki
+          </T>
           <T testID="teka-teki-next" variant="small" muted style={{ fontSize: 12, lineHeight: 16 }}>
             Baru {nextIn(now, nextAtMs)}
           </T>

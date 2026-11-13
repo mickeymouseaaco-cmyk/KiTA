@@ -211,6 +211,12 @@ async function main() {
   });
   await afiq.waitForTimeout(500);
   await shot(afiq, '01a4-home-stack-next');
+  await afiq.locator(tid('open-todos')).scrollIntoViewIfNeeded();
+  await afiq.waitForTimeout(300);
+  await shot(afiq, '01a5-home-widgets-middle');
+  await afiq.locator(tid('open-calm')).scrollIntoViewIfNeeded();
+  await afiq.waitForTimeout(300);
+  await shot(afiq, '01a6-home-widgets-bottom');
   log('Home: bright shortcuts, Meal sheet instead of water, live sky card');
 
   // 1b. The modern look in dark mode (it follows the phone).

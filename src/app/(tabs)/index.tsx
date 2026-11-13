@@ -127,7 +127,7 @@ export default function Today() {
             <View style={{ flex: 1, padding: 16, paddingRight: 22, justifyContent: 'space-between' }}>
               <Row gap={6}>
                 <MapPin color="#FFFFFF" size={14} strokeWidth={2.6} />
-                <T numberOfLines={1} color="#FFFFFF" style={{ flex: 1, fontSize: 13, lineHeight: 17, fontWeight: '700' }}>
+                <T variant="bodyStrong" numberOfLines={1} color="#FFFFFF" style={{ flex: 1, fontSize: 13, lineHeight: 17 }}>
                   {skyPlace}
                 </T>
                 {floodArea ? (
@@ -158,7 +158,7 @@ export default function Today() {
             </T>
           </View>
           <Row style={{ alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 }}>
-            <T testID="question-status" color="#FFFFFF" style={{ fontSize: 13, lineHeight: 17, fontWeight: '700' }}>
+            <T testID="question-status" variant="bodyStrong" color="#FFFFFF" style={{ fontSize: 13, lineHeight: 17 }}>
               {qStatus === 'both'
                 ? 'You both answered. Tap to see.'
                 : qStatus === 'partner-waiting'
@@ -204,7 +204,7 @@ export default function Today() {
           <WidgetCaption icon={Footprints} label="Steps" fill="green" right={share?.steps ? <Eye color="rgba(255,255,255,0.85)" size={13} /> : <Lock color="rgba(255,255,255,0.85)" size={12} />} />
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <WidgetRing pct={stepsPct} size={58} stroke={8}>
-              <T color="#FFFFFF" style={{ fontSize: 13, lineHeight: 16, fontWeight: '800' }}>
+              <T variant="bodyStrong" color="#FFFFFF" style={{ fontSize: 13, lineHeight: 16 }}>
                 {Math.round(Math.min(1, stepsPct) * 100)}%
               </T>
             </WidgetRing>
@@ -212,7 +212,7 @@ export default function Today() {
           <WidgetValue color="#FFFFFF" size={26}>
             {(day?.steps ?? 0).toLocaleString()}
           </WidgetValue>
-          <T color="rgba(255,255,255,0.85)" numberOfLines={1} style={{ fontSize: 12, lineHeight: 15, fontWeight: '600' }}>
+          <T color="rgba(255,255,255,0.85)" numberOfLines={1} variant="small" style={{ fontSize: 12, lineHeight: 15 }}>
             of {goal.toLocaleString()}
           </T>
         </Widget>
@@ -231,20 +231,20 @@ export default function Today() {
                   </T>
                 )}
               </View>
-              <T testID="my-mood" color="#FFFFFF" numberOfLines={1} style={{ fontSize: 20, lineHeight: 24, fontWeight: '800' }}>
+              <T testID="my-mood" variant="heading" color="#FFFFFF" numberOfLines={1} style={{ fontSize: 20, lineHeight: 24 }}>
                 {day.mood.label}
               </T>
-              <T color="rgba(255,255,255,0.88)" numberOfLines={1} style={{ fontSize: 12, lineHeight: 15, fontWeight: '600' }}>
+              <T color="rgba(255,255,255,0.88)" numberOfLines={1} variant="small" style={{ fontSize: 12, lineHeight: 15 }}>
                 Stress: {STRESS_LABELS[day.mood.stress].toLowerCase()}
               </T>
             </>
           ) : (
             <>
               <View style={{ flex: 1 }} />
-              <T color="#FFFFFF" style={{ fontSize: 20, lineHeight: 24, fontWeight: '800' }}>
+              <T variant="heading" color="#FFFFFF" style={{ fontSize: 20, lineHeight: 24 }}>
                 How are you?
               </T>
-              <T color="rgba(255,255,255,0.88)" style={{ fontSize: 12, lineHeight: 15, fontWeight: '600' }}>
+              <T color="rgba(255,255,255,0.88)" variant="small" style={{ fontSize: 12, lineHeight: 15 }}>
                 Tap to check in
               </T>
             </>
@@ -265,7 +265,7 @@ export default function Today() {
                 {streakText}
               </T>
             ) : null}
-            <T testID="partner-line" variant="small" style={{ fontSize: 13, lineHeight: 17, fontWeight: '700' }}>
+            <T testID="partner-line" variant="bodyStrong" style={{ fontSize: 13, lineHeight: 17 }}>
               {partnerLine ? `${partnerName}: ${partnerLine}` : `Nothing from ${partnerName} yet today.`}
             </T>
           </View>
@@ -302,7 +302,7 @@ export default function Today() {
             {mealsToday.length}
           </WidgetValue>
           <View style={{ flex: 1 }}>
-            <T color="rgba(255,255,255,0.92)" numberOfLines={3} style={{ fontSize: 13, lineHeight: 17, fontWeight: '600' }}>
+            <T color="rgba(255,255,255,0.92)" numberOfLines={3} variant="small" style={{ fontSize: 13, lineHeight: 17 }}>
               {lastMeal ? `Last: ${lastMeal.text}` : 'Nothing logged yet. Tap to add.'}
             </T>
           </View>
@@ -324,10 +324,10 @@ export default function Today() {
               <Navigation color="#FFFFFF" fill="#FFFFFF" size={22} />
             </View>
           </View>
-          <T color="#FFFFFF" numberOfLines={1} style={{ fontSize: 18, lineHeight: 22, fontWeight: '800' }}>
+          <T variant="heading" color="#FFFFFF" numberOfLines={1} style={{ fontSize: 18, lineHeight: 22 }}>
             {partnerName}
           </T>
-          <T color="rgba(255,255,255,0.88)" numberOfLines={2} style={{ fontSize: 12, lineHeight: 15, fontWeight: '600' }}>
+          <T color="rgba(255,255,255,0.88)" numberOfLines={2} variant="small" style={{ fontSize: 12, lineHeight: 15 }}>
             See where you both are
           </T>
         </Widget>
@@ -338,10 +338,10 @@ export default function Today() {
               <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.45)' }} />
             </View>
           </View>
-          <T color="#FFFFFF" numberOfLines={1} style={{ fontSize: 18, lineHeight: 22, fontWeight: '800' }}>
+          <T variant="heading" color="#FFFFFF" numberOfLines={1} style={{ fontSize: 18, lineHeight: 22 }}>
             Breathe
           </T>
-          <T color="rgba(255,255,255,0.88)" numberOfLines={2} style={{ fontSize: 12, lineHeight: 15, fontWeight: '600' }}>
+          <T color="rgba(255,255,255,0.88)" numberOfLines={2} variant="small" style={{ fontSize: 12, lineHeight: 15 }}>
             Two calm minutes
           </T>
         </Widget>
@@ -354,7 +354,7 @@ export default function Today() {
             <WidgetValue color="#FFFFFF" size={28}>
               Day {cycle.day}
             </WidgetValue>
-            <T color="#FFFFFF" style={{ fontSize: 15, lineHeight: 19, fontWeight: '700' }}>
+            <T variant="bodyStrong" color="#FFFFFF" style={{ fontSize: 15, lineHeight: 19 }}>
               {PHASE_LABEL[cycle.phase]}
             </T>
             <T color="rgba(255,255,255,0.88)" numberOfLines={2} style={{ fontSize: 12, lineHeight: 16, fontWeight: '600' }}>
@@ -371,11 +371,11 @@ export default function Today() {
           <WidgetCaption icon={Moon} label="Evening check-in" fill="ink" color="#C9B8FF" />
           <View style={{ flex: 1, justifyContent: 'flex-end', gap: 4 }}>
             {answered ? (
-              <T testID="checkin-summary" color="#FFFFFF" numberOfLines={2} style={{ fontSize: 17, lineHeight: 22, fontWeight: '700' }}>
+              <T testID="checkin-summary" color="#FFFFFF" numberOfLines={2} variant="heading" style={{ fontSize: 17, lineHeight: 22 }}>
                 {day?.checkIn?.text ? `\u201C${day.checkIn.text}\u201D` : 'You saved a voice moment tonight.'}
               </T>
             ) : (
-              <T color="#FFFFFF" style={{ fontSize: 17, lineHeight: 22, fontWeight: '700' }}>
+              <T color="#FFFFFF" variant="heading" style={{ fontSize: 17, lineHeight: 22 }}>
                 What was one good moment today?
               </T>
             )}

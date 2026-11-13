@@ -149,7 +149,7 @@ export function WidgetCaption({ icon: Icon, label, fill = 'surface', color, righ
   return (
     <Row gap={6} style={{ alignItems: 'center' }}>
       <Icon color={color ?? tone.strong} size={15} strokeWidth={2.6} />
-      <T numberOfLines={1} color={color ?? tone.strong} style={{ flex: 1, fontSize: 13, lineHeight: 17, fontWeight: '700', letterSpacing: 0.1 }}>
+      <T variant="bodyStrong" numberOfLines={1} color={color ?? tone.strong} style={{ flex: 1, fontSize: 13, lineHeight: 17, letterSpacing: 0.1 }}>
         {label}
       </T>
       {right}
@@ -160,7 +160,7 @@ export function WidgetCaption({ icon: Icon, label, fill = 'surface', color, righ
 /** A big glanceable number or word. */
 export function WidgetValue({ children, color, size = 34, testID, numberOfLines = 1 }: { children: ReactNode; color: string; size?: number; testID?: string; numberOfLines?: number }) {
   return (
-    <T testID={testID} color={color} numberOfLines={numberOfLines} style={[rounded, { fontSize: size, lineHeight: Math.round(size * 1.12), fontWeight: '700', letterSpacing: -0.6, fontVariant: ['tabular-nums'] }]}>
+    <T testID={testID} variant="heading" color={color} numberOfLines={numberOfLines} style={[rounded, { fontSize: size, lineHeight: Math.round(size * 1.12), letterSpacing: -0.6, fontVariant: ['tabular-nums'] }]}>
       {children}
     </T>
   );
