@@ -5,7 +5,7 @@
  * light/dark theme.
  */
 import type { LucideIcon } from 'lucide-react-native';
-import { Children, useRef, useState, type ReactNode } from 'react';
+import { Children, useRef, useState, type ComponentRef, type ReactNode } from 'react';
 import { Animated, Platform, Pressable, ScrollView, View, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 
@@ -192,7 +192,7 @@ export function SmartStack({ height = 172, start = 0, testID, children }: { heig
   const pages = Children.toArray(children).filter(Boolean);
   const [w, setW] = useState(0);
   const [page, setPage] = useState(Math.min(start, pages.length - 1));
-  const scroller = useRef<ScrollView>(null);
+  const scroller = useRef<ComponentRef<typeof ScrollView>>(null);
   const placed = useRef(false);
   return (
     <View
