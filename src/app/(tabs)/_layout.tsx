@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { haptic } from '@/lib/haptics';
 import { useSession } from '@/lib/session';
+import { GossipPrompt } from '@/components/gossip-prompt';
 import { useStatuses } from '@/lib/status';
 import { fonts, useTheme } from '@/theme';
 
@@ -25,6 +26,7 @@ export default function TabsLayout() {
   const { cid, uid, partnerId } = useSession();
   const { unreadNotes } = useStatuses(cid, uid, partnerId);
   return (
+    <>
     <Tabs
       screenListeners={{ tabPress: () => haptic.tap() }}
       screenOptions={{
@@ -68,5 +70,7 @@ export default function TabsLayout() {
         options={{ title: 'Their day', tabBarItemStyle: { display: 'none' }, tabBarIcon: ({ color }) => <HeartHandshake color={color} size={24} /> }}
       />
     </Tabs>
+    <GossipPrompt />
+    </>
   );
 }

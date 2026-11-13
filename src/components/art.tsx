@@ -81,33 +81,34 @@ export function PageWash({ height = 320 }: { height?: number }) {
 }
 
 /**
- * Modern look: soft ambient light behind the top of each page. Two faint
- * glows (rose and a cool blue) that fade into the background. Still, quiet,
- * and never behind text at full strength.
+ * Modern look: a soft, blurred colour wash behind the whole page (iOS 26
+ * style) for the glass widgets to float over. Pastel blooms of rose, lilac,
+ * sky and peach that drift down the page; quiet, and calmer in dark mode.
  */
 function Ambient() {
   const { c, dark } = useTheme();
-  const strength = dark ? 0.2 : 0.42;
+  const k = dark ? 0.22 : 0.55;
+  const blooms: { id: string; cx: number; cy: number; rx: number; ry: number; color: string; o: number }[] = [
+    { id: 'rose', cx: 92, cy: 2, rx: 62, ry: 26, color: dark ? '#FF5C8D' : '#FFB3C9', o: 1 },
+    { id: 'sky', cx: 4, cy: 8, rx: 58, ry: 24, color: dark ? '#5B6CFF' : '#B8C8FF', o: 0.95 },
+    { id: 'lilac', cx: 96, cy: 46, rx: 56, ry: 26, color: dark ? '#8B5CF6' : '#D9C6FF', o: 0.9 },
+    { id: 'peach', cx: 2, cy: 64, rx: 54, ry: 24, color: dark ? '#FF8A5B' : '#FFD7BF', o: 0.85 },
+    { id: 'mint', cx: 70, cy: 96, rx: 60, ry: 22, color: dark ? '#22C59A' : '#C8F1E1', o: 0.8 },
+  ];
   return (
-    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 420, overflow: 'hidden', pointerEvents: 'none' }}>
-      <Svg width="100%" height={420} preserveAspectRatio="none" viewBox="0 0 100 100">
+    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', pointerEvents: 'none', backgroundColor: c.bg }}>
+      <Svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100">
         <Defs>
-          <RadialGradient id="glow-rose" cx="88" cy="-6" rx="70" ry="62" fx="88" fy="-6" gradientUnits="userSpaceOnUse">
-            <Stop offset="0" stopColor={c.ring} stopOpacity={strength} />
-            <Stop offset="1" stopColor={c.ring} stopOpacity="0" />
-          </RadialGradient>
-          <RadialGradient id="glow-cool" cx="6" cy="4" rx="64" ry="58" fx="6" fy="4" gradientUnits="userSpaceOnUse">
-            <Stop offset="0" stopColor={dark ? '#5B6CFF' : '#9DB4FF'} stopOpacity={strength * 0.85} />
-            <Stop offset="1" stopColor={dark ? '#5B6CFF' : '#9DB4FF'} stopOpacity="0" />
-          </RadialGradient>
-          <LinearGradient id="glow-fade" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0.55" stopColor={c.bg} stopOpacity="0" />
-            <Stop offset="1" stopColor={c.bg} stopOpacity="1" />
-          </LinearGradient>
+          {blooms.map((b) => (
+            <RadialGradient key={b.id} id={`bloom-${b.id}`} cx={b.cx} cy={b.cy} rx={b.rx} ry={b.ry} fx={b.cx} fy={b.cy} gradientUnits="userSpaceOnUse">
+              <Stop offset="0" stopColor={b.color} stopOpacity={k * b.o} />
+              <Stop offset="1" stopColor={b.color} stopOpacity="0" />
+            </RadialGradient>
+          ))}
         </Defs>
-        <Rect x="0" y="0" width="100" height="100" fill="url(#glow-cool)" />
-        <Rect x="0" y="0" width="100" height="100" fill="url(#glow-rose)" />
-        <Rect x="0" y="0" width="100" height="100" fill="url(#glow-fade)" />
+        {blooms.map((b) => (
+          <Rect key={b.id} x="0" y="0" width="100" height="100" fill={`url(#bloom-${b.id})`} />
+        ))}
       </Svg>
     </View>
   );

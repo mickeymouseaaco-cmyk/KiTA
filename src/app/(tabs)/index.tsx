@@ -12,7 +12,7 @@ import { MyStatusPage, PartnerStatusPage } from '@/components/status-stack';
 import { TekaTekiCard } from '@/components/teka-teki-card';
 import { VividAction, type BurstHandle } from '@/components/vivid';
 import { StoredPrivateImage } from '@/components/media-view';
-import { SmartStack, StackPage, WIDGET_GAP, Widget, WidgetCaption, WidgetRing, WidgetRow, WidgetValue } from '@/components/widgets';
+import { SmartStack, StackPage, WIDGET_GAP, Widget, WidgetCaption, WidgetRing, WidgetRow, WidgetValue, tintOf } from '@/components/widgets';
 import { DaySwitch, TopBar } from '@/components/headers';
 import { Button, Row, Screen, T } from '@/components/ui';
 import { STRESS_LABELS, gentleError, greeting, streakLine, summaryLine } from '@/lib/copy';
@@ -43,7 +43,7 @@ function streak(days: Record<string, unknown>, keys: string[]): number {
 }
 
 export default function Today() {
-  const { c, look } = useTheme();
+  const { c, dark, look } = useTheme();
   const who = usePaired();
   const { uid, cid, partnerId, myName, partnerName, profile } = who;
   const { toast } = useFeedback();
@@ -153,12 +153,12 @@ export default function Today() {
         <StackPage fill="amber" testID="open-question" onPress={() => router.push('/question')} accessibilityLabel={`Question of the day: ${question.text}`}>
           <WidgetCaption icon={MessageCircleHeart} label="Question of the day" fill="amber" />
           <View style={{ flex: 1, justifyContent: 'center' }}>
-            <T variant="heading" color="#FFFFFF" numberOfLines={3} style={{ fontSize: 19, lineHeight: 24 }}>
+            <T variant="heading" color={c.text} numberOfLines={3} style={{ fontSize: 19, lineHeight: 24 }}>
               {question.text}
             </T>
           </View>
-          <Row style={{ alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 }}>
-            <T testID="question-status" variant="bodyStrong" color="#FFFFFF" style={{ fontSize: 13, lineHeight: 17 }}>
+          <Row style={{ alignSelf: 'flex-start', backgroundColor: c.surfaceAlt, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 }}>
+            <T testID="question-status" variant="bodyStrong" color={c.text} style={{ fontSize: 13, lineHeight: 17 }}>
               {qStatus === 'both'
                 ? 'You both answered. Tap to see.'
                 : qStatus === 'partner-waiting'
@@ -201,28 +201,28 @@ export default function Today() {
       {/* Steps and mood: two small widgets. */}
       <WidgetRow>
         <Widget size="small" fill="green" testID="log-steps" onPress={() => router.push('/log-steps')} accessibilityLabel={`Steps today: ${(day?.steps ?? 0).toLocaleString()} of ${goal.toLocaleString()}. Log steps`}>
-          <WidgetCaption icon={Footprints} label="Steps" fill="green" right={share?.steps ? <Eye color="rgba(255,255,255,0.85)" size={13} /> : <Lock color="rgba(255,255,255,0.85)" size={12} />} />
+          <WidgetCaption icon={Footprints} label="Steps" fill="green" right={share?.steps ? <Eye color={c.textMuted} size={13} /> : <Lock color={c.textMuted} size={12} />} />
           <View style={{ flex: 1, justifyContent: 'center' }}>
-            <WidgetRing pct={stepsPct} size={58} stroke={8}>
-              <T variant="bodyStrong" color="#FFFFFF" style={{ fontSize: 13, lineHeight: 16 }}>
+            <WidgetRing pct={stepsPct} size={58} stroke={8} color={tintOf('green', dark)} track={`${vivid.green[0]}33`}>
+              <T variant="bodyStrong" color={c.text} style={{ fontSize: 13, lineHeight: 16 }}>
                 {Math.round(Math.min(1, stepsPct) * 100)}%
               </T>
             </WidgetRing>
           </View>
-          <WidgetValue color="#FFFFFF" size={26}>
+          <WidgetValue color={c.text} size={26}>
             {(day?.steps ?? 0).toLocaleString()}
           </WidgetValue>
-          <T color="rgba(255,255,255,0.85)" numberOfLines={1} variant="small" style={{ fontSize: 12, lineHeight: 15 }}>
+          <T color={c.textMuted} numberOfLines={1} variant="small" style={{ fontSize: 12, lineHeight: 15 }}>
             of {goal.toLocaleString()}
           </T>
         </Widget>
         <Widget size="small" fill="amber" testID={day?.mood ? 'open-mood' : 'log-mood'} onPress={() => router.push('/log-mood')} accessibilityLabel={day?.mood ? `Mood: ${day.mood.label}. Update` : 'Check in your mood'}>
-          <WidgetCaption icon={Smile} label="Mood" fill="amber" right={share?.mood ? <Eye color="rgba(255,255,255,0.85)" size={13} /> : <Lock color="rgba(255,255,255,0.85)" size={12} />} />
+          <WidgetCaption icon={Smile} label="Mood" fill="amber" right={share?.mood ? <Eye color={c.textMuted} size={13} /> : <Lock color={c.textMuted} size={12} />} />
           {day?.mood ? (
             <>
               <View style={{ flex: 1, justifyContent: 'center' }}>
                 {day.mood.media?.type === 'photo' ? (
-                  <View style={{ width: 58, height: 58, borderRadius: 29, overflow: 'hidden', borderWidth: 2, borderColor: '#FFFFFF' }}>
+                  <View style={{ width: 58, height: 58, borderRadius: 29, overflow: 'hidden', borderWidth: 2, borderColor: c.surface }}>
                     <StoredPrivateImage path={day.mood.media.path} size={54} alt="Your mood selfie" />
                   </View>
                 ) : (
@@ -231,20 +231,20 @@ export default function Today() {
                   </T>
                 )}
               </View>
-              <T testID="my-mood" variant="heading" color="#FFFFFF" numberOfLines={1} style={{ fontSize: 20, lineHeight: 24 }}>
+              <T testID="my-mood" variant="heading" color={c.text} numberOfLines={1} style={{ fontSize: 20, lineHeight: 24 }}>
                 {day.mood.label}
               </T>
-              <T color="rgba(255,255,255,0.88)" numberOfLines={1} variant="small" style={{ fontSize: 12, lineHeight: 15 }}>
+              <T color={c.textMuted} numberOfLines={1} variant="small" style={{ fontSize: 12, lineHeight: 15 }}>
                 Stress: {STRESS_LABELS[day.mood.stress].toLowerCase()}
               </T>
             </>
           ) : (
             <>
               <View style={{ flex: 1 }} />
-              <T variant="heading" color="#FFFFFF" style={{ fontSize: 20, lineHeight: 24 }}>
+              <T variant="heading" color={c.text} style={{ fontSize: 20, lineHeight: 24 }}>
                 How are you?
               </T>
-              <T color="rgba(255,255,255,0.88)" variant="small" style={{ fontSize: 12, lineHeight: 15 }}>
+              <T color={c.textMuted} variant="small" style={{ fontSize: 12, lineHeight: 15 }}>
                 Tap to check in
               </T>
             </>
@@ -253,10 +253,10 @@ export default function Today() {
       </WidgetRow>
 
       {/* Us: how today is going, and a word from your partner. */}
-      <Widget fill="surface" style={{ marginBottom: WIDGET_GAP }} onPress={() => router.push('/their-day')} accessibilityLabel={`Today. ${partnerLine ? `${partnerName}: ${partnerLine}` : `Nothing from ${partnerName} yet today.`} Open ${partnerName}’s day`}>
+      <Widget fill="pink" style={{ marginBottom: WIDGET_GAP }} onPress={() => router.push('/their-day')} accessibilityLabel={`Today. ${partnerLine ? `${partnerName}: ${partnerLine}` : `Nothing from ${partnerName} yet today.`} Open ${partnerName}’s day`}>
         <Row gap={space.md} style={{ alignItems: 'center', flex: 1 }}>
           <View style={{ flex: 1, gap: 4 }}>
-            <WidgetCaption icon={Heart} label="Today" color={c.heart} />
+            <WidgetCaption icon={Heart} label="Today" fill="pink" />
             <T testID="summary-line" variant="heading" style={{ fontSize: 18, lineHeight: 23 }}>
               {ready ? summaryLine(day?.steps, day?.mood?.stress) : ' '}
             </T>
@@ -275,15 +275,15 @@ export default function Today() {
 
       {/* To-dos and meals. */}
       <WidgetRow>
-        <Widget size="small" fill="surface" testID="open-todos" onPress={() => router.push('/todos')} accessibilityLabel={`To-dos today: ${openTodos.length} left. Open`}>
-          <WidgetCaption icon={ListChecks} label="To-dos" color={vivid.blue[1]} />
+        <Widget size="small" fill="blue" testID="open-todos" onPress={() => router.push('/todos')} accessibilityLabel={`To-dos today: ${openTodos.length} left. Open`}>
+          <WidgetCaption icon={ListChecks} label="To-dos" fill="blue" />
           <WidgetValue color={c.text} size={30}>
             {todosReady ? openTodos.length : ' '}
           </WidgetValue>
           <View style={{ flex: 1, gap: 5, marginTop: 2 }}>
             {openTodos.slice(0, 2).map((t) => (
               <Row key={t.id} gap={6}>
-                <Circle color={vivid.blue[1]} size={13} strokeWidth={2.4} />
+                <Circle color={tintOf('blue', dark)} size={13} strokeWidth={2.4} />
                 <T numberOfLines={1} style={{ flex: 1, fontSize: 13, lineHeight: 17 }}>
                   {t.text}
                 </T>
@@ -297,17 +297,17 @@ export default function Today() {
           </View>
         </Widget>
         <Widget size="small" fill="orange" testID="add-meal" onPress={() => setMealOpen(true)} accessibilityLabel={`Meals today: ${mealsToday.length}. Add one`}>
-          <WidgetCaption icon={UtensilsCrossed} label="Meals" fill="orange" right={share?.food ? <Eye color="rgba(255,255,255,0.85)" size={13} /> : <Lock color="rgba(255,255,255,0.85)" size={12} />} />
-          <WidgetValue color="#FFFFFF" size={30}>
+          <WidgetCaption icon={UtensilsCrossed} label="Meals" fill="orange" right={share?.food ? <Eye color={c.textMuted} size={13} /> : <Lock color={c.textMuted} size={12} />} />
+          <WidgetValue color={c.text} size={30}>
             {mealsToday.length}
           </WidgetValue>
           <View style={{ flex: 1 }}>
-            <T color="rgba(255,255,255,0.92)" numberOfLines={3} variant="small" style={{ fontSize: 13, lineHeight: 17 }}>
+            <T color={c.textMuted} numberOfLines={3} variant="small" style={{ fontSize: 13, lineHeight: 17 }}>
               {lastMeal ? `Last: ${lastMeal.text}` : 'Nothing logged yet. Tap to add.'}
             </T>
           </View>
-          <Row style={{ alignSelf: 'flex-end', width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.28)', alignItems: 'center', justifyContent: 'center' }}>
-            <Plus color="#FFFFFF" size={17} strokeWidth={2.8} />
+          <Row style={{ alignSelf: 'flex-end', width: 28, height: 28, borderRadius: 14, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+            <Plus color={tintOf('orange', dark)} size={17} strokeWidth={2.8} />
           </Row>
         </Widget>
       </WidgetRow>
@@ -320,28 +320,28 @@ export default function Today() {
         <Widget size="small" fill="teal" testID="open-find" onPress={() => router.push('/find')} accessibilityLabel={`Find ${partnerName}`}>
           <WidgetCaption icon={MapPin} label="Find" fill="teal" />
           <View style={{ flex: 1, justifyContent: 'center' }}>
-            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' }}>
-              <Navigation color="#FFFFFF" fill="#FFFFFF" size={22} />
+            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+              <Navigation color={tintOf('teal', dark)} fill={tintOf('teal', dark)} size={22} />
             </View>
           </View>
-          <T variant="heading" color="#FFFFFF" numberOfLines={1} style={{ fontSize: 18, lineHeight: 22 }}>
+          <T variant="heading" color={c.text} numberOfLines={1} style={{ fontSize: 18, lineHeight: 22 }}>
             {partnerName}
           </T>
-          <T color="rgba(255,255,255,0.88)" numberOfLines={2} variant="small" style={{ fontSize: 12, lineHeight: 15 }}>
+          <T color={c.textMuted} numberOfLines={2} variant="small" style={{ fontSize: 12, lineHeight: 15 }}>
             See where you both are
           </T>
         </Widget>
         <Widget size="small" fill="violet" testID="open-calm" onPress={() => router.push('/calm')} accessibilityLabel="Calm Corner: breathe, soft sounds, or a private vent">
           <WidgetCaption icon={Wind} label="Calm Corner" fill="violet" />
           <View style={{ flex: 1, justifyContent: 'center' }}>
-            <View style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)', alignItems: 'center', justifyContent: 'center' }}>
-              <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.45)' }} />
+            <View style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 2, borderColor: tintOf('violet', dark), alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: `${tintOf('violet', dark)}55` }} />
             </View>
           </View>
-          <T variant="heading" color="#FFFFFF" numberOfLines={1} style={{ fontSize: 18, lineHeight: 22 }}>
+          <T variant="heading" color={c.text} numberOfLines={1} style={{ fontSize: 18, lineHeight: 22 }}>
             Breathe
           </T>
-          <T color="rgba(255,255,255,0.88)" numberOfLines={2} variant="small" style={{ fontSize: 12, lineHeight: 15 }}>
+          <T color={c.textMuted} numberOfLines={2} variant="small" style={{ fontSize: 12, lineHeight: 15 }}>
             Two calm minutes
           </T>
         </Widget>
@@ -351,13 +351,13 @@ export default function Today() {
         <Widget fill="pink" style={{ marginBottom: WIDGET_GAP }} onPress={() => router.push('/cycle')} accessibilityLabel={`${PHASE_LABEL[cycle.phase]}, day ${cycle.day}. Open your cycle`}>
           <WidgetCaption icon={CalendarHeart} label="Cycle" fill="pink" />
           <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-            <WidgetValue color="#FFFFFF" size={28}>
+            <WidgetValue color={c.text} size={28}>
               Day {cycle.day}
             </WidgetValue>
-            <T variant="bodyStrong" color="#FFFFFF" style={{ fontSize: 15, lineHeight: 19 }}>
+            <T variant="bodyStrong" color={c.text} style={{ fontSize: 15, lineHeight: 19 }}>
               {PHASE_LABEL[cycle.phase]}
             </T>
-            <T color="rgba(255,255,255,0.88)" numberOfLines={2} style={{ fontSize: 12, lineHeight: 16, fontWeight: '600' }}>
+            <T color={c.textMuted} numberOfLines={2} style={{ fontSize: 12, lineHeight: 16, fontWeight: '600' }}>
               {predictionLine(cycle)}
               {cycle.symptoms.length ? ` · ${cycle.symptoms.join(', ').toLowerCase()}` : ''}
             </T>
@@ -368,18 +368,18 @@ export default function Today() {
       {/* The evening check-in comes out in the evening (or once you've answered). */}
       {evening || answered ? (
         <Widget fill="ink" style={{ marginBottom: WIDGET_GAP }} testID="open-checkin" onPress={() => router.push('/check-in')} accessibilityLabel={answered ? 'See tonight’s moment' : 'Evening check-in: answer'}>
-          <WidgetCaption icon={Moon} label="Evening check-in" fill="ink" color="#C9B8FF" />
+          <WidgetCaption icon={Moon} label="Evening check-in" fill="ink" />
           <View style={{ flex: 1, justifyContent: 'flex-end', gap: 4 }}>
             {answered ? (
-              <T testID="checkin-summary" color="#FFFFFF" numberOfLines={2} variant="heading" style={{ fontSize: 17, lineHeight: 22 }}>
+              <T testID="checkin-summary" color={c.text} numberOfLines={2} variant="heading" style={{ fontSize: 17, lineHeight: 22 }}>
                 {day?.checkIn?.text ? `\u201C${day.checkIn.text}\u201D` : 'You saved a voice moment tonight.'}
               </T>
             ) : (
-              <T color="#FFFFFF" variant="heading" style={{ fontSize: 17, lineHeight: 22 }}>
+              <T color={c.text} variant="heading" style={{ fontSize: 17, lineHeight: 22 }}>
                 What was one good moment today?
               </T>
             )}
-            <T color="rgba(255,255,255,0.7)" style={{ fontSize: 12, lineHeight: 16, fontWeight: '600' }}>
+            <T color={c.textMuted} style={{ fontSize: 12, lineHeight: 16, fontWeight: '600' }}>
               {answered ? 'Tap to see tonight’s moment' : 'Tap to answer'}
             </T>
           </View>

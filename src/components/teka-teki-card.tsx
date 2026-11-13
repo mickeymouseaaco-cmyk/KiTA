@@ -59,7 +59,7 @@ export function TekaTekiCard() {
   }
 
   return (
-    <Widget fill="surface" style={{ marginBottom: WIDGET_GAP }}>
+    <Widget fill="violet" style={{ marginBottom: WIDGET_GAP }}>
       <View testID="teka-teki" accessibilityLanguage="ms">
         <Row gap={space.sm}>
           <VividSquare color="violet" size={26} radius={8}>
