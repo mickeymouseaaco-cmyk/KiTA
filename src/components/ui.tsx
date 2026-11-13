@@ -79,8 +79,8 @@ export function Screen({
   const inner = [styles.screenContent, contentStyle];
   return (
     <SafeAreaView edges={edges} style={{ flex: 1, backgroundColor: c.bg }}>
-      {/* Modern look: the ambient light belongs to top-level pages; pages under a title bar stay plain. */}
-      {look.flat && !edges.includes('top') ? null : <PageWash />}
+      {/* The soft pastel wash sits behind every page, for the glass cards to float over. */}
+      <PageWash />
       {scroll ? (
         <ScrollView contentContainerStyle={inner} keyboardShouldPersistTaps="handled">
           <PageEnter style={styles.maxWidth}>{children}</PageEnter>
@@ -93,6 +93,12 @@ export function Screen({
       {footer}
     </SafeAreaView>
   );
+}
+
+/** A tone colour as see-through glass (a #rrggbb colour at about two-thirds strength). */
+function glassTint(hex: string, dark: boolean): string {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return hex;
+  return `${hex}${dark ? '9E' : 'A8'}`;
 }
 
 export function Card({
@@ -123,9 +129,14 @@ export function Card({
         { backgroundColor: bg, borderColor: c.border, borderRadius: look.cardRadius },
         look.flat
           ? {
+              // Modern look: frosted glass over the page's pastel wash; tones tint the glass.
+              backgroundColor: tone === 'surface' ? (dark ? 'rgba(34,32,44,0.62)' : 'rgba(255,255,255,0.66)') : glassTint(bg, dark),
+              ...(Platform.OS === 'web' ? ({ backdropFilter: 'blur(22px) saturate(170%)', WebkitBackdropFilter: 'blur(22px) saturate(170%)' } as ViewStyle) : null),
+              borderRadius: 24,
+              borderCurve: 'continuous',
               borderWidth: 1,
-              borderColor: dark ? 'rgba(255, 255, 255, 0.09)' : 'rgba(12, 14, 28, 0.07)',
-              boxShadow: dark ? 'inset 0px 1px 0px rgba(255, 255, 255, 0.05)' : '0px 1px 2px rgba(16, 18, 30, 0.04), 0px 10px 28px rgba(16, 18, 30, 0.06)',
+              borderColor: dark ? 'rgba(255, 255, 255, 0.09)' : 'rgba(255, 255, 255, 0.85)',
+              boxShadow: dark ? '0px 10px 30px rgba(0,0,0,0.32)' : '0px 1px 2px rgba(72,52,110,0.05), 0px 10px 30px rgba(72,52,110,0.09)',
             }
           : look.outlined
           ? { borderWidth: look.cardBorder, borderColor: c.text, boxShadow: `4px 4px 0px ${c.primary}` }

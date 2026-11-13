@@ -631,6 +631,16 @@ async function main() {
   await afiq.locator(tid('offline-pill')).waitFor({ state: 'detached', timeout: 10000 });
   await aina.getByText(offlineNote).first().waitFor({ timeout: 20000 });
   log('Offline: pill shows, a note sends at once and arrives when back online');
+  for (const [path, name, id] of [
+    ['/together', '15-glass-together', null],
+    ['/trip', '15-glass-trips', null],
+    ['/settings', '15-glass-settings', null],
+    ['/their-day', '15-glass-their-day', null],
+  ]) {
+    await afiq.goto(BASE + path);
+    await afiq.waitForTimeout(1800);
+    await shot(afiq, name);
+  }
 
   // 5. Look & feel: every style, a few colours, light and dark.
   await afiq.goto(BASE + '/appearance');
