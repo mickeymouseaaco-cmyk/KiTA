@@ -21,14 +21,21 @@ export function isOnline(): boolean {
 /** Live online/offline state, for the little "offline" pill. */
 export function useOnline(): boolean {
   const [online, setOnline] = useState(isOnline);
-  useEffect(
-    () =>
-      NetInfo.addEventListener((s) => {
-        // isInternetReachable is null while unknown; only trust a clear "no".
-        setOnline(!(s.isConnected === false || s.isInternetReachable === false));
-      }),
-    [],
-  );
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      // The browser's own signal: it doesn't depend on reaching any test site,
+      // which some networks block (that would leave the pill stuck on).
+      if (typeof window === 'undefined') return;
+      const update = () => setOnline(isOnline());
+      window.addEventListener('online', update);
+      window.addEventListener('offline', update);
+      return () => {
+        window.removeEventListener('online', update);
+        window.removeEventListener('offline', update);
+      };
+    }
+    return NetInfo.addEventListener((s) => setOnline(s.isConnected !== false));
+  }, []);
   return online;
 }
 
