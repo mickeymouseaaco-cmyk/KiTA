@@ -3,8 +3,8 @@
  *
  * Media is never uploaded until the user sends it (a love note) or adds it to a
  * shared space (Memory Jar). When they do, a job is queued here:
- *   1. On native, each file is copied into the app's document folder so it
- *      survives restarts. On web, the queue is in memory only.
+ *   1. Each file is kept on the device so it survives closing the app: on
+ *      native in the app's document folder, on the web in IndexedDB.
  *   2. Each file is uploaded to Cloud Storage (with progress).
  *   3. One batch writes the media docs and the note/memory that uses them, so
  *      the partner never sees a half-sent item.
@@ -18,6 +18,7 @@ import { ref, uploadBytesResumable } from 'firebase/storage';
 import { Platform } from 'react-native';
 
 import { db, storage } from './firebase';
+import { webStore } from './web-store';
 import { reprojectDay } from './logs';
 import { care } from './together-data';
 import type { MediaType, MessageKind } from './types';
@@ -74,6 +75,8 @@ export type OutboxJob = {
 
 const STORAGE_KEY = 'together.outbox.v1';
 const persistent = Platform.OS !== 'web';
+const web = Platform.OS === 'web';
+const fileKey = (uri: string) => `outbox-file:${uri}`;
 
 let jobs: OutboxJob[] = [];
 let loaded = false;
@@ -88,6 +91,10 @@ function emit() {
 }
 
 async function save() {
+  if (web) {
+    await webStore.set(STORAGE_KEY, jobs.map((j) => ({ ...j, state: 'waiting', progress: 0 })));
+    return;
+  }
   if (!persistent) return;
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(jobs.map((j) => ({ ...j, state: 'waiting', progress: 0 }))));
 }
@@ -98,7 +105,55 @@ function outboxDir(): Directory {
   return dir;
 }
 
+/** Web: keep the file's bytes in IndexedDB under its current address, so it can be rebuilt after a restart. */
+async function keepWebCopy(file: OutboxFile): Promise<OutboxFile> {
+  for (const uri of [file.localUri, file.thumbUri]) {
+    if (!uri) continue;
+    try {
+      const blob = await (await fetch(uri)).blob();
+      await webStore.set(fileKey(uri), blob);
+    } catch {
+      // It stays in memory only, as before.
+    }
+  }
+  return file;
+}
+
+/** Web, after a restart: the old blob: addresses are gone, so make new ones from the saved bytes. */
+async function restoreWebFiles(list: OutboxJob[]): Promise<OutboxJob[]> {
+  const out: OutboxJob[] = [];
+  for (const job of list) {
+    const files: OutboxFile[] = [];
+    let ok = true;
+    for (const f of job.files) {
+      if (f.uploaded && (!f.thumbUri || f.thumbUploaded)) {
+        files.push(f);
+        continue;
+      }
+      const blob = await webStore.get<Blob>(fileKey(f.localUri));
+      if (!blob) {
+        ok = false;
+        break;
+      }
+      const thumb = f.thumbUri ? await webStore.get<Blob>(fileKey(f.thumbUri)) : undefined;
+      const localUri = URL.createObjectURL(blob);
+      const thumbUri = thumb ? URL.createObjectURL(thumb) : undefined;
+      // Re-key the saved bytes under the new addresses.
+      await webStore.set(fileKey(localUri), blob);
+      await webStore.remove(fileKey(f.localUri));
+      if (thumb && thumbUri && f.thumbUri) {
+        await webStore.set(fileKey(thumbUri), thumb);
+        await webStore.remove(fileKey(f.thumbUri));
+      }
+      files.push({ ...f, localUri, thumbUri: thumbUri ?? f.thumbUri });
+    }
+    if (ok) out.push({ ...job, files, state: 'waiting', progress: 0 });
+  }
+  return out;
+}
+
 async function keepLocalCopy(file: OutboxFile): Promise<OutboxFile> {
+  if (web) return keepWebCopy(file);
   if (!persistent) return file;
   try {
     const dest = new File(outboxDir(), `${file.mediaId}.${file.ext}`);
@@ -116,6 +171,11 @@ async function keepLocalCopy(file: OutboxFile): Promise<OutboxFile> {
 }
 
 function removeLocalCopy(file: OutboxFile) {
+  if (web) {
+    void webStore.remove(fileKey(file.localUri));
+    if (file.thumbUri) void webStore.remove(fileKey(file.thumbUri));
+    return;
+  }
   if (!persistent || !file.localUri.includes('/outbox/')) return;
   for (const uri of [file.localUri, file.thumbUri]) {
     try {
@@ -138,7 +198,10 @@ export const outbox = {
   async load() {
     if (loaded) return;
     loaded = true;
-    if (persistent) {
+    if (web) {
+      const saved = await webStore.get<OutboxJob[]>(STORAGE_KEY);
+      if (saved?.length) jobs = [...(await restoreWebFiles(saved)), ...jobs];
+    } else if (persistent) {
       try {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
         if (raw) jobs = JSON.parse(raw) as OutboxJob[];

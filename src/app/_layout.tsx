@@ -11,6 +11,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
+import { OfflinePill } from '@/components/offline-pill';
 import { CelebrateProvider } from '@/components/celebrate';
 import { FeedbackProvider } from '@/components/feedback';
 import { IncomingLove, LockScreen, SurpriseWatcher } from '@/components/overlays';
@@ -135,6 +136,7 @@ function Navigator() {
       <SurpriseWatcher />
       <LockScreen />
       <StatusBarShade />
+      <OfflinePill />
     </ThemeProvider>
   );
 }

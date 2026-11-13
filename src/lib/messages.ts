@@ -16,6 +16,7 @@ import {
 import { useEffect, useState } from 'react';
 
 import { db } from './firebase';
+import { localFirst } from './offline';
 import { deleteMedia } from './media';
 import { care } from './together-data';
 import type { Media, Message, MessageKind } from './types';
@@ -30,29 +31,39 @@ export async function sendText(
   kind: Extract<MessageKind, 'text' | 'quick'> = 'text',
   opts: { important?: boolean } = {},
 ) {
-  const body = text.trim();
-  if (!body) return;
-  await setDoc(doc(messagesCol(ctx.cid)), {
-    fromUid: ctx.uid,
-    toUid: ctx.partnerId,
-    kind,
-    text: body.slice(0, 2000),
-    favoriteBy: [],
-    ...(opts.important ? { important: true, importantBy: ctx.uid } : null),
-    createdAt: serverTimestamp(),
-  });
-  void care(ctx);
+  // Saved on the phone first; syncs when online (see lib/offline).
+  await localFirst(
+    (async () => {
+      const body = text.trim();
+      if (!body) return;
+      await setDoc(doc(messagesCol(ctx.cid)), {
+        fromUid: ctx.uid,
+        toUid: ctx.partnerId,
+        kind,
+        text: body.slice(0, 2000),
+        favoriteBy: [],
+        ...(opts.important ? { important: true, importantBy: ctx.uid } : null),
+        createdAt: serverTimestamp(),
+      });
+      void care(ctx);
+    })(),
+  );
 }
 
 export async function sendHug(ctx: Ctx) {
-  await setDoc(doc(messagesCol(ctx.cid)), {
-    fromUid: ctx.uid,
-    toUid: ctx.partnerId,
-    kind: 'hug',
-    favoriteBy: [],
-    createdAt: serverTimestamp(),
-  });
-  void care(ctx);
+  // Saved on the phone first; syncs when online (see lib/offline).
+  await localFirst(
+    (async () => {
+      await setDoc(doc(messagesCol(ctx.cid)), {
+        fromUid: ctx.uid,
+        toUid: ctx.partnerId,
+        kind: 'hug',
+        favoriteBy: [],
+        createdAt: serverTimestamp(),
+      });
+      void care(ctx);
+    })(),
+  );
 }
 
 export async function toggleFavorite(cid: string, uid: string, m: Message) {
