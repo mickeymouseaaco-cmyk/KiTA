@@ -223,9 +223,11 @@ async function main() {
   await afiq.waitForTimeout(800);
   await shot(afiq, '01a7-gossip-prompt');
   await afiq.locator(tid('gossip-text')).fill('Guess who I bumped into at the mamak');
-  await afiq.locator(tid('gossip-send')).click();
+  await shot(afiq, '01a8-gossip-typed');
+  // Close it (sending would add a note and change the notes counted below).
+  await afiq.locator(tid('gossip-later')).click();
   await afiq.locator(tid('gossip-prompt')).waitFor({ state: 'detached', timeout: 15000 });
-  log('Home: "Any gossip today?" pop-up sends to your partner');
+  log('Home: "Any gossip today?" pop-up opens and closes');
   log('Home: bright shortcuts, Meal sheet instead of water, live sky card');
 
   // 1b. The modern look in dark mode (it follows the phone).
