@@ -12,7 +12,7 @@ import { haptic } from '@/lib/haptics';
 import { useTheme, vivid, type VividName } from '@/theme';
 
 import { T, focusRing } from './ui';
-import { glassStyle, tintOf } from './widgets';
+import { glassStyle } from './widgets';
 
 const ND = Platform.OS !== 'web';
 
@@ -146,7 +146,7 @@ export const VividAction = forwardRef<
             },
           ]}>
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: vivid[color][0], opacity: dark ? 0.16 : 0.2 }} />
-          <Icon color={tintOf(color, dark)} size={Math.round(size * 0.42)} strokeWidth={2.2} />
+          <Icon color={dark ? vivid[color][0] : vivid[color][1]} size={Math.round(size * 0.42)} strokeWidth={2.2} />
         </View>
       </Animated.View>
       <T variant="bodyStrong" numberOfLines={1} style={{ fontSize: 12, lineHeight: 16 }}>

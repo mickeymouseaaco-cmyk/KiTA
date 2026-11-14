@@ -10,7 +10,7 @@ import { Animated, Platform, Pressable, ScrollView, View, type StyleProp, type V
 import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { haptic } from '@/lib/haptics';
-import { useTheme, vivid, type VividName } from '@/theme';
+import { useTheme, type VividName } from '@/theme';
 
 import { Row, T } from './ui';
 
@@ -18,14 +18,30 @@ const ND = Platform.OS !== 'web';
 export const WIDGET_RADIUS = 28;
 export const WIDGET_GAP = 14;
 
-/** 'surface' is untinted glass; a vivid name tints the glass with that colour. */
+/** 'surface' is light glass; any other fill is a deep, rich colour with white text (like iOS widgets). */
 export type WidgetFill = VividName | 'surface' | 'ink';
 
-/** The deeper shade of a tint, for icons, rings and small accents. */
+/** Deep widget colours, top-left to bottom-right: brick, gold, charcoal, navy… */
+export const DEEP: Record<Exclude<WidgetFill, 'surface'>, [string, string]> = {
+  pink: ['#C4534B', '#A33C35'], // brick red (Spotify-style)
+  orange: ['#E0773F', '#C65A2A'],
+  amber: ['#F5C451', '#EDAE2C'], // gold (Tips-style)
+  green: ['#2F9467', '#1F7650'],
+  teal: ['#24807A', '#17605C'],
+  blue: ['#33406E', '#232C52'], // navy (Weather-style)
+  violet: ['#4A3F86', '#332B66'],
+  ink: ['#2E2E33', '#1B1B1F'], // charcoal (Calendar-style)
+};
+
+/** A small accent colour for captions, icons and rings on each fill. */
 export function tintOf(fill: WidgetFill, dark = false): string {
   if (fill === 'surface') return dark ? '#C9C3D6' : '#6B6478';
-  if (fill === 'ink') return dark ? '#B9A8FF' : '#6F5BD8';
-  return dark ? vivid[fill][0] : vivid[fill][1];
+  return { pink: '#FFD2CC', orange: '#FFE0C7', amber: '#FFFFFF', green: '#B8F5D3', teal: '#B5F1EC', blue: '#C7D2FF', violet: '#D9D0FF', ink: '#FF5F57' }[fill];
+}
+
+/** Text on a fill: white on the deep colours, the theme's own on light glass. */
+export function textOn(fill: WidgetFill, c: { text: string; textMuted: string }) {
+  return fill === 'surface' ? { strong: c.text, soft: c.textMuted } : { strong: '#FFFFFF', soft: 'rgba(255,255,255,0.78)' };
 }
 
 /** Frosted glass (web blurs what's behind; elsewhere it's a soft translucent sheet). */
@@ -38,28 +54,27 @@ export function glassStyle(dark: boolean): ViewStyle {
 
 let gradientCount = 0;
 
-/** The tile's background: glass, washed with a faint pastel tint and a highlight along the top. */
+/** The tile's background: light glass, or a deep colour with a soft sheen along the top. */
 function Fill({ fill }: { fill: WidgetFill }) {
   const { dark } = useTheme();
   const [id] = useState(() => `wg-${++gradientCount}`);
-  const tint = fill === 'surface' ? null : fill === 'ink' ? '#8B7CF6' : vivid[fill][0];
+  if (fill === 'surface') return <View style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }, glassStyle(dark)]} />;
+  const [a, b] = DEEP[fill];
   return (
-    <View style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }, glassStyle(dark)]}>
-      <Svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }} preserveAspectRatio="none">
-        <Defs>
-          <LinearGradient id={`${id}-t`} x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor={tint ?? '#FFFFFF'} stopOpacity={tint ? (dark ? 0.2 : 0.26) : 0} />
-            <Stop offset="1" stopColor={tint ?? '#FFFFFF'} stopOpacity={tint ? (dark ? 0.04 : 0.06) : 0} />
-          </LinearGradient>
-          <LinearGradient id={`${id}-h`} x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#FFFFFF" stopOpacity={dark ? 0.06 : 0.5} />
-            <Stop offset="0.35" stopColor="#FFFFFF" stopOpacity={0} />
-          </LinearGradient>
-        </Defs>
-        <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id}-t)`} />
-        <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id}-h)`} />
-      </Svg>
-    </View>
+    <Svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }} preserveAspectRatio="none">
+      <Defs>
+        <LinearGradient id={`${id}-l`} x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0" stopColor={a} />
+          <Stop offset="1" stopColor={b} />
+        </LinearGradient>
+        <LinearGradient id={`${id}-h`} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.12} />
+          <Stop offset="0.45" stopColor="#FFFFFF" stopOpacity={0} />
+        </LinearGradient>
+      </Defs>
+      <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id}-l)`} />
+      <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id}-h)`} />
+    </Svg>
   );
 }
 
@@ -239,7 +254,7 @@ export function SmartStack({ height = 172, start = 0, testID, children }: { heig
       {pages.length > 1 ? (
         <View style={{ position: 'absolute', right: 7, top: 0, bottom: 0, justifyContent: 'center', gap: 4, pointerEvents: 'none' }}>
           {pages.map((_, i) => (
-            <View key={i} style={{ width: 4, height: i === page ? 12 : 4, borderRadius: 2, backgroundColor: i === page ? (dark ? 'rgba(255,255,255,0.92)' : 'rgba(40,30,60,0.72)') : dark ? 'rgba(255,255,255,0.32)' : 'rgba(40,30,60,0.22)', boxShadow: '0px 0px 2px rgba(255,255,255,0.6)' }} />
+            <View key={i} style={{ width: 4, height: i === page ? 12 : 4, borderRadius: 2, backgroundColor: i === page ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.45)', boxShadow: '0px 0px 3px rgba(0,0,0,0.35)' }} />
           ))}
         </View>
       ) : null}
