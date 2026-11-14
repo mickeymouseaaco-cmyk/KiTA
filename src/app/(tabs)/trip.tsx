@@ -4,6 +4,7 @@ import { Pressable, View } from 'react-native';
 
 import { FlightsCard } from '@/components/flights-card';
 import { Button, Card, EmptyState, Gap, Row, Screen, SectionTitle, T } from '@/components/ui';
+import { Widget, WidgetCaption, WidgetValue } from '@/components/widgets';
 import { WorldMap } from '@/components/world-map';
 import { empty } from '@/lib/copy';
 import { dayKey, friendlyDate } from '@/lib/dates';
@@ -12,24 +13,25 @@ import { countdownLine, daysBetween, miniTaskFor, tripPhase } from '@/lib/trip-l
 import { useBucket, useTrips, type Trip as TripT } from '@/lib/trips';
 import { space, useTheme } from '@/theme';
 
-function TripRow({ t }: { t: TripT }) {
-  const { c } = useTheme();
+function TripRow({ t, past }: { t: TripT; past?: boolean }) {
   return (
-    <Pressable testID="trip-row" accessibilityRole="button" onPress={() => router.push({ pathname: '/trip/[id]', params: { id: t.id } })}>
-      <Card style={{ paddingVertical: space.lg }}>
-        <Row gap={space.md}>
-          <Plane color={c.primary} size={22} />
-          <View style={{ flex: 1 }}>
-            <T variant="bodyStrong">{t.title}</T>
-            <T variant="small" muted>
-              {friendlyDate(t.startDate)} → {friendlyDate(t.endDate)}
-              {t.destination ? ` · ${t.destination}` : ''}
-            </T>
-          </View>
-          <ChevronRight color={c.textMuted} size={20} />
-        </Row>
-      </Card>
-    </Pressable>
+    <Widget testID="trip-row" fill={past ? 'ink' : 'teal'} height={84} accessibilityLabel={`${t.title}. Open`} onPress={() => router.push({ pathname: '/trip/[id]', params: { id: t.id } })}>
+      <Row gap={space.md} style={{ flex: 1 }}>
+        <View style={{ width: 40, height: 40, borderRadius: 13, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.18)' }}>
+          <Plane color="#FFFFFF" size={20} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <T variant="bodyStrong" color="#FFFFFF" numberOfLines={1}>
+            {t.title}
+          </T>
+          <T variant="small" color="rgba(255,255,255,0.78)" numberOfLines={1} style={{ fontSize: 13, lineHeight: 17 }}>
+            {friendlyDate(t.startDate)} → {friendlyDate(t.endDate)}
+            {t.destination ? ` · ${t.destination}` : ''}
+          </T>
+        </View>
+        <ChevronRight color="rgba(255,255,255,0.7)" size={20} />
+      </Row>
+    </Widget>
   );
 }
 
@@ -54,27 +56,25 @@ export default function Trip() {
       </Row>
 
       {next ? (
-        <Pressable testID="next-trip" accessibilityRole="button" onPress={() => router.push({ pathname: '/trip/[id]', params: { id: next.id } })}>
-          <Card tone="sky">
-            <T variant="label" color={c.onSky}>
-              {tripPhase(next.startDate, next.endDate, today) === 'during' ? 'ON YOUR TRIP' : 'NEXT TRIP'}
-            </T>
-            <T variant="title" color={c.onSky}>
-              {next.title}
-            </T>
-            <T testID="countdown" variant="display" color={c.onSky} style={{ marginTop: space.sm }}>
-              {countdownLine(next.startDate, next.endDate, today)}
-            </T>
-            {tripPhase(next.startDate, next.endDate, today) === 'upcoming' ? (
-              <View style={{ marginTop: space.md, backgroundColor: c.surface, borderRadius: 16, padding: space.md }}>
-                <T variant="label" muted>
-                  TODAY&apos;S LITTLE TASK
-                </T>
-                <T testID="mini-task">{miniTaskFor(daysBetween(today, next.startDate))}</T>
-              </View>
-            ) : null}
-          </Card>
-        </Pressable>
+        <Widget testID="next-trip" fill="blue" accessibilityLabel={`${next.title}: ${countdownLine(next.startDate, next.endDate, today)}. Open`} onPress={() => router.push({ pathname: '/trip/[id]', params: { id: next.id } })}>
+          <WidgetCaption icon={Plane} label={tripPhase(next.startDate, next.endDate, today) === 'during' ? 'On your trip' : 'Next trip'} fill="blue" />
+          <T variant="title" color="#FFFFFF" numberOfLines={1} style={{ marginTop: space.sm }}>
+            {next.title}
+          </T>
+          <WidgetValue testID="countdown" color="#FFFFFF" size={36} numberOfLines={2}>
+            {countdownLine(next.startDate, next.endDate, today)}
+          </WidgetValue>
+          {tripPhase(next.startDate, next.endDate, today) === 'upcoming' ? (
+            <View style={{ marginTop: space.md, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 18, borderCurve: 'continuous', padding: space.md }}>
+              <T variant="label" color="rgba(255,255,255,0.75)">
+                TODAY&apos;S LITTLE TASK
+              </T>
+              <T testID="mini-task" color="#FFFFFF">
+                {miniTaskFor(daysBetween(today, next.startDate))}
+              </T>
+            </View>
+          ) : null}
+        </Widget>
       ) : ready ? (
         <Card tone="sky">
           <EmptyState icon={Plane} line={empty.trip} action={<Button small kind="quiet" label="Plan our first trip" onPress={() => router.push('/trip-new')} />} />
@@ -115,7 +115,7 @@ export default function Trip() {
           <SectionTitle>Travel journal</SectionTitle>
           <View style={{ gap: space.sm }}>
             {past.map((t) => (
-              <TripRow key={t.id} t={t} />
+              <TripRow key={t.id} t={t} past />
             ))}
           </View>
         </>
