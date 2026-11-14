@@ -5,7 +5,8 @@ import { Pressable, View } from 'react-native';
 import { MediaById } from '@/components/media-view';
 import { PlantCard } from '@/components/plant';
 import { OutboxRow, useOutbox } from '@/components/outbox-row';
-import { Button, Card, EmptyState, Gap, Row, Screen, SectionTitle, T } from '@/components/ui';
+import { Button, Card, EmptyState, Gap, Row, Screen, T } from '@/components/ui';
+import { WIDGET_GAP, Widget, WidgetCaption, WidgetRow, WidgetValue, type WidgetFill } from '@/components/widgets';
 import { empty } from '@/lib/copy';
 import { dayKey, friendlyDate } from '@/lib/dates';
 import { daysUntil, nextOccurrence, planningPrompt } from '@/lib/ideas';
@@ -21,7 +22,7 @@ type Tile = {
   icon: typeof ListTodo;
   title: string;
   detail: string;
-  tone: 'lavender' | 'sky' | 'peach' | 'butter' | 'rose' | 'sage';
+  fill: Exclude<WidgetFill, 'surface'>;
 };
 
 /** Grouped by what you're doing: making plans, or looking after each other. */
@@ -30,28 +31,35 @@ const GROUPS: { title: string; line: string; tiles: Tile[] }[] = [
     title: 'Plan',
     line: 'Things to do and look forward to',
     tiles: [
-      { route: '/todos', testID: 'open-todos-tile', icon: ListTodo, title: 'To-dos', detail: 'A shared, gentle list', tone: 'lavender' },
-      { route: '/weekend', testID: 'open-weekend', icon: CalendarRange, title: 'This weekend', detail: 'A simple plan for two', tone: 'peach' },
-      { route: '/date-night', testID: 'open-date-night', icon: Dices, title: 'Date night', detail: 'Ideas for any budget', tone: 'rose' },
-      { route: '/milestones', testID: 'open-milestones', icon: Heart, title: 'Special days', detail: 'With a nudge before each', tone: 'butter' },
-      { route: '/bucket-list', testID: 'open-bucket-tile', icon: MapPin, title: 'Bucket list', detail: 'Places to go one day', tone: 'sky' },
-      { route: '/schedule-note', testID: 'open-surprise', icon: Gift, title: 'Surprise note', detail: 'Hide one for later', tone: 'sage' },
+      { route: '/todos', testID: 'open-todos-tile', icon: ListTodo, title: 'To-dos', detail: 'A shared, gentle list', fill: 'blue' },
+      { route: '/weekend', testID: 'open-weekend', icon: CalendarRange, title: 'This weekend', detail: 'A simple plan for two', fill: 'orange' },
+      { route: '/date-night', testID: 'open-date-night', icon: Dices, title: 'Date night', detail: 'Ideas for any budget', fill: 'pink' },
+      { route: '/milestones', testID: 'open-milestones', icon: Heart, title: 'Special days', detail: 'With a nudge before each', fill: 'amber' },
+      { route: '/bucket-list', testID: 'open-bucket-tile', icon: MapPin, title: 'Bucket list', detail: 'Places to go one day', fill: 'teal' },
+      { route: '/schedule-note', testID: 'open-surprise', icon: Gift, title: 'Surprise note', detail: 'Hide one for later', fill: 'violet' },
     ],
   },
   {
     title: 'Care',
     line: 'Looking after each other',
     tiles: [
-      { route: '/gratitude', testID: 'open-gratitude', icon: HandHeart, title: 'Gratitude', detail: 'One thank-you a day', tone: 'butter' },
-      { route: '/mood-calendar', testID: 'open-mood-calendar', icon: CalendarDays, title: 'Our moods', detail: 'A month, side by side', tone: 'lavender' },
-      { route: '/calm', testID: 'open-calm-tile', icon: Wind, title: 'Calm Corner', detail: 'Breathe, sounds, vent', tone: 'sage' },
-      { route: '/stress-smash', testID: 'open-stress-smash', icon: Hammer, title: 'Stress Smash', detail: 'Bonk the stress away', tone: 'rose' },
-      { route: '/reset', testID: 'open-reset-tile', icon: HeartHandshake, title: 'Gentle reset', detail: 'After a tense day', tone: 'peach' },
-      { route: '/find', testID: 'open-find-tile', icon: MapPin, title: 'Find each other', detail: 'Where you both are', tone: 'lavender' },
-      { route: '/weather', testID: 'open-weather-tile', icon: CloudRain, title: 'Weather', detail: 'Anywhere, plus flood watch', tone: 'sky' },
+      { route: '/gratitude', testID: 'open-gratitude', icon: HandHeart, title: 'Gratitude', detail: 'One thank-you a day', fill: 'amber' },
+      { route: '/mood-calendar', testID: 'open-mood-calendar', icon: CalendarDays, title: 'Our moods', detail: 'A month, side by side', fill: 'violet' },
+      { route: '/calm', testID: 'open-calm-tile', icon: Wind, title: 'Calm Corner', detail: 'Breathe, sounds, vent', fill: 'green' },
+      { route: '/stress-smash', testID: 'open-stress-smash', icon: Hammer, title: 'Stress Smash', detail: 'Bonk the stress away', fill: 'pink' },
+      { route: '/reset', testID: 'open-reset-tile', icon: HeartHandshake, title: 'Gentle reset', detail: 'After a tense day', fill: 'orange' },
+      { route: '/find', testID: 'open-find-tile', icon: MapPin, title: 'Find each other', detail: 'Where you both are', fill: 'teal' },
+      { route: '/weather', testID: 'open-weather-tile', icon: CloudRain, title: 'Weather', detail: 'Anywhere, plus flood watch', fill: 'blue' },
     ],
   },
 ];
+
+/** Tiles two to a row (an odd one out spans the row). */
+function pairs<T>(list: T[]): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < list.length; i += 2) out.push(list.slice(i, i + 2));
+  return out;
+}
 
 /** "Remember this day?": a memory from this day in an earlier month or year. */
 function rememberThisDay(memories: Memory[]): Memory | null {
@@ -93,20 +101,20 @@ export default function Together() {
 
       {nextMilestone ? (
         <>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/milestones')}>
-            <Card tone="rose">
-              <Row gap={space.sm}>
-                <Heart color={c.heart} size={20} />
-                <T variant="bodyStrong" style={{ flex: 1 }}>
-                  {nextMilestone.m.title}: {nextMilestone.days === 0 ? 'today!' : nextMilestone.days === 1 ? 'tomorrow' : `in ${nextMilestone.days} days`}
-                </T>
-              </Row>
-              <T muted style={{ marginTop: space.xs }}>
+          <Widget fill="pink" style={{ marginBottom: WIDGET_GAP }} onPress={() => router.push('/milestones')} accessibilityLabel={`${nextMilestone.m.title}. Open special days`}>
+            <WidgetCaption icon={Heart} label="Coming up" fill="pink" />
+            <View style={{ flex: 1, justifyContent: 'flex-end', gap: 2 }}>
+              <WidgetValue color="#FFFFFF" size={30}>
+                {nextMilestone.days === 0 ? 'Today!' : nextMilestone.days === 1 ? 'Tomorrow' : `${nextMilestone.days} days`}
+              </WidgetValue>
+              <T variant="bodyStrong" color="#FFFFFF" numberOfLines={1}>
+                {nextMilestone.m.title}
+              </T>
+              <T variant="small" color="rgba(255,255,255,0.8)" numberOfLines={2} style={{ fontSize: 13, lineHeight: 17 }}>
                 {planningPrompt(nextMilestone.m.kind, nextMilestone.days)}
               </T>
-            </Card>
-          </Pressable>
-          <Gap />
+            </View>
+          </Widget>
         </>
       ) : null}
 
@@ -118,26 +126,31 @@ export default function Together() {
           <T variant="small" muted style={{ marginBottom: space.md }}>
             {g.line}
           </T>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-            {g.tiles.map((r) => (
-              <Pressable
-                key={r.route}
-                testID={r.testID}
-                accessibilityRole="button"
-                accessibilityLabel={`${r.title}. ${r.detail}`}
-                style={{ width: '48%', flexGrow: 1 }}
-                onPress={() => router.push(r.route)}>
-                <Card tone={r.tone} style={{ flex: 1, minHeight: 100, padding: space.lg }}>
-                  <r.icon color={c.primary} size={24} />
-                  <Gap h={space.sm} />
-                  <T variant="bodyStrong">{r.title}</T>
-                  <T variant="small" muted>
+          {pairs(g.tiles).map((row) => (
+            <WidgetRow key={row[0].route}>
+              {row.map((r) => (
+                <Widget
+                  key={r.route}
+                  fill={r.fill}
+                  height={138}
+                  testID={r.testID}
+                  accessibilityLabel={`${r.title}. ${r.detail}`}
+                  style={{ flex: 1 }}
+                  onPress={() => router.push(r.route)}>
+                  <View style={{ width: 40, height: 40, borderRadius: 13, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.2)' }}>
+                    <r.icon color="#FFFFFF" size={21} strokeWidth={2.3} />
+                  </View>
+                  <View style={{ flex: 1 }} />
+                  <T variant="bodyStrong" color="#FFFFFF" numberOfLines={1} style={{ fontSize: 16, lineHeight: 21 }}>
+                    {r.title}
+                  </T>
+                  <T variant="small" color="rgba(255,255,255,0.8)" numberOfLines={1} style={{ fontSize: 13, lineHeight: 17 }}>
                     {r.detail}
                   </T>
-                </Card>
-              </Pressable>
-            ))}
-          </View>
+                </Widget>
+              ))}
+            </WidgetRow>
+          ))}
         </View>
       ))}
 
@@ -151,20 +164,17 @@ export default function Together() {
 
       {throwback ? (
         <>
-          <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/memory/[id]', params: { id: throwback.id } })}>
-            <Card tone="butter">
-              <Row gap={space.sm}>
-                <Sparkles color={c.onButter} size={20} />
-                <T variant="heading" color={c.onButter}>
-                  Remember this day?
-                </T>
-              </Row>
-              <T color={c.onButter} style={{ marginTop: space.xs }}>
-                {friendlyDate(throwback.date)}: {throwback.caption || 'a little moment together'}
+          <Widget fill="amber" height={132} style={{ marginBottom: WIDGET_GAP }} onPress={() => router.push({ pathname: '/memory/[id]', params: { id: throwback.id } })} accessibilityLabel="Remember this day? Open the memory">
+            <WidgetCaption icon={Sparkles} label="Remember this day?" fill="amber" />
+            <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+              <T variant="heading" color="#FFFFFF" numberOfLines={2} style={{ fontSize: 18, lineHeight: 23 }}>
+                {throwback.caption || 'A little moment together'}
               </T>
-            </Card>
-          </Pressable>
-          <Gap />
+              <T variant="small" color="rgba(255,255,255,0.85)" style={{ fontSize: 13, lineHeight: 17 }}>
+                {friendlyDate(throwback.date)}
+              </T>
+            </View>
+          </Widget>
         </>
       ) : null}
 
