@@ -87,16 +87,17 @@ export function PageWash({ height = 320 }: { height?: number }) {
  */
 function Ambient() {
   const { c, dark } = useTheme();
-  const k = dark ? 0.22 : 0.55;
+  // Deeper in light mode, so the white glass cards stand clearly apart from it.
+  const k = dark ? 0.26 : 0.95;
   const blooms: { id: string; cx: number; cy: number; rx: number; ry: number; color: string; o: number }[] = [
-    { id: 'rose', cx: 92, cy: 2, rx: 62, ry: 26, color: dark ? '#FF5C8D' : '#FFB3C9', o: 1 },
-    { id: 'sky', cx: 4, cy: 8, rx: 58, ry: 24, color: dark ? '#5B6CFF' : '#B8C8FF', o: 0.95 },
-    { id: 'lilac', cx: 96, cy: 46, rx: 56, ry: 26, color: dark ? '#8B5CF6' : '#D9C6FF', o: 0.9 },
-    { id: 'peach', cx: 2, cy: 64, rx: 54, ry: 24, color: dark ? '#FF8A5B' : '#FFD7BF', o: 0.85 },
-    { id: 'mint', cx: 70, cy: 96, rx: 60, ry: 22, color: dark ? '#22C59A' : '#C8F1E1', o: 0.8 },
+    { id: 'rose', cx: 92, cy: 2, rx: 66, ry: 28, color: dark ? '#FF5C8D' : '#F98DB0', o: 1 },
+    { id: 'sky', cx: 4, cy: 8, rx: 62, ry: 26, color: dark ? '#5B6CFF' : '#93A9FA', o: 0.95 },
+    { id: 'lilac', cx: 96, cy: 46, rx: 60, ry: 28, color: dark ? '#8B5CF6' : '#BFA2F7', o: 0.9 },
+    { id: 'peach', cx: 2, cy: 64, rx: 58, ry: 26, color: dark ? '#FF8A5B' : '#FBB894', o: 0.85 },
+    { id: 'mint', cx: 70, cy: 96, rx: 64, ry: 24, color: dark ? '#22C59A' : '#94E0C2', o: 0.8 },
   ];
   return (
-    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', pointerEvents: 'none', backgroundColor: c.bg }}>
+    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', pointerEvents: 'none', backgroundColor: dark ? c.bg : '#E9E4EF' }}>
       <Svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100">
         <Defs>
           {blooms.map((b) => (

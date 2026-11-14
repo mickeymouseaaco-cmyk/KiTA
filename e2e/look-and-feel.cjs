@@ -224,6 +224,12 @@ async function main() {
   await shot(afiq, '01a7-gossip-prompt');
   await afiq.locator(tid('gossip-text')).fill('Guess who I bumped into at the mamak');
   await shot(afiq, '01a8-gossip-typed');
+  // Record a video for the gossip (the test hands it a file, like the camera would).
+  const [gossipCam] = await Promise.all([afiq.waitForEvent('filechooser'), afiq.locator(tid('gossip-record')).click()]);
+  await gossipCam.setFiles(path.join(__dirname, 'fixtures', 'clip.webm'));
+  await afiq.locator(tid('gossip-video')).waitFor({ timeout: 15000 });
+  await shot(afiq, '01a9-gossip-video');
+  await afiq.locator(tid('gossip-video-remove')).click();
   // Close it (sending would add a note and change the notes counted below).
   await afiq.locator(tid('gossip-later')).click();
   await afiq.locator(tid('gossip-prompt')).waitFor({ state: 'detached', timeout: 15000 });

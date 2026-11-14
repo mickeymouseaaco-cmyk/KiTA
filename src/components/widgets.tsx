@@ -31,7 +31,7 @@ export function tintOf(fill: WidgetFill, dark = false): string {
 /** Frosted glass (web blurs what's behind; elsewhere it's a soft translucent sheet). */
 export function glassStyle(dark: boolean): ViewStyle {
   return {
-    backgroundColor: dark ? 'rgba(34,32,44,0.62)' : 'rgba(255,255,255,0.66)',
+    backgroundColor: dark ? 'rgba(34,32,44,0.66)' : 'rgba(255,255,255,0.8)',
     ...(Platform.OS === 'web' ? ({ backdropFilter: 'blur(22px) saturate(170%)', WebkitBackdropFilter: 'blur(22px) saturate(170%)' } as ViewStyle) : null),
   };
 }
@@ -82,7 +82,7 @@ function frameStyle(dark: boolean): ViewStyle {
     // A hairline of light around the glass, and a soft, wide shadow under it.
     borderWidth: 1,
     borderColor: dark ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.85)',
-    boxShadow: dark ? '0px 10px 30px rgba(0,0,0,0.38)' : '0px 10px 30px rgba(72,52,110,0.10), 0px 1px 2px rgba(72,52,110,0.06)',
+    boxShadow: dark ? '0px 10px 30px rgba(0,0,0,0.38)' : '0px 12px 32px rgba(72,52,110,0.16), 0px 1px 3px rgba(72,52,110,0.10)',
   };
 }
 

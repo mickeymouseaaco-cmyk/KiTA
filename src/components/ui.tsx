@@ -98,7 +98,7 @@ export function Screen({
 /** A tone colour as see-through glass (a #rrggbb colour at about two-thirds strength). */
 function glassTint(hex: string, dark: boolean): string {
   if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return hex;
-  return `${hex}${dark ? '9E' : 'A8'}`;
+  return `${hex}${dark ? 'A8' : 'CC'}`;
 }
 
 export function Card({
@@ -130,13 +130,13 @@ export function Card({
         look.flat
           ? {
               // Modern look: frosted glass over the page's pastel wash; tones tint the glass.
-              backgroundColor: tone === 'surface' ? (dark ? 'rgba(34,32,44,0.62)' : 'rgba(255,255,255,0.66)') : glassTint(bg, dark),
+              backgroundColor: tone === 'surface' ? (dark ? 'rgba(34,32,44,0.66)' : 'rgba(255,255,255,0.8)') : glassTint(bg, dark),
               ...(Platform.OS === 'web' ? ({ backdropFilter: 'blur(22px) saturate(170%)', WebkitBackdropFilter: 'blur(22px) saturate(170%)' } as ViewStyle) : null),
               borderRadius: 24,
               borderCurve: 'continuous',
               borderWidth: 1,
               borderColor: dark ? 'rgba(255, 255, 255, 0.09)' : 'rgba(255, 255, 255, 0.85)',
-              boxShadow: dark ? '0px 10px 30px rgba(0,0,0,0.32)' : '0px 1px 2px rgba(72,52,110,0.05), 0px 10px 30px rgba(72,52,110,0.09)',
+              boxShadow: dark ? '0px 10px 30px rgba(0,0,0,0.32)' : '0px 1px 3px rgba(72,52,110,0.10), 0px 12px 32px rgba(72,52,110,0.15)',
             }
           : look.outlined
           ? { borderWidth: look.cardBorder, borderColor: c.text, boxShadow: `4px 4px 0px ${c.primary}` }
