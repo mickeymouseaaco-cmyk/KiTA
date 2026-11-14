@@ -1,13 +1,15 @@
 /**
  * "Any gossip today?" — a little glass pop-up the first time you open KiTA
- * each day. Type it and it goes straight to your partner as a surat cinta.
+ * each day. Type it, or record a quick video, and it goes straight to your
+ * partner as a surat cinta.
  * Easy to wave away, and it won't come back until tomorrow.
  */
-import { Coffee, Send } from 'lucide-react-native';
+import { Coffee, Film, Send, Video, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Animated, Easing, KeyboardAvoidingView, Modal, Platform, Pressable, TextInput, View } from 'react-native';
 
 import { useFeedback } from '@/components/feedback';
+import { pickVideo, queueVideoNote, type PickedVideo } from '@/lib/compose';
 import { gentleError } from '@/lib/copy';
 import { dayKey } from '@/lib/dates';
 import { haptic } from '@/lib/haptics';
@@ -45,7 +47,8 @@ function markAsked(today: string) {
 export function GossipPrompt() {
   const { c, dark, motion } = useTheme();
   const who = usePaired();
-  const { toast } = useFeedback();
+  const { toast, ensurePermission } = useFeedback();
+  const [video, setVideo] = useState<PickedVideo | null>(null);
   const [today] = useState(() => dayKey(new Date()));
   const [open, setOpen] = useState(() => !alreadyAsked(today));
   const [text, setText] = useState('');
@@ -62,12 +65,33 @@ export function GossipPrompt() {
     setOpen(false);
   }
 
+  async function addVideo(source: 'camera' | 'library') {
+    // On the web the phone's own camera screen asks for permission itself.
+    if (Platform.OS !== 'web') {
+      if (source === 'camera' && !(await ensurePermission('camera'))) return;
+      if (source === 'camera' && !(await ensurePermission('microphone'))) return;
+      if (source === 'library' && !(await ensurePermission('photos'))) return;
+    }
+    try {
+      const v = await pickVideo(source);
+      if (v === 'too-long') toast('Videos can be up to 60 seconds. Could you keep it a little shorter?');
+      else if (v) {
+        haptic.tap();
+        setVideo(v);
+      }
+    } catch {
+      toast('We couldn’t open the camera. Let’s try again.');
+    }
+  }
+
   async function send() {
     const t = text.trim();
-    if (!t) return;
+    if (!t && !video) return;
     setSending(true);
     try {
-      await sendText(who, `☕ ${t}`, 'text', {});
+      // A video goes up in the background (it keeps trying, even offline); text goes at once.
+      if (video) await queueVideoNote(who, video, t ? `☕ ${t}` : '☕ Gossip!', { allowSave: true });
+      else await sendText(who, `☕ ${t}`, 'text', {});
       haptic.success();
       toast(`Sent to ${who.partnerName}. Spill more in Surat Cinta.`);
       close();
@@ -124,17 +148,58 @@ export function GossipPrompt() {
                   Tell me… it goes straight to {who.partnerName}.
                 </T>
               </View>
+              {video ? (
+                <Row
+                  testID="gossip-video"
+                  gap={space.sm}
+                  style={{ padding: 10, borderRadius: 18, backgroundColor: `${vivid.pink[0]}26`, borderWidth: 1, borderColor: `${vivid.pink[0]}55` }}>
+                  <View style={{ width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: accent }}>
+                    <Film color="#FFFFFF" size={20} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <T variant="bodyStrong">Video ready</T>
+                    <T variant="small" muted style={{ fontSize: 13, lineHeight: 17 }}>
+                      {`0:${String(Math.min(59, Math.max(1, Math.round(video.durationMs / 1000)))).padStart(2, '0')}`} · add a caption if you like
+                    </T>
+                  </View>
+                  <Pressable testID="gossip-video-remove" accessibilityRole="button" accessibilityLabel="Remove the video" hitSlop={8} onPress={() => setVideo(null)} style={{ padding: 6 }}>
+                    <X color={c.textMuted} size={20} />
+                  </Pressable>
+                </Row>
+              ) : (
+                <Row gap={space.sm}>
+                  <Pressable
+                    testID="gossip-record"
+                    accessibilityRole="button"
+                    accessibilityLabel="Record a video"
+                    onPress={() => addVideo('camera')}
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 46, borderRadius: 16, backgroundColor: `${vivid.pink[0]}26`, borderWidth: 1, borderColor: `${vivid.pink[0]}55` }}>
+                    <Video color={accent} size={19} strokeWidth={2.3} />
+                    <T variant="bodyStrong" color={accent}>
+                      Record video
+                    </T>
+                  </Pressable>
+                  <Pressable
+                    testID="gossip-pick-video"
+                    accessibilityRole="button"
+                    accessibilityLabel="Choose a video"
+                    onPress={() => addVideo('library')}
+                    style={{ minHeight: 46, paddingHorizontal: 14, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.border }}>
+                    <Film color={c.textMuted} size={19} />
+                  </Pressable>
+                </Row>
+              )}
               <TextInput
                 testID="gossip-text"
                 value={text}
                 onChangeText={setText}
-                placeholder="So guess what happened…"
+                placeholder={video ? 'Add a caption…' : 'Or type it: so guess what happened…'}
                 placeholderTextColor={c.textMuted}
                 multiline
                 maxLength={1000}
                 autoFocus={Platform.OS !== 'web'}
                 style={{
-                  minHeight: 88,
+                  minHeight: video ? 52 : 80,
                   maxHeight: 160,
                   borderRadius: 18,
                   paddingHorizontal: space.md,
@@ -152,7 +217,7 @@ export function GossipPrompt() {
                   <Button testID="gossip-later" kind="ghost" label="Not now" onPress={close} />
                 </View>
                 <View style={{ flex: 1.4 }}>
-                  <Button testID="gossip-send" icon={Send} label="Tell me" disabled={!text.trim() || sending} hint="Type your gossip first" onPress={send} />
+                  <Button testID="gossip-send" icon={Send} label="Tell me" disabled={(!text.trim() && !video) || sending} hint="Type or record your gossip first" onPress={send} />
                 </View>
               </Row>
             </Pressable>
