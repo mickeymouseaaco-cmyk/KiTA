@@ -18,7 +18,7 @@ import { usePaired } from '@/lib/session';
 import { space, useTheme, vivid } from '@/theme';
 
 import { Button, Row, T } from './ui';
-import { glassStyle, tintOf } from './widgets';
+import { glassStyle } from './widgets';
 
 const KEY = 'kita.gossip.asked';
 const ND = Platform.OS !== 'web';
@@ -103,7 +103,7 @@ export function GossipPrompt() {
   }
 
   if (!open) return null;
-  const accent = tintOf('pink', dark);
+  const accent = dark ? vivid.pink[0] : vivid.pink[1];
   return (
     <Modal visible transparent animationType="fade" onRequestClose={close}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
