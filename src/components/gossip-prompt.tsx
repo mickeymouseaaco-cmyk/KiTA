@@ -66,9 +66,12 @@ export function GossipPrompt() {
   }
 
   async function addVideo(source: 'camera' | 'library') {
-    if (source === 'camera' && !(await ensurePermission('camera'))) return;
-    if (source === 'camera' && !(await ensurePermission('microphone'))) return;
-    if (source === 'library' && !(await ensurePermission('photos'))) return;
+    // On the web the phone's own camera screen asks for permission itself.
+    if (Platform.OS !== 'web') {
+      if (source === 'camera' && !(await ensurePermission('camera'))) return;
+      if (source === 'camera' && !(await ensurePermission('microphone'))) return;
+      if (source === 'library' && !(await ensurePermission('photos'))) return;
+    }
     try {
       const v = await pickVideo(source);
       if (v === 'too-long') toast('Videos can be up to 60 seconds. Could you keep it a little shorter?');
