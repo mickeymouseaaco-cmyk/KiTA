@@ -257,15 +257,15 @@ export default function Today() {
         <Row gap={space.md} style={{ alignItems: 'center', flex: 1 }}>
           <View style={{ flex: 1, gap: 4 }}>
             <WidgetCaption icon={Heart} label="Today" fill="pink" />
-            <T testID="summary-line" variant="heading" style={{ fontSize: 18, lineHeight: 23 }}>
+            <T testID="summary-line" variant="heading" color="#FFFFFF" style={{ fontSize: 18, lineHeight: 23 }}>
               {ready ? summaryLine(day?.steps, day?.mood?.stress) : ' '}
             </T>
             {streakText ? (
-              <T variant="small" muted style={{ fontSize: 13, lineHeight: 17 }}>
+              <T variant="small" color="rgba(255,255,255,0.8)" style={{ fontSize: 13, lineHeight: 17 }}>
                 {streakText}
               </T>
             ) : null}
-            <T testID="partner-line" variant="bodyStrong" style={{ fontSize: 13, lineHeight: 17 }}>
+            <T testID="partner-line" variant="bodyStrong" color="#FFFFFF" style={{ fontSize: 13, lineHeight: 17 }}>
               {partnerLine ? `${partnerName}: ${partnerLine}` : `Nothing from ${partnerName} yet today.`}
             </T>
           </View>
@@ -284,13 +284,13 @@ export default function Today() {
             {openTodos.slice(0, 2).map((t) => (
               <Row key={t.id} gap={6}>
                 <Circle color={tintOf('blue', dark)} size={13} strokeWidth={2.4} />
-                <T numberOfLines={1} style={{ flex: 1, fontSize: 13, lineHeight: 17 }}>
+                <T numberOfLines={1} color="#FFFFFF" style={{ flex: 1, fontSize: 13, lineHeight: 17 }}>
                   {t.text}
                 </T>
               </Row>
             ))}
             {todosReady && openTodos.length === 0 ? (
-              <T muted style={{ fontSize: 13, lineHeight: 17 }}>
+              <T color="rgba(255,255,255,0.78)" style={{ fontSize: 13, lineHeight: 17 }}>
                 Nothing for today
               </T>
             ) : null}

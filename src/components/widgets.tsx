@@ -254,7 +254,7 @@ export function SmartStack({ height = 172, start = 0, testID, children }: { heig
       {pages.length > 1 ? (
         <View style={{ position: 'absolute', right: 7, top: 0, bottom: 0, justifyContent: 'center', gap: 4, pointerEvents: 'none' }}>
           {pages.map((_, i) => (
-            <View key={i} style={{ width: 4, height: i === page ? 12 : 4, borderRadius: 2, backgroundColor: i === page ? (dark ? 'rgba(255,255,255,0.92)' : 'rgba(40,30,60,0.72)') : dark ? 'rgba(255,255,255,0.32)' : 'rgba(40,30,60,0.22)', boxShadow: '0px 0px 2px rgba(255,255,255,0.6)' }} />
+            <View key={i} style={{ width: 4, height: i === page ? 12 : 4, borderRadius: 2, backgroundColor: i === page ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.45)', boxShadow: '0px 0px 3px rgba(0,0,0,0.35)' }} />
           ))}
         </View>
       ) : null}
