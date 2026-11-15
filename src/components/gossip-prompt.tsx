@@ -4,7 +4,7 @@
  * partner as a surat cinta.
  * Easy to wave away, and it won't come back until tomorrow.
  */
-import { Coffee, Film, Send, Video, X } from 'lucide-react-native';
+import { Check, Send, Video, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Animated, Easing, KeyboardAvoidingView, Modal, Platform, Pressable, TextInput, View } from 'react-native';
 
@@ -15,10 +15,9 @@ import { dayKey } from '@/lib/dates';
 import { haptic } from '@/lib/haptics';
 import { sendText } from '@/lib/messages';
 import { usePaired } from '@/lib/session';
-import { space, useTheme, vivid } from '@/theme';
+import { space, useTheme } from '@/theme';
 
-import { Button, Row, T } from './ui';
-import { glassStyle } from './widgets';
+import { Row, T } from './ui';
 
 const KEY = 'kita.gossip.asked';
 const ND = Platform.OS !== 'web';
@@ -103,92 +102,98 @@ export function GossipPrompt() {
   }
 
   if (!open) return null;
-  const accent = dark ? vivid.pink[0] : vivid.pink[1];
+  const has = !!text.trim() || !!video;
+  const red = '#FF375F';
   return (
     <Modal visible transparent animationType="fade" onRequestClose={close}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <Pressable accessibilityLabel="Not now" onPress={close} style={{ flex: 1, backgroundColor: dark ? 'rgba(0,0,0,0.45)' : 'rgba(40,30,60,0.22)', justifyContent: 'center', padding: space.lg }}>
+        <Pressable accessibilityLabel="Not now" onPress={close} style={{ flex: 1, backgroundColor: dark ? 'rgba(0,0,0,0.6)' : 'rgba(20,16,30,0.35)', justifyContent: 'center', padding: space.lg }}>
           <Animated.View
             style={{
               opacity: rise,
               transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }, { scale: rise.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1] }) }],
               alignSelf: 'center',
               width: '100%',
-              maxWidth: 400,
+              maxWidth: 380,
             }}>
             {/* Taps inside the card don't close it. */}
             <Pressable
               testID="gossip-prompt"
               accessibilityViewIsModal
               onPress={() => {}}
-              style={[
-                glassStyle(dark),
-                {
-                  backgroundColor: dark ? 'rgba(34,32,44,0.88)' : 'rgba(255,255,255,0.9)',
-                  borderRadius: 30,
-                  borderCurve: 'continuous',
-                  padding: space.lg,
-                  gap: space.md,
-                  borderWidth: 1,
-                  borderColor: dark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.95)',
-                  boxShadow: '0px 24px 60px rgba(40,20,70,0.28)',
-                  overflow: 'hidden',
-                },
-              ]}>
-              <View style={{ position: 'absolute', top: -60, right: -40, width: 200, height: 200, borderRadius: 100, backgroundColor: vivid.pink[0], opacity: dark ? 0.16 : 0.22 }} />
-              <View style={{ position: 'absolute', bottom: -70, left: -50, width: 200, height: 200, borderRadius: 100, backgroundColor: vivid.violet[0], opacity: dark ? 0.12 : 0.16 }} />
-              <View style={{ width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: `${vivid.pink[0]}33` }}>
-                <Coffee color={accent} size={26} strokeWidth={2.2} />
-              </View>
-              <View style={{ gap: 4 }}>
-                <T variant="title" style={{ fontSize: 26, lineHeight: 31 }}>
+              style={{
+                backgroundColor: dark ? '#1C1B22' : '#FFFFFF',
+                borderRadius: 34,
+                borderCurve: 'continuous',
+                paddingHorizontal: space.lg,
+                paddingTop: space.xl,
+                paddingBottom: space.lg,
+                gap: space.lg,
+                alignItems: 'stretch',
+                borderWidth: dark ? 1 : 0,
+                borderColor: 'rgba(255,255,255,0.08)',
+                boxShadow: '0px 30px 70px rgba(10,5,25,0.35)',
+              }}>
+              <Pressable
+                testID="gossip-close"
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+                hitSlop={10}
+                onPress={close}
+                style={{ position: 'absolute', top: 16, right: 16, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }}>
+                <X color={c.textMuted} size={17} strokeWidth={2.4} />
+              </Pressable>
+
+              <View style={{ alignItems: 'center', gap: 6, paddingHorizontal: 28 }}>
+                <T variant="title" style={{ fontSize: 24, lineHeight: 29, textAlign: 'center' }}>
                   Any gossip today?
                 </T>
-                <T variant="body" muted>
+                <T variant="body" muted style={{ textAlign: 'center' }}>
                   Tell me… it goes straight to {who.partnerName}.
                 </T>
               </View>
-              {video ? (
-                <Row
-                  testID="gossip-video"
-                  gap={space.sm}
-                  style={{ padding: 10, borderRadius: 18, backgroundColor: `${vivid.pink[0]}26`, borderWidth: 1, borderColor: `${vivid.pink[0]}55` }}>
-                  <View style={{ width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: accent }}>
-                    <Film color="#FFFFFF" size={20} />
+
+              {/* One big round button: tap to record. */}
+              <View style={{ alignItems: 'center', gap: 10 }}>
+                <Pressable
+                  testID={video ? 'gossip-video' : 'gossip-record'}
+                  accessibilityRole="button"
+                  accessibilityLabel={video ? 'Video ready. Tap to record again' : 'Record a video'}
+                  onPress={() => addVideo('camera')}
+                  style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.95 : 1 }] })}>
+                  <View style={{ width: 112, height: 112, borderRadius: 56, borderWidth: 4, borderColor: video ? '#34C759' : `${red}55`, alignItems: 'center', justifyContent: 'center' }}>
+                    <View
+                      style={{
+                        width: 92,
+                        height: 92,
+                        borderRadius: 46,
+                        backgroundColor: video ? '#34C759' : red,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 2,
+                        boxShadow: `0px 10px 24px ${video ? 'rgba(52,199,89,0.4)' : 'rgba(255,55,95,0.45)'}`,
+                      }}>
+                      {video ? <Check color="#FFFFFF" size={30} strokeWidth={3} /> : <Video color="#FFFFFF" size={26} strokeWidth={2.4} />}
+                      <T variant="bodyStrong" color="#FFFFFF" style={{ fontSize: 15, lineHeight: 19 }}>
+                        {video ? `0:${String(Math.min(59, Math.max(1, Math.round(video.durationMs / 1000)))).padStart(2, '0')}` : 'Record'}
+                      </T>
+                    </View>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <T variant="bodyStrong">Video ready</T>
+                </Pressable>
+                {video ? (
+                  <Row gap={6}>
                     <T variant="small" muted style={{ fontSize: 13, lineHeight: 17 }}>
-                      {`0:${String(Math.min(59, Math.max(1, Math.round(video.durationMs / 1000)))).padStart(2, '0')}`} · add a caption if you like
+                      Video ready · tap to retake ·
                     </T>
-                  </View>
-                  <Pressable testID="gossip-video-remove" accessibilityRole="button" accessibilityLabel="Remove the video" hitSlop={8} onPress={() => setVideo(null)} style={{ padding: 6 }}>
-                    <X color={c.textMuted} size={20} />
-                  </Pressable>
-                </Row>
-              ) : (
-                <Row gap={space.sm}>
-                  <Pressable
-                    testID="gossip-record"
-                    accessibilityRole="button"
-                    accessibilityLabel="Record a video"
-                    onPress={() => addVideo('camera')}
-                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 46, borderRadius: 16, backgroundColor: `${vivid.pink[0]}26`, borderWidth: 1, borderColor: `${vivid.pink[0]}55` }}>
-                    <Video color={accent} size={19} strokeWidth={2.3} />
-                    <T variant="bodyStrong" color={accent}>
-                      Record video
-                    </T>
-                  </Pressable>
-                  <Pressable
-                    testID="gossip-pick-video"
-                    accessibilityRole="button"
-                    accessibilityLabel="Choose a video"
-                    onPress={() => addVideo('library')}
-                    style={{ minHeight: 46, paddingHorizontal: 14, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.border }}>
-                    <Film color={c.textMuted} size={19} />
-                  </Pressable>
-                </Row>
-              )}
+                    <Pressable testID="gossip-video-remove" accessibilityRole="button" accessibilityLabel="Remove the video" hitSlop={8} onPress={() => setVideo(null)}>
+                      <T variant="small" color={red} style={{ fontSize: 13, lineHeight: 17, fontWeight: '600' }}>
+                        Remove
+                      </T>
+                    </Pressable>
+                  </Row>
+                ) : null}
+              </View>
+
               <TextInput
                 testID="gossip-text"
                 value={text}
@@ -197,29 +202,50 @@ export function GossipPrompt() {
                 placeholderTextColor={c.textMuted}
                 multiline
                 maxLength={1000}
-                autoFocus={Platform.OS !== 'web'}
                 style={{
                   minHeight: video ? 52 : 80,
                   maxHeight: 160,
-                  borderRadius: 18,
+                  borderRadius: 20,
+                  borderCurve: 'continuous',
                   paddingHorizontal: space.md,
-                  paddingVertical: 12,
+                  paddingVertical: 14,
                   fontSize: 16,
                   color: c.text,
-                  backgroundColor: dark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.75)',
-                  borderWidth: 1,
-                  borderColor: c.border,
+                  backgroundColor: dark ? 'rgba(255,255,255,0.06)' : '#F4F3F7',
                   textAlignVertical: 'top',
                 }}
               />
-              <Row gap={space.sm}>
-                <View style={{ flex: 1 }}>
-                  <Button testID="gossip-later" kind="ghost" label="Not now" onPress={close} />
-                </View>
-                <View style={{ flex: 1.4 }}>
-                  <Button testID="gossip-send" icon={Send} label="Tell me" disabled={(!text.trim() && !video) || sending} hint="Type or record your gossip first" onPress={send} />
-                </View>
-              </Row>
+
+              {has ? (
+                <Pressable
+                  testID="gossip-send"
+                  accessibilityRole="button"
+                  accessibilityLabel={`Send to ${who.partnerName}`}
+                  disabled={sending}
+                  onPress={send}
+                  style={({ pressed }) => ({
+                    minHeight: 54,
+                    borderRadius: 27,
+                    backgroundColor: c.text,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    opacity: sending ? 0.6 : 1,
+                    transform: [{ scale: pressed ? 0.98 : 1 }],
+                  })}>
+                  <Send color={c.bg} size={18} strokeWidth={2.4} />
+                  <T variant="bodyStrong" color={c.bg}>
+                    {sending ? 'Sending…' : `Tell ${who.partnerName}`}
+                  </T>
+                </Pressable>
+              ) : (
+                <Pressable testID="gossip-later" accessibilityRole="button" onPress={close} style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
+                  <T variant="bodyStrong" muted>
+                    Not now
+                  </T>
+                </Pressable>
+              )}
             </Pressable>
           </Animated.View>
         </Pressable>
