@@ -144,8 +144,8 @@ export function GossipPrompt() {
                 <X color={c.textMuted} size={17} strokeWidth={2.4} />
               </Pressable>
 
-              <View style={{ alignItems: 'center', gap: 6 }}>
-                <T variant="title" style={{ fontSize: 26, lineHeight: 31, textAlign: 'center' }}>
+              <View style={{ alignItems: 'center', gap: 6, paddingHorizontal: 28 }}>
+                <T variant="title" style={{ fontSize: 24, lineHeight: 29, textAlign: 'center' }}>
                   Any gossip today?
                 </T>
                 <T variant="body" muted style={{ textAlign: 'center' }}>
