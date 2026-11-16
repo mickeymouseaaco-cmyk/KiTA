@@ -1,11 +1,12 @@
 import { router } from 'expo-router';
-import { CalendarDays, ChevronRight, MapPin, Plane, Plus } from 'lucide-react-native';
+import { CalendarDays, ChevronRight, Plane, Plus, Sparkles } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
 
 import { FlightsCard } from '@/components/flights-card';
 import { Button, Card, EmptyState, Gap, Row, Screen, SectionTitle, T } from '@/components/ui';
 import { Widget, WidgetCaption, WidgetValue } from '@/components/widgets';
 import { WorldMap } from '@/components/world-map';
+import { bucketSummary } from '@/lib/bucket-pure';
 import { empty } from '@/lib/copy';
 import { dayKey, friendlyDate } from '@/lib/dates';
 import { usePaired } from '@/lib/session';
@@ -101,9 +102,9 @@ export default function Trip() {
           <SectionTitle right={<ChevronRight color={c.textMuted} size={20} />}>Our bucket list</SectionTitle>
           <WorldMap pins={pins.filter((p) => typeof p.lat === 'number').map((p) => ({ id: p.id, lat: p.lat!, lon: p.lon!, visited: p.visited, label: p.name }))} />
           <Row gap={space.sm} style={{ marginTop: space.sm }}>
-            <MapPin color={c.textMuted} size={14} />
+            <Sparkles color={c.textMuted} size={14} />
             <T variant="small" muted>
-              {pins.length ? `${pins.length} places dreamed of · ${pins.filter((p) => p.visited).length} visited` : 'Pin the places you dream of going together.'}
+              {bucketSummary(pins)}
             </T>
           </Row>
         </Card>

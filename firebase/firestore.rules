@@ -403,13 +403,14 @@ service cloud.firestore {
         }
       }
 
-      // ---- Shared bucket list map
+      // ---- Shared bucket list: things to do together (places are one kind).
       match /bucket/{pinId} {
         allow read: if isMember(cid);
         allow create: if isMember(cid)
           && incoming().addedBy == me()
-          && incoming().keys().hasOnly(['name', 'country', 'lat', 'lon', 'note', 'visited', 'addedBy', 'createdAt'])
-          && str(incoming().name, 120);
+          && incoming().keys().hasOnly(['name', 'kind', 'country', 'lat', 'lon', 'note', 'visited', 'addedBy', 'createdAt'])
+          && str(incoming().name, 120)
+          && (!('kind' in incoming()) || incoming().kind in ['do', 'go', 'eat', 'learn', 'watch']);
         allow update: if isMember(cid) && changed().hasOnly(['visited', 'note']);
         allow delete: if isMember(cid) && resource.data.addedBy == me();
       }
@@ -480,6 +481,28 @@ service cloud.firestore {
           && (incoming().forUid == 'both' || incoming().forUid in coupleDoc(cid).data.members)
           && (incoming().dueDate == null || (incoming().dueDate is string && incoming().dueDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
           && incoming().important is bool
+          && incoming().done is bool
+          && (!('doneBy' in changed()) || incoming().doneBy == me())
+          && (!('doneAt' in changed()) || incoming().doneAt == request.time);
+        allow delete: if isMember(cid);
+      }
+
+      // ---- Shared grocery list: one doc per item. Both add, tick and remove.
+      match /groceries/{itemId} {
+        allow read: if isMember(cid);
+        allow create: if isMember(cid)
+          && incoming().keys().hasOnly(['name', 'qty', 'aisle', 'done', 'addedBy', 'createdAt'])
+          && incoming().addedBy == me()
+          && str(incoming().name, 120)
+          && incoming().name.size() > 0
+          && (!('qty' in incoming()) || str(incoming().qty, 40))
+          && str(incoming().aisle, 40)
+          && incoming().done == false
+          && incoming().createdAt == request.time;
+        allow update: if isMember(cid)
+          && changed().hasOnly(['name', 'qty', 'done', 'doneBy', 'doneAt'])
+          && str(incoming().name, 120)
+          && incoming().name.size() > 0
           && incoming().done is bool
           && (!('doneBy' in changed()) || incoming().doneBy == me())
           && (!('doneAt' in changed()) || incoming().doneAt == request.time);

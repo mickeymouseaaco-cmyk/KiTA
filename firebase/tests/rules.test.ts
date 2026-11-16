@@ -746,6 +746,31 @@ describe('starred notes, shared to-dos and the weekend planner', () => {
     await assertSucceeds(deleteDoc(doc(db(B), `couples/${CID}/todos/t1`)));
   });
 
+  test('groceries: both add, tick and clear; ticks are signed; outsiders see nothing', async () => {
+    await seedCouple();
+    const g = doc(db(A), `couples/${CID}/groceries/g1`);
+    await assertSucceeds(setDoc(g, { name: 'Telur', qty: '1 tray', aisle: 'dairy', done: false, addedBy: A, createdAt: serverTimestamp() }));
+    await assertSucceeds(setDoc(doc(db(B), `couples/${CID}/groceries/g2`), { name: 'Bread', aisle: 'bakery', done: false, addedBy: B, createdAt: serverTimestamp() }));
+    // Not pre-ticked, not in someone else's name, no extra fields.
+    await assertFails(setDoc(doc(db(A), `couples/${CID}/groceries/g3`), { name: 'x', aisle: 'other', done: true, addedBy: A, createdAt: serverTimestamp() }));
+    await assertFails(setDoc(doc(db(A), `couples/${CID}/groceries/g4`), { name: 'x', aisle: 'other', done: false, addedBy: B, createdAt: serverTimestamp() }));
+    await assertFails(setDoc(doc(db(A), `couples/${CID}/groceries/g5`), { name: 'x', aisle: 'other', done: false, addedBy: A, price: 9, createdAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(doc(db(B), `couples/${CID}/groceries/g1`), { done: true, doneBy: B, doneAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(db(B), `couples/${CID}/groceries/g1`), { doneBy: A }));
+    await assertFails(updateDoc(doc(db(B), `couples/${CID}/groceries/g1`), { addedBy: B }));
+    await assertFails(getDoc(doc(db(EVE), `couples/${CID}/groceries/g1`)));
+    await assertSucceeds(deleteDoc(doc(db(B), `couples/${CID}/groceries/g1`)));
+  });
+
+  test('bucket list: things to do of a known kind; places can carry a map spot', async () => {
+    await seedCouple();
+    await assertSucceeds(setDoc(doc(db(A), `couples/${CID}/bucket/b1`), { name: 'Take a cooking class', kind: 'learn', visited: false, addedBy: A, createdAt: serverTimestamp() }));
+    await assertSucceeds(setDoc(doc(db(A), `couples/${CID}/bucket/b2`), { name: 'Kyoto', kind: 'go', lat: 35, lon: 135.7, visited: false, addedBy: A, createdAt: serverTimestamp() }));
+    await assertFails(setDoc(doc(db(A), `couples/${CID}/bucket/b3`), { name: 'x', kind: 'fly', visited: false, addedBy: A, createdAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(doc(db(B), `couples/${CID}/bucket/b1`), { visited: true }));
+    await assertFails(updateDoc(doc(db(B), `couples/${CID}/bucket/b1`), { kind: 'go' }));
+  });
+
   test('weekend plans: both add and remove, only in real slots; outsiders see nothing', async () => {
     await seedCouple();
     await assertSucceeds(
