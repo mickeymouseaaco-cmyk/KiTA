@@ -55,7 +55,7 @@ export default function BucketList() {
   const todo = shown.filter((p) => !p.visited);
   const done = shown.filter((p) => p.visited);
   const mapped = pins.filter((p) => kindOf(p) === 'go' && typeof p.lat === 'number' && typeof p.lon === 'number');
-  const ideas = freshIdeas(pins, filter, 4);
+  const ideas = freshIdeas(pins, kind, 4);
   const hint = BUCKET_KINDS.find((k) => k.id === kind)?.hint ?? '';
 
   const row = (p: BucketPin) => {
