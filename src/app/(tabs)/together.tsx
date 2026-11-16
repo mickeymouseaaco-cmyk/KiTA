@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { CalendarDays, CalendarHeart, CalendarRange, CloudRain, Dices, Gift, HandHeart, Hammer, Heart, HeartHandshake, ListTodo, MapPin, Mic, Plus, Sparkles, Wind } from 'lucide-react-native';
+import { CalendarDays, CalendarHeart, CalendarRange, CloudRain, Dices, Gift, HandHeart, Hammer, Heart, HeartHandshake, ListTodo, MapPin, Mic, Plus, ShoppingBasket, Sparkles, Wind } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
 
 import { MediaById } from '@/components/media-view';
@@ -17,7 +17,7 @@ import type { Memory } from '@/lib/types';
 import { space, useTheme } from '@/theme';
 
 type Tile = {
-  route: '/todos' | '/find' | '/weather' | '/weekend' | '/gratitude' | '/mood-calendar' | '/date-night' | '/milestones' | '/reset' | '/schedule-note' | '/bucket-list' | '/calm' | '/stress-smash';
+  route: '/todos' | '/groceries' | '/find' | '/weather' | '/weekend' | '/gratitude' | '/mood-calendar' | '/date-night' | '/milestones' | '/reset' | '/schedule-note' | '/bucket-list' | '/calm' | '/stress-smash';
   testID: string;
   icon: typeof ListTodo;
   title: string;
@@ -31,11 +31,12 @@ const GROUPS: { title: string; line: string; tiles: Tile[] }[] = [
     title: 'Plan',
     line: 'Things to do and look forward to',
     tiles: [
+      { route: '/groceries', testID: 'open-groceries', icon: ShoppingBasket, title: 'Groceries', detail: 'What to buy, shared', fill: 'green' },
       { route: '/todos', testID: 'open-todos-tile', icon: ListTodo, title: 'To-dos', detail: 'A shared, gentle list', fill: 'blue' },
       { route: '/weekend', testID: 'open-weekend', icon: CalendarRange, title: 'This weekend', detail: 'A simple plan for two', fill: 'orange' },
       { route: '/date-night', testID: 'open-date-night', icon: Dices, title: 'Date night', detail: 'Ideas for any budget', fill: 'pink' },
       { route: '/milestones', testID: 'open-milestones', icon: Heart, title: 'Special days', detail: 'With a nudge before each', fill: 'amber' },
-      { route: '/bucket-list', testID: 'open-bucket-tile', icon: MapPin, title: 'Bucket list', detail: 'Places to go one day', fill: 'teal' },
+      { route: '/bucket-list', testID: 'open-bucket-tile', icon: Sparkles, title: 'Bucket list', detail: 'Things to do together', fill: 'teal' },
       { route: '/schedule-note', testID: 'open-surprise', icon: Gift, title: 'Surprise note', detail: 'Hide one for later', fill: 'violet' },
     ],
   },

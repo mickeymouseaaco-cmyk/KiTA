@@ -637,6 +637,36 @@ async function main() {
   await afiq.locator(tid('offline-pill')).waitFor({ state: 'detached', timeout: 10000 });
   await aina.getByText(offlineNote).first().waitFor({ timeout: 20000 });
   log('Offline: pill shows, a note sends at once and arrives when back online');
+
+  // Groceries: shared live; "2kg beras" lands in the pantry with its amount.
+  await afiq.goto(BASE + '/groceries');
+  await afiq.locator(tid('grocery-input')).fill('2kg beras');
+  await afiq.locator(tid('grocery-add')).click();
+  await afiq.getByText('+ Telur').click();
+  await afiq.locator(tid('grocery-input')).fill('Bawang merah');
+  await afiq.locator(tid('grocery-add')).click();
+  await afiq.locator(tid('grocery-beras')).waitFor({ timeout: 10000 });
+  await afiq.getByText('2kg', { exact: false }).first().waitFor();
+  await aina.goto(BASE + '/groceries');
+  await aina.locator(tid('grocery-Telur')).click();
+  await afiq.getByText('In the trolley').waitFor({ timeout: 10000 });
+  await afiq.waitForTimeout(400);
+  await shot(afiq, '16-groceries');
+  log('Groceries: added by one, ticked by the other, sorted by aisle');
+
+  // Bucket list: things to do together, with ideas to tap.
+  await afiq.goto(BASE + '/bucket-list');
+  await afiq.locator(tid('bucket-kind-learn')).click();
+  await afiq.locator(tid('pin-input')).fill('A pottery class');
+  await afiq.locator(tid('pin-add')).click();
+  await afiq.locator(tid('pin-A pottery class')).waitFor({ timeout: 10000 });
+  await afiq.getByText('+ Watch the sunrise together').click();
+  await afiq.locator(tid('pin-Watch the sunrise together')).waitFor({ timeout: 10000 });
+  await afiq.locator(tid('pin-Watch the sunrise together')).click();
+  await afiq.getByText('Done together').waitFor({ timeout: 10000 });
+  await afiq.waitForTimeout(400);
+  await shot(afiq, '17-bucket-things-to-do');
+  log('Bucket list: things to do together, ideas, and done together');
   for (const [path, name, id] of [
     ['/together', '15-glass-together', null],
     ['/trip', '15-glass-trips', null],

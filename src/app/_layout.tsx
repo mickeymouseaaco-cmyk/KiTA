@@ -114,6 +114,7 @@ function Navigator() {
         <Stack.Screen name="trip/[id]" options={{ title: 'Trip' }} />
         <Stack.Screen name="trip/slideshow" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
         <Stack.Screen name="bucket-list" options={{ title: 'Our bucket list' }} />
+        <Stack.Screen name="groceries" options={{ title: 'Groceries' }} />
         <Stack.Screen name="date-night" options={{ title: 'Date night ideas' }} />
         <Stack.Screen name="milestones" options={{ title: 'Milestones' }} />
         <Stack.Screen name="todos" options={{ title: 'Our to-dos' }} />

@@ -18,6 +18,8 @@ import { cleanErrorReport, scrub } from '../src/lib/errors-pure';
 import { cleanPlace, defaultPlace, localHour, parseCities, placeForecastUrl, rainAmount, speed, temp, timeOfDayAt, todFor, unitsFor } from '../src/lib/place-pure';
 import { mapsUrl, parseTime, sortStops, stopsByDay, timeLabel } from '../src/lib/itinerary-pure';
 import { showTimeFlags } from '../src/lib/note-groups';
+import { aisleFor, groupForShop, splitQty } from '../src/lib/groceries-pure';
+import { bucketSummary, freshIdeas, kindOf } from '../src/lib/bucket-pure';
 import { gentleAlert, isHighSteps, suggestionsFor } from '../src/lib/suggestions';
 import { DEFAULT_SHARE, type DailyLog } from '../src/lib/types';
 import { dayKeyIn, hashStepsToken, newStepsToken, parseSteps, syncDay } from '../functions/src/steps-pure';
@@ -872,4 +874,44 @@ test('status: last 24 hours only, oldest first; unseen counts and where to start
   assert.equal(statusAge(now - 30_000, now), 'just now');
   assert.equal(statusAge(now - 25 * 60_000, now), '25m ago');
   assert.equal(statusAge(now - 3 * 3600_000, now), '3h ago');
+});
+
+test('groceries: items land in the right aisle, in English and Malay', () => {
+  assert.equal(aisleFor('Telur'), 'dairy');
+  assert.equal(aisleFor('2kg beras'), 'pantry');
+  assert.equal(aisleFor('Watermelon'), 'produce'); // not "water"
+  assert.equal(aisleFor('Coconut milk'), 'pantry'); // not dairy
+  assert.equal(aisleFor('Frozen chicken nuggets'), 'frozen');
+  assert.equal(aisleFor('Strawberries'), 'produce');
+  assert.equal(aisleFor('ikan bilis'), 'meat');
+  assert.equal(aisleFor('tisu'), 'household');
+  assert.equal(aisleFor('cotton buds'), 'other'); // "tin" isn't a word in it
+});
+
+test('groceries: quantities come off the front or back of what you type', () => {
+  assert.deepEqual(splitQty('2kg beras'), { name: 'beras', qty: '2kg' });
+  assert.deepEqual(splitQty('Milk x2'), { name: 'Milk', qty: 'x2' });
+  assert.deepEqual(splitQty('1 tray telur'), { name: 'telur', qty: '1 tray' });
+  assert.deepEqual(splitQty('  Roti   2 bungkus '), { name: 'Roti', qty: '2 bungkus' });
+  assert.deepEqual(splitQty('Eggs'), { name: 'Eggs' });
+});
+
+test('groceries: shop order, ticked items at the end', () => {
+  const g = groupForShop([
+    { id: '1', name: 'Tisu', aisle: 'household', done: false, addedBy: 'a' },
+    { id: '2', name: 'Bawang', aisle: 'produce', done: false, addedBy: 'a' },
+    { id: '3', name: 'Susu', aisle: 'dairy', done: true, addedBy: 'b' },
+  ]);
+  assert.deepEqual(g.toBuy.map((x) => x.aisle), ['produce', 'household']);
+  assert.deepEqual(g.inTrolley.map((x) => x.name), ['Susu']);
+});
+
+test('bucket list: kinds, ideas not already added, and a summary', () => {
+  assert.equal(kindOf({}), 'go'); // older map pins are places
+  assert.equal(kindOf({ kind: 'learn' }), 'learn');
+  assert.equal(kindOf({ kind: 'nonsense' }), 'go');
+  const ideas = freshIdeas([{ name: 'watch the sunrise together' }], 'do');
+  assert.ok(ideas.length > 0 && ideas.every((i) => i.kind === 'do'));
+  assert.ok(!ideas.some((i) => i.text === 'Watch the sunrise together'));
+  assert.equal(bucketSummary([{ visited: true }, { visited: false }, { visited: false }]), '2 to do · 1 done together');
 });

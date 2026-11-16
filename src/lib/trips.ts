@@ -71,6 +71,8 @@ export type StopInput = { day: string; time: string | null; title: string; place
 export type BucketPin = {
   id: string;
   name: string;
+  /** do / go / eat / learn / watch (see bucket-pure); missing on older items, which were places. */
+  kind?: string;
   country?: string;
   lat?: number;
   lon?: number;
@@ -247,9 +249,10 @@ export async function removeEntry(cid: string, tripId: string, entryId: string) 
   await deleteDoc(doc(db, 'couples', cid, 'trips', tripId, 'entries', entryId));
 }
 
-export async function addPin(cid: string, uid: string, pin: { name: string; country?: string; lat?: number; lon?: number }) {
+export async function addPin(cid: string, uid: string, pin: { name: string; kind?: string; country?: string; lat?: number; lon?: number }) {
   const ref = doc(collection(db, 'couples', cid, 'bucket'));
   const data: Record<string, unknown> = { name: pin.name.trim(), visited: false, addedBy: uid, createdAt: serverTimestamp() };
+  if (pin.kind) data.kind = pin.kind;
   if (pin.country) data.country = pin.country;
   if (typeof pin.lat === 'number' && typeof pin.lon === 'number') {
     data.lat = pin.lat;
