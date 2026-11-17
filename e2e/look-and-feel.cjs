@@ -664,6 +664,7 @@ async function main() {
   await afiq.locator(tid('pin-input')).fill('A pottery class');
   await afiq.locator(tid('pin-add')).click();
   await afiq.locator(tid('pin-A pottery class')).waitFor({ timeout: 10000 });
+  await afiq.locator(tid('bucket-kind-do')).click(); // ideas follow the kind you pick
   await afiq.getByText('+ Watch the sunrise together').click();
   await afiq.locator(tid('pin-Watch the sunrise together')).waitFor({ timeout: 10000 });
   await afiq.locator(tid('pin-Watch the sunrise together')).click();
