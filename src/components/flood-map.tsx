@@ -28,7 +28,8 @@ export function FloodMapCard() {
   const { c } = useTheme();
   const [loaded, setLoaded] = useState(false);
   return (
-    <Card testID="flood-map">
+    <Card>
+      <View testID="flood-map" />
       <Row gap={8}>
         <MapIcon color={c.primary} size={18} />
         <T variant="bodyStrong" style={{ flex: 1 }}>
