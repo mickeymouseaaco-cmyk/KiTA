@@ -393,6 +393,10 @@ async function main() {
   assert.notEqual(await afiq.locator(tid('sky-line')).innerText(), firstLine, 'tapping gives another line');
   assert.ok((await afiq.locator(tid('couple-tip')).count()) >= 1, 'ideas for the two of you');
   assert.equal(await afiq.locator(tid('week-day')).count(), 7);
+  // MBSA iLensa live flood map, inside the weather page.
+  await afiq.locator(tid('flood-map')).scrollIntoViewIfNeeded();
+  await afiq.waitForTimeout(3000);
+  await shot(afiq, '18-flood-map');
   await shot(afiq, '05-weather-top');
   await shot(afiq, '05b-weather-full', true);
   await afiq.getByRole('button', { name: /Thunderstorms/ }).first().click();

@@ -30,6 +30,7 @@ import { Animated, Easing, Linking, Platform, Pressable, View } from 'react-nati
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { useFeedback } from '@/components/feedback';
+import { FloodMapCard } from '@/components/flood-map';
 import { PlacePicker } from '@/components/place-picker';
 import { Button, Card, Gap, Row, Screen, SectionTitle, SkeletonPage, T } from '@/components/ui';
 import { LiveSky } from '@/components/live-sky';
@@ -362,6 +363,13 @@ export default function Weather() {
       </Card>
       ) : null}
       {isArea ? <Gap /> : null}
+      {/* The council's own live flood map, for a closer look. */}
+      {isArea ? (
+        <>
+          <FloodMapCard />
+          <Gap />
+        </>
+      ) : null}
 
       {tips.length ? (
         <>
